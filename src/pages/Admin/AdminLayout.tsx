@@ -138,21 +138,21 @@ export default function AdminLayout({ activeTab, onTabChange, onLogout, children
 
   return (
     <div className="min-h-screen flex bg-dark/85 relative z-10">
-      <aside className="hidden lg:flex flex-col w-56 glass border-r border-white/8 shrink-0 fixed inset-y-0 left-0">
+      <aside className="admin-sidebar hidden lg:flex flex-col w-56 glass border-r border-white/8 shrink-0 fixed inset-y-0 left-0">
         <SidebarContent />
       </aside>
 
       {sidebarOpen && (
         <div className="fixed inset-0 z-50 lg:hidden">
           <div className="absolute inset-0 bg-dark/80 backdrop-blur-sm" onClick={() => setSidebarOpen(false)} />
-          <aside className="absolute left-0 top-0 bottom-0 w-56 glass border-r border-white/8 z-10">
+          <aside className="admin-sidebar absolute left-0 top-0 bottom-0 w-56 glass border-r border-white/8 z-10">
             <SidebarContent />
           </aside>
         </div>
       )}
 
       <div className="flex-1 min-w-0 lg:ml-56 flex flex-col min-h-screen">
-        <header className="sticky top-0 z-30 glass border-b border-white/8 px-4 sm:px-6 py-3 flex items-center justify-between">
+        <header className="admin-topbar sticky top-0 z-30 glass border-b border-white/8 px-4 sm:px-6 py-3 flex items-center justify-between">
           <div className="flex items-center gap-3">
             <button
               onClick={() => setSidebarOpen(true)}

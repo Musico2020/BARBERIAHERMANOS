@@ -12,13 +12,13 @@ html[data-theme='light'] {
 }
 
 html[data-theme='light'] body {
-  background-color: #F5F0E6;
+  background-color: #FBF4E4;
   color: #18181b;
 }
 html[data-theme='light'] ::selection { color: #18181b; }
 
 /* Fondo «club»: papel marfil con raya fina */
-html[data-theme='light'] .club-bg { background-color: #F5F0E6; }
+html[data-theme='light'] .club-bg { background-color: #FBF4E4; }
 html[data-theme='light'] .club-bg__pinstripe {
   background-image: repeating-linear-gradient(90deg, rgba(140, 106, 42, 0.07) 0 1px, transparent 1px 34px);
 }
@@ -29,7 +29,7 @@ html[data-theme='light'] .club-bg__dust { background: #B58C3C; box-shadow: none;
 html[data-theme='light'] .club-bg__vignette { background: radial-gradient(ellipse 85% 75% at 50% 40%, transparent 50%, rgba(140, 106, 42, 0.12) 100%); }
 
 /* ---- Fondos oscuros fijos → claros ---- */
-html[data-theme='light'] :is([class^='bg-dark'], [class*=' bg-dark']):not(.keep-dark, .keep-dark *) { background-color: #F5F0E6; }
+html[data-theme='light'] :is([class^='bg-dark'], [class*=' bg-dark']):not(.keep-dark, .keep-dark *) { background-color: #FBF4E4; }
 html[data-theme='light'] :is([class*='bg-[#0'], [class*='bg-[#1']):not(.keep-dark, .keep-dark *) { background-color: #ffffff; }
 html[data-theme='light'] :is([class^='bg-white/'], [class*=' bg-white/']):not(.keep-dark, .keep-dark *) { background-color: rgba(24, 24, 27, 0.035); }
 html[data-theme='light'] [class*='hover:bg-white/']:not(.keep-dark, .keep-dark *):hover { background-color: rgba(24, 24, 27, 0.06); }
@@ -84,7 +84,7 @@ html[data-theme='light'] .btn-dark-glass:hover { background: #fffaf0; color: #00
 html[data-theme='light'] .btn-danger-glass { color: #be123c; }
 
 /* Portada: el degradado oscuro se vuelve dorado suave */
-html[data-theme='light'] #inicio { background: radial-gradient(ellipse at 30% 50%, rgba(217, 173, 80, 0.18) 0%, rgba(245, 240, 230, 0.4) 60%, rgba(245, 240, 230, 0.7) 100%) !important; }
+html[data-theme='light'] #inicio { background: radial-gradient(ellipse at 30% 50%, rgba(217, 173, 80, 0.18) 0%, rgba(251, 244, 228, 0.4) 60%, rgba(251, 244, 228, 0.7) 100%) !important; }
 
 /* Mapa: sin el filtro que lo oscurece */
 html[data-theme='light'] .sh-map .leaflet-tile-pane { filter: saturate(0.8); }
@@ -103,14 +103,14 @@ html[data-theme='light'] :is([class^='bg-black/'], [class*=' bg-black/']):not([c
 
 /* Degradados que terminan en negro (bordes de secciones, portada) */
 html[data-theme='light'] :is([class*='from-dark'], [class*='from-black'], [class*='from-[#0'], [class*='from-[#1']):not(.keep-dark, .keep-dark *) {
-  --tw-gradient-from: rgba(245, 240, 230, 0.92) var(--tw-gradient-from-position);
-  --tw-gradient-to: rgba(245, 240, 230, 0) var(--tw-gradient-to-position);
+  --tw-gradient-from: rgba(251, 244, 228, 0.92) var(--tw-gradient-from-position);
+  --tw-gradient-to: rgba(251, 244, 228, 0) var(--tw-gradient-to-position);
 }
 html[data-theme='light'] :is([class*='via-dark'], [class*='via-black']):not(.keep-dark, .keep-dark *) {
-  --tw-gradient-stops: var(--tw-gradient-from), rgba(245, 240, 230, 0.5) var(--tw-gradient-via-position), var(--tw-gradient-to);
+  --tw-gradient-stops: var(--tw-gradient-from), rgba(251, 244, 228, 0.5) var(--tw-gradient-via-position), var(--tw-gradient-to);
 }
 html[data-theme='light'] :is([class*='to-dark'], [class*='to-black']):not(.keep-dark, .keep-dark *) {
-  --tw-gradient-to: rgba(245, 240, 230, 0.92) var(--tw-gradient-to-position);
+  --tw-gradient-to: rgba(251, 244, 228, 0.92) var(--tw-gradient-to-position);
 }
 
 /* Botón con borde dorado («Ver servicios», «Ver disponibilidad»): dorado más oscuro para que se lea */
@@ -122,3 +122,40 @@ html[data-theme='light'] :is([class^='text-ivory-muted'], [class*=' text-ivory-m
 html[data-theme='light'] .brand-kicker, html[data-theme='light'] .brand-title { color: #18181b; }
 html[data-theme='light'] .brand-ribbon, html[data-theme='light'] .brand-ribbon::before, html[data-theme='light'] .brand-ribbon::after { background: #111111; }
 html[data-theme='light'] .frame-gold:not(.keep-dark, .keep-dark *) { background: #ffffff; }
+
+/* ---------------------------------------------------------------------------
+   Tema claro «dorado champaña» (del dorado del logo): fondo champaña, menú dorado claro,
+   tarjetas blancas con filete dorado y texto negro carbón.
+   --------------------------------------------------------------------------- */
+html[data-theme='light'] .table-card:not(.keep-dark, .keep-dark *) {
+  border-color: rgba(181, 140, 60, 0.28);
+  box-shadow: 0 14px 34px -22px rgba(107, 80, 31, 0.35);
+}
+html[data-theme='light'] .table-th { background: #FBF4E4; color: #6B501F; border-bottom-color: rgba(181, 140, 60, 0.22); }
+html[data-theme='light'] .table-row-hover:hover { background-color: rgba(217, 173, 80, 0.10); }
+
+/* Panel: menú lateral dorado claro y barra superior champaña */
+html[data-theme='light'] aside.admin-sidebar.glass {
+  background: linear-gradient(180deg, #F6E3B8 0%, #F1DCA8 100%);
+  border-color: rgba(181, 140, 60, 0.35);
+}
+html[data-theme='light'] .admin-sidebar :is([class*='text-zinc-400'], [class*='text-zinc-500'], [class*='text-zinc-600']) { color: #5C4419; }
+html[data-theme='light'] .admin-sidebar [class*='hover:bg-white/']:hover { background-color: rgba(255, 255, 255, 0.45); }
+html[data-theme='light'] header.admin-topbar.glass { background: rgba(251, 244, 228, 0.92); border-color: rgba(181, 140, 60, 0.25); }
+
+/* Tarjetas de la marca */
+html[data-theme='light'] :is(.chair-card, .frame-gold):not(.keep-dark, .keep-dark *) {
+  background: #FFFFFF;
+  border-color: rgba(181, 140, 60, 0.32);
+  box-shadow: 0 16px 36px -24px rgba(107, 80, 31, 0.4);
+}
+html[data-theme='light'] .frame-gold::before { border-color: rgba(181, 140, 60, 0.12); }
+
+/* Portada: sin la sombra negra pesada en el titular */
+html[data-theme='light'] .brand-title { text-shadow: none; }
+html[data-theme='light'] #inicio :is(.brand-title, .font-script) { filter: none; }
+html[data-theme='light'] #inicio .brand-title { color: #111111; }
+
+/* Botones oscuros translúcidos → blancos con filete dorado */
+html[data-theme='light'] .btn-dark-glass { border-color: rgba(181, 140, 60, 0.35); }
+html[data-theme='light'] .btn-dark-glass:hover { background: #FBF4E4; border-color: rgba(181, 140, 60, 0.6); }

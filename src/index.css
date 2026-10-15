@@ -766,6 +766,13 @@
   pointer-events: none;
 }
 
+/* Tarjeta de cada silla en «La jornada de hoy» (dashboard) */
+.chair-card {
+  background: linear-gradient(180deg, rgba(30, 27, 22, 0.95) 0%, rgba(17, 17, 17, 0.97) 100%);
+  border: 1px solid rgba(217, 173, 80, 0.28);
+  box-shadow: 0 18px 40px -22px rgba(0, 0, 0, 0.7), inset 0 1px 0 rgba(241, 220, 168, 0.06);
+}
+
 /* Vibración del PIN incorrecto en el portal del barbero */
 @keyframes shake {
   0%, 100% { transform: translateX(0); }

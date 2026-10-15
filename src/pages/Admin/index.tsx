@@ -47,7 +47,7 @@ export default function AdminPage() {
 
   const renderContent = () => {
     switch (activeTab) {
-      case 'dashboard': return <AdminDashboard />;
+      case 'dashboard': return <AdminDashboard onNavigate={setActiveTab} />;
       case 'calendar': return <AdminCalendar />;
       case 'bookings': return <AdminBookings />;
       case 'messages': return <AdminMessages />;
@@ -58,7 +58,7 @@ export default function AdminPage() {
       case 'clients': return <AdminClients />;
       case 'reports': return <AdminReports />;
       case 'settings': return <AdminSettings />;
-      default: return <AdminDashboard />;
+      default: return <AdminDashboard onNavigate={setActiveTab} />;
     }
   };
 

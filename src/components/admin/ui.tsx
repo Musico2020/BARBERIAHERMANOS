@@ -20,7 +20,7 @@ export function Panel({
       {(title || action) && (
         <header className="flex flex-wrap items-start justify-between gap-3 px-5 sm:px-6 pt-5 sm:pt-6">
           <div className="min-w-0">
-            {title && <h3 className="font-semibold text-white text-[15px] leading-tight">{title}</h3>}
+            {title && <h3 className="font-serif font-bold text-white text-base leading-tight">{title}</h3>}
             {subtitle && <p className="text-zinc-500 text-xs mt-1">{subtitle}</p>}
           </div>
           {action}
@@ -79,7 +79,7 @@ export function KpiCard({
         {trend}
       </div>
       <p className="text-zinc-400 text-xs font-medium mt-4">{label}</p>
-      <p className="font-mono text-xl sm:text-2xl font-bold text-white tracking-tight mt-1 truncate">{value}</p>
+      <p className="font-serif text-xl sm:text-2xl font-extrabold text-white mt-1 truncate">{value}</p>
       {sub && <p className="text-zinc-500 text-[11px] mt-1 truncate">{sub}</p>}
       {children && <div className="mt-3 -mx-1">{children}</div>}
     </div>
