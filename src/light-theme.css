@@ -15,15 +15,18 @@ html[data-theme='light'] body {
   background-color: #F5F0E6;
   color: #18181b;
 }
-html[data-theme='light'] body::before { opacity: 0.05; filter: invert(1); }
-html[data-theme='light'] body::after {
-  background: radial-gradient(ellipse 90% 70% at 50% 30%, rgba(245, 240, 230, 0.15) 0%, rgba(245, 240, 230, 0.85) 100%);
-}
 html[data-theme='light'] ::selection { color: #18181b; }
 
-/* Fondo animado de herramientas */
-html[data-theme='light'] .barber-bg { background-color: #F5F0E6 !important; }
-html[data-theme='light'] .barber-bg__tool { color: #B58C3C; }
+/* Fondo «club»: papel marfil con raya fina */
+html[data-theme='light'] .club-bg { background-color: #F5F0E6; }
+html[data-theme='light'] .club-bg__pinstripe {
+  background-image: repeating-linear-gradient(90deg, rgba(140, 106, 42, 0.07) 0 1px, transparent 1px 34px);
+}
+html[data-theme='light'] .club-bg__glow--a { background: radial-gradient(circle, rgba(217, 173, 80, 0.22) 0%, transparent 65%); }
+html[data-theme='light'] .club-bg__glow--b { background: radial-gradient(circle, rgba(181, 140, 60, 0.14) 0%, transparent 65%); }
+html[data-theme='light'] .club-bg__sheen { mix-blend-mode: normal; opacity: 0.6; }
+html[data-theme='light'] .club-bg__dust { background: #B58C3C; box-shadow: none; }
+html[data-theme='light'] .club-bg__vignette { background: radial-gradient(ellipse 85% 75% at 50% 40%, transparent 50%, rgba(140, 106, 42, 0.12) 100%); }
 
 /* ---- Fondos oscuros fijos → claros ---- */
 html[data-theme='light'] :is([class^='bg-dark'], [class*=' bg-dark']):not(.keep-dark, .keep-dark *) { background-color: #F5F0E6; }

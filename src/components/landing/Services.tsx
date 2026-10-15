@@ -44,7 +44,7 @@ function PriceRow({ service, onBooking }: { service: Service; onBooking: (servic
           <span className="font-serif font-extrabold text-lg sm:text-xl text-gold whitespace-nowrap">{formatCOP(service.price)}</span>
         </span>
         <span className="mt-1 flex items-center gap-3 text-xs text-zinc-500">
-          <span className="inline-flex items-center gap-1"><Clock size={11} />{service.duration} min</span>
+          <span className="inline-flex items-center gap-1 shrink-0 whitespace-nowrap"><Clock size={11} />{service.duration} min</span>
           {service.description && <span className="line-clamp-1">{service.description}</span>}
           <span className="ml-auto inline-flex items-center gap-0.5 font-semibold text-gold opacity-0 group-hover:opacity-100 group-focus-visible:opacity-100 transition-opacity">
             Reservar <ChevronRight size={12} />

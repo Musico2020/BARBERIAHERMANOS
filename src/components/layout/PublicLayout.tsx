@@ -1,7 +1,7 @@
 import { useState, type ReactNode } from 'react';
 import Navbar from './Navbar';
 import Footer from './Footer';
-import AnimatedBarberBackground from './AnimatedBarberBackground';
+import ClubBackground from './ClubBackground';
 import WhatsAppChat from './WhatsAppChat';
 import SocialFloat from './SocialFloat';
 import BookingModal from '../booking/BookingModal';
@@ -25,7 +25,7 @@ export default function PublicLayout({ children }: Props) {
   return (
     <div className="min-h-screen bg-dark relative">
       <div className="grain-overlay" />
-      <AnimatedBarberBackground />
+      <ClubBackground />
 
       <Navbar onBooking={() => openBooking()} />
 

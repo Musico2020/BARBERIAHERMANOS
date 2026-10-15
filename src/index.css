@@ -25,27 +25,6 @@
     position: relative;
   }
 
-  /* Marca de agua de herramientas de barbería: sutil y no fatiga la vista */
-  body::before {
-    content: '';
-    position: fixed;
-    inset: 0;
-    pointer-events: none;
-    z-index: 0;
-    opacity: 0.038;
-    background-image: url('/barber-pattern.svg');
-    background-size: 260px 260px;
-    background-repeat: repeat;
-  }
-
-  body::after {
-    content: '';
-    position: fixed;
-    inset: 0;
-    pointer-events: none;
-    z-index: 0;
-    background: radial-gradient(ellipse 90% 70% at 50% 30%, rgba(17, 17, 17, 0.2) 0%, rgba(17, 17, 17, 0.9) 100%);
-  }
 
   ::-webkit-scrollbar {
     width: 5px;
@@ -573,26 +552,81 @@
   }
 }
 
-/* Fondo animado de herramientas de barbería (AnimatedBarberBackground) */
-.barber-bg__tool {
-  opacity: 0.12;
-  transform: rotate(var(--tool-rotate, 0deg));
-  animation-name: barber-tool-float;
-  animation-timing-function: ease-in-out;
-  animation-iteration-count: infinite;
-  will-change: transform, opacity;
+
+/* Fondo «club de caballeros» (ClubBackground): paño negro carbón con raya diplomática dorada,
+   foco de luz cálida arriba y penumbra en los bordes */
+.club-bg { background-color: #0E0E0E; }
+.club-bg__pinstripe {
+  background-image:
+    repeating-linear-gradient(90deg, rgba(217, 173, 80, 0.055) 0 1px, transparent 1px 34px),
+    repeating-linear-gradient(90deg, transparent 0 17px, rgba(245, 240, 230, 0.018) 17px 18px, transparent 18px 34px);
+}
+.club-bg__vignette {
+  background: radial-gradient(ellipse 85% 75% at 50% 40%, transparent 35%, rgba(5, 5, 5, 0.85) 100%);
 }
 
-@keyframes barber-tool-float {
-  0%   { transform: translate(0, 0) rotate(var(--tool-rotate, 0deg)); opacity: 0.1; }
-  25%  { transform: translate(18px, -26px) rotate(calc(var(--tool-rotate, 0deg) + 8deg)); opacity: 0.17; }
-  50%  { transform: translate(-10px, -48px) rotate(calc(var(--tool-rotate, 0deg) - 6deg)); opacity: 0.13; }
-  75%  { transform: translate(-22px, -18px) rotate(calc(var(--tool-rotate, 0deg) + 4deg)); opacity: 0.18; }
-  100% { transform: translate(0, 0) rotate(var(--tool-rotate, 0deg)); opacity: 0.1; }
+/* Focos de luz cálida que se desplazan despacio */
+.club-bg__glow {
+  position: absolute;
+  width: 70vmax;
+  height: 70vmax;
+  border-radius: 50%;
+  filter: blur(40px);
+  will-change: transform;
+}
+.club-bg__glow--a {
+  top: -35vmax; left: -15vmax;
+  background: radial-gradient(circle, rgba(217, 173, 80, 0.20) 0%, rgba(217, 173, 80, 0.05) 40%, transparent 68%);
+  animation: club-glow-a 26s ease-in-out infinite alternate;
+}
+.club-bg__glow--b {
+  bottom: -40vmax; right: -20vmax;
+  background: radial-gradient(circle, rgba(181, 140, 60, 0.16) 0%, rgba(215, 25, 32, 0.035) 45%, transparent 68%);
+  animation: club-glow-b 32s ease-in-out infinite alternate;
+}
+@keyframes club-glow-a {
+  from { transform: translate(0, 0) scale(1); }
+  to { transform: translate(38vw, 22vh) scale(1.15); }
+}
+@keyframes club-glow-b {
+  from { transform: translate(0, 0) scale(1.1); }
+  to { transform: translate(-34vw, -18vh) scale(0.95); }
+}
+
+/* Brillo que recorre las rayas del paño */
+.club-bg__sheen {
+  background: linear-gradient(105deg, transparent 40%, rgba(241, 220, 168, 0.06) 48%, rgba(241, 220, 168, 0.11) 50%, rgba(241, 220, 168, 0.06) 52%, transparent 60%);
+  background-size: 250% 100%;
+  animation: club-sheen 14s ease-in-out infinite;
+  mix-blend-mode: screen;
+}
+@keyframes club-sheen {
+  0% { background-position: 130% 0; }
+  60%, 100% { background-position: -30% 0; }
+}
+
+/* Polvo dorado que sube */
+.club-bg__dust {
+  position: absolute;
+  bottom: -10px;
+  border-radius: 50%;
+  background: #E6C27A;
+  box-shadow: 0 0 6px rgba(230, 194, 122, 0.8);
+  opacity: 0;
+  animation-name: club-dust;
+  animation-timing-function: linear;
+  animation-iteration-count: infinite;
+}
+@keyframes club-dust {
+  0% { transform: translate(0, 0); opacity: 0; }
+  12% { opacity: 0.55; }
+  80% { opacity: 0.3; }
+  100% { transform: translate(var(--dust-drift, 0px), -105vh); opacity: 0; }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .barber-bg__tool { animation: none; opacity: 0.12; }
+  .club-bg__glow, .club-bg__sheen { animation: none; }
+  .club-bg__dust { display: none; }
 }
 
 /* Mapa de ubicación (BarberMap) */

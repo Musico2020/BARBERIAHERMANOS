@@ -1,6 +1,6 @@
 import type { ReactNode } from 'react';
 import { ShieldCheck, ArrowLeft } from 'lucide-react';
-import AnimatedBarberBackground from './AnimatedBarberBackground';
+import ClubBackground from './ClubBackground';
 import { ClipperIcon } from '../common/BarberIcons';
 import { businessConfig } from '../../config/business';
 import ThemeToggle from '../common/ThemeToggle';
@@ -24,7 +24,7 @@ const ROLES: { id: Role; label: string; href: string; icon: React.ElementType }[
 export default function AuthLayout({ role, title, subtitle, children }: Props) {
   return (
     <div className="min-h-screen relative bg-dark overflow-hidden">
-      <AnimatedBarberBackground />
+      <ClubBackground />
 
       {/* Resplandor dorado detrás del logo */}
       <div aria-hidden className="pointer-events-none absolute left-1/2 top-[18%] -translate-x-1/2 -translate-y-1/2 w-[520px] h-[520px] rounded-full bg-gold/10 blur-[120px]" />
