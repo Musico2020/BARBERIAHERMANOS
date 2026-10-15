@@ -1,0 +1,45 @@
+import type { BusinessConfig } from '../types';
+
+// Datos de Salón Hermanos. Los que tienen «PENDIENTE» son provisionales: se cambian en
+// Panel → Configuración (se guardan en la base de datos y reemplazan estos valores).
+export const businessConfig: BusinessConfig = {
+  name: 'Salón Hermanos',
+  tagline: 'Barbería tradicional · Club de Caballeros',
+  address: 'Barrio Tobías Daza, Mz B casa 16, segunda etapa, Valledupar',
+  // PENDIENTE: número de WhatsApp del negocio (con 57 adelante, sin espacios)
+  phone: '',
+  whatsapp: '',
+  email: '',
+  instagram: '',
+  tiktok: '',
+  facebook: '',
+  city: 'Valledupar',
+  country: 'Colombia',
+  primaryColor: '#D9AD50',
+  accentColor: '#D71920',
+  // Mapa: sin coordenadas exactas se busca la dirección en Google Maps.
+  // Cuando se tenga el punto exacto del local: location: { lat: 10.4..., lng: -73.2... }
+  mapEmbedUrl: '',
+  location: null,
+  // PENDIENTE: confirmar el horario real con la barbería
+  hours: [
+    { day: 'Lunes', open: '08:00', close: '19:00', closed: false },
+    { day: 'Martes', open: '08:00', close: '19:00', closed: false },
+    { day: 'Miércoles', open: '08:00', close: '19:00', closed: false },
+    { day: 'Jueves', open: '08:00', close: '19:00', closed: false },
+    { day: 'Viernes', open: '08:00', close: '19:00', closed: false },
+    { day: 'Sábado', open: '08:00', close: '19:00', closed: false },
+    { day: 'Domingo', open: '09:00', close: '13:00', closed: false },
+  ],
+  // Los festivos de Colombia se detectan solos (src/lib/holidays.ts) y usan este horario, de corrido
+  holidayHours: { day: 'Festivos', open: '09:00', close: '13:00', closed: false },
+  // «El primero que esté libre» al reservar (se apaga en Panel → Configuración → Reglas)
+  allowAnyBarber: true,
+  // Almuerzo: no se reciben reservas por la web en ese rango, salvo domingos y festivos
+  lunch: { enabled: true, start: '12:00', end: '13:00' },
+  // Reglas de reserva (se cambian en Panel → Configuración → Reglas)
+  slotStep: 30,
+  daysAhead: 14,
+  // Fechas puntuales que cambian el horario ('closed' o 'walk-in'); se editan en el panel
+  specialDays: [],
+};

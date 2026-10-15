@@ -1,0 +1,740 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  * {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+  }
+
+  html {
+    scroll-behavior: smooth;
+    -webkit-text-size-adjust: 100%;
+  }
+
+  body {
+    background-color: #111111;
+    color: #F5F0E6;
+    font-family: 'Montserrat', system-ui, sans-serif;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    overflow-x: hidden;
+    line-height: 1.6;
+    position: relative;
+  }
+
+  /* Marca de agua de herramientas de barbería: sutil y no fatiga la vista */
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    pointer-events: none;
+    z-index: 0;
+    opacity: 0.038;
+    background-image: url('/barber-pattern.svg');
+    background-size: 260px 260px;
+    background-repeat: repeat;
+  }
+
+  body::after {
+    content: '';
+    position: fixed;
+    inset: 0;
+    pointer-events: none;
+    z-index: 0;
+    background: radial-gradient(ellipse 90% 70% at 50% 30%, rgba(17, 17, 17, 0.2) 0%, rgba(17, 17, 17, 0.9) 100%);
+  }
+
+  ::-webkit-scrollbar {
+    width: 5px;
+    height: 5px;
+  }
+
+  ::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  ::-webkit-scrollbar-thumb {
+    background: rgba(217, 173, 80, 0.35);
+    border-radius: 10px;
+  }
+
+  ::-webkit-scrollbar-thumb:hover {
+    background: rgba(217, 173, 80, 0.6);
+  }
+
+  ::selection {
+    background: rgba(217, 173, 80, 0.2);
+    color: #fff;
+  }
+}
+
+@layer components {
+  .glass {
+    background: rgba(255, 255, 255, 0.035);
+    backdrop-filter: blur(24px);
+    -webkit-backdrop-filter: blur(24px);
+  }
+
+  .glass-gold {
+    background: rgba(217, 173, 80, 0.05);
+    backdrop-filter: blur(24px);
+    -webkit-backdrop-filter: blur(24px);
+    border: 1px solid rgba(217, 173, 80, 0.18);
+  }
+
+  .glass-dark {
+    background: rgba(0, 0, 0, 0.45);
+    backdrop-filter: blur(24px);
+    -webkit-backdrop-filter: blur(24px);
+  }
+
+  .gold-text {
+    background: linear-gradient(135deg, #D9AD50 0%, #F1DCA8 50%, #D9AD50 100%);
+    background-size: 200% auto;
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+
+  .gold-shimmer {
+    background: linear-gradient(135deg, #D9AD50 0%, #F1DCA8 50%, #D9AD50 100%);
+    background-size: 200% auto;
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    animation: shimmer 2.5s linear infinite;
+  }
+
+  @keyframes shimmer {
+    0% { background-position: 0% center; }
+    100% { background-position: 200% center; }
+  }
+
+  @keyframes fade-in {
+    from { opacity: 0; }
+    to { opacity: 1; }
+  }
+
+  @keyframes slide-up {
+    from { opacity: 0; transform: translateY(20px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  .animate-fade-in {
+    animation: fade-in 0.6s ease forwards;
+  }
+
+  .animate-slide-up {
+    animation: slide-up 0.6s ease forwards;
+  }
+
+  @keyframes slide-in-right {
+    from { opacity: 0; transform: translateX(100%); }
+    to { opacity: 1; transform: translateX(0); }
+  }
+
+  .animate-slide-in-right {
+    animation: slide-in-right 0.35s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+  }
+
+  .btn-gold {
+    background: linear-gradient(135deg, #E9C77E 0%, #D9AD50 50%, #B58C3C 100%);
+    color: #060606;
+    font-weight: 700;
+    letter-spacing: 0.02em;
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+    position: relative;
+    overflow: hidden;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.45rem;
+    box-shadow: 0 4px 16px rgba(217, 173, 80, 0.28), inset 0 1px 1px rgba(255, 255, 255, 0.35);
+  }
+
+  .btn-gold::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(135deg, rgba(255, 255, 255, 0.25) 0%, transparent 60%);
+    opacity: 0;
+    transition: opacity 0.2s ease;
+    pointer-events: none;
+  }
+
+  .btn-gold:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 26px rgba(217, 173, 80, 0.45), 0 0 16px rgba(217, 173, 80, 0.25), inset 0 1px 1px rgba(255, 255, 255, 0.45);
+  }
+
+  .btn-gold:hover::before {
+    opacity: 1;
+  }
+
+  .btn-gold:active {
+    transform: translateY(0);
+    box-shadow: 0 2px 10px rgba(217, 173, 80, 0.3);
+  }
+
+  .btn-gold span {
+    position: relative;
+    z-index: 1;
+  }
+
+  .btn-outline-gold {
+    border: 1.5px solid rgba(217, 173, 80, 0.45);
+    color: #D9AD50;
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+    background: rgba(217, 173, 80, 0.02);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.45rem;
+    backdrop-filter: blur(8px);
+  }
+
+  .btn-outline-gold:hover {
+    background: rgba(217, 173, 80, 0.12);
+    border-color: rgba(217, 173, 80, 0.85);
+    color: #F1DCA8;
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(217, 173, 80, 0.22);
+  }
+
+  .btn-gold-glass {
+    background: rgba(217, 173, 80, 0.1);
+    border: 1px solid rgba(217, 173, 80, 0.3);
+    color: #F1DCA8;
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.45rem;
+    backdrop-filter: blur(12px);
+  }
+
+  .btn-gold-glass:hover {
+    background: rgba(217, 173, 80, 0.2);
+    border-color: rgba(217, 173, 80, 0.6);
+    color: #FFFFFF;
+    transform: translateY(-1px);
+    box-shadow: 0 4px 16px rgba(217, 173, 80, 0.2);
+  }
+
+  .btn-dark-glass {
+    background: rgba(255, 255, 255, 0.035);
+    border: 1px solid rgba(255, 255, 255, 0.09);
+    color: #D4D4D8;
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.45rem;
+    backdrop-filter: blur(12px);
+  }
+
+  .btn-dark-glass:hover {
+    background: rgba(255, 255, 255, 0.07);
+    border-color: rgba(217, 173, 80, 0.35);
+    color: #FFFFFF;
+    transform: translateY(-1px);
+  }
+
+  .btn-danger-glass {
+    background: rgba(244, 63, 94, 0.1);
+    border: 1px solid rgba(244, 63, 94, 0.25);
+    color: #fb7185;
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.4rem;
+  }
+
+  .btn-danger-glass:hover {
+    background: rgba(244, 63, 94, 0.2);
+    border-color: rgba(244, 63, 94, 0.5);
+    color: #fff;
+    transform: translateY(-1px);
+  }
+
+  .btn-success-glass {
+    background: rgba(16, 185, 129, 0.1);
+    border: 1px solid rgba(16, 185, 129, 0.25);
+    color: #34d399;
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.4rem;
+  }
+
+  .btn-success-glass:hover {
+    background: rgba(16, 185, 129, 0.2);
+    border-color: rgba(16, 185, 129, 0.5);
+    color: #fff;
+    transform: translateY(-1px);
+  }
+
+  .card-hover {
+    transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1), border-color 0.3s ease, box-shadow 0.3s ease;
+  }
+
+  .card-hover:hover {
+    transform: translateY(-5px);
+    border-color: rgba(217, 173, 80, 0.35) !important;
+    box-shadow: 0 20px 56px rgba(0, 0, 0, 0.55), 0 0 24px rgba(217, 173, 80, 0.07);
+  }
+
+  .grain-overlay {
+    position: fixed;
+    inset: 0;
+    pointer-events: none;
+    z-index: 9999;
+    opacity: 0.025;
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)'/%3E%3C/svg%3E");
+  }
+
+  .section-label {
+    font-family: 'Montserrat', system-ui, sans-serif;
+    font-size: 0.75rem;
+    font-weight: 600;
+    letter-spacing: 0.3em;
+    text-transform: uppercase;
+    color: #D9AD50;
+  }
+
+  .particles-container {
+    position: absolute;
+    inset: 0;
+    overflow: hidden;
+    pointer-events: none;
+  }
+
+  .particle {
+    position: absolute;
+    width: 2px;
+    height: 2px;
+    background: #D9AD50;
+    border-radius: 50%;
+    opacity: 0;
+    animation: particle-float 8s ease-in-out infinite;
+  }
+
+  @keyframes particle-float {
+    0% { opacity: 0; transform: translateY(100vh) scale(0); }
+    10% { opacity: 0.6; }
+    90% { opacity: 0.3; }
+    100% { opacity: 0; transform: translateY(-100px) scale(1); }
+  }
+
+  .status-pending {
+    background: rgba(245, 158, 11, 0.12);
+    color: #fcd34d;
+    border: 1px solid rgba(245, 158, 11, 0.28);
+    font-size: 0.72rem;
+    font-weight: 600;
+    padding: 3px 10px;
+    border-radius: 9999px;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    white-space: nowrap;
+    letter-spacing: 0.02em;
+  }
+  .status-pending::before {
+    content: '';
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background-color: #f59e0b;
+    box-shadow: 0 0 8px #f59e0b;
+    flex-shrink: 0;
+  }
+
+  .status-confirmed {
+    background: rgba(59, 130, 246, 0.12);
+    color: #93c5fd;
+    border: 1px solid rgba(59, 130, 246, 0.28);
+    font-size: 0.72rem;
+    font-weight: 600;
+    padding: 3px 10px;
+    border-radius: 9999px;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    white-space: nowrap;
+    letter-spacing: 0.02em;
+  }
+  .status-confirmed::before {
+    content: '';
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background-color: #3b82f6;
+    box-shadow: 0 0 8px #3b82f6;
+    flex-shrink: 0;
+  }
+
+  .status-completed {
+    background: rgba(16, 185, 129, 0.12);
+    color: #6ee7b7;
+    border: 1px solid rgba(16, 185, 129, 0.28);
+    font-size: 0.72rem;
+    font-weight: 600;
+    padding: 3px 10px;
+    border-radius: 9999px;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    white-space: nowrap;
+    letter-spacing: 0.02em;
+  }
+  .status-completed::before {
+    content: '';
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background-color: #10b981;
+    box-shadow: 0 0 8px #10b981;
+    flex-shrink: 0;
+  }
+
+  .status-cancelled {
+    background: rgba(244, 63, 94, 0.12);
+    color: #fda4af;
+    border: 1px solid rgba(244, 63, 94, 0.28);
+    font-size: 0.72rem;
+    font-weight: 600;
+    padding: 3px 10px;
+    border-radius: 9999px;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    white-space: nowrap;
+    letter-spacing: 0.02em;
+  }
+  .status-cancelled::before {
+    content: '';
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background-color: #f43f5e;
+    box-shadow: 0 0 8px #f43f5e;
+    flex-shrink: 0;
+  }
+
+  .status-no-show {
+    background: rgba(161, 161, 170, 0.12);
+    color: #d4d4d8;
+    border: 1px solid rgba(161, 161, 170, 0.28);
+    font-size: 0.72rem;
+    font-weight: 600;
+    padding: 3px 10px;
+    border-radius: 9999px;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    white-space: nowrap;
+    letter-spacing: 0.02em;
+  }
+  .status-no-show::before {
+    content: '';
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background-color: #a1a1aa;
+    box-shadow: 0 0 8px #a1a1aa;
+    flex-shrink: 0;
+  }
+
+  .status-available {
+    background: rgba(16, 185, 129, 0.12);
+    color: #6ee7b7;
+    border: 1px solid rgba(16, 185, 129, 0.28);
+    font-size: 0.72rem;
+    font-weight: 600;
+    padding: 3px 10px;
+    border-radius: 9999px;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    white-space: nowrap;
+  }
+  .status-available::before {
+    content: '';
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background-color: #10b981;
+    box-shadow: 0 0 8px #10b981;
+    flex-shrink: 0;
+  }
+
+  .status-busy {
+    background: rgba(244, 63, 94, 0.12);
+    color: #fda4af;
+    border: 1px solid rgba(244, 63, 94, 0.28);
+    font-size: 0.72rem;
+    font-weight: 600;
+    padding: 3px 10px;
+    border-radius: 9999px;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    white-space: nowrap;
+  }
+  .status-busy::before {
+    content: '';
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background-color: #f43f5e;
+    box-shadow: 0 0 8px #f43f5e;
+    flex-shrink: 0;
+  }
+
+  .table-card {
+    background: linear-gradient(180deg, rgba(22, 22, 22, 0.75) 0%, rgba(12, 12, 12, 0.85) 100%);
+    backdrop-filter: blur(24px);
+    -webkit-backdrop-filter: blur(24px);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 1rem;
+    box-shadow: 0 20px 40px -15px rgba(0, 0, 0, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.05);
+  }
+
+  .table-th {
+    padding: 0.85rem 1.25rem;
+    text-align: left;
+    font-size: 0.68rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: #a1a1aa;
+    background: rgba(255, 255, 255, 0.02);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.07);
+    white-space: nowrap;
+  }
+
+  .table-row-hover {
+    transition: background-color 0.15s ease;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+  }
+
+  .table-row-hover:hover {
+    background-color: rgba(217, 173, 80, 0.04);
+  }
+
+  .brand-logo-salon {
+    font-family: 'Lobster', cursive;
+  }
+
+  .brand-logo-barber {
+    font-family: 'Alfa Slab One', 'Roboto Slab', Georgia, serif;
+    letter-spacing: 0.25em;
+  }
+
+  .divider {
+    border: none;
+    height: 1px;
+    background: linear-gradient(to right, transparent, rgba(255,255,255,0.07), transparent);
+    margin: 0;
+  }
+
+  .line-clamp-2 {
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+
+  .line-clamp-3 {
+    display: -webkit-box;
+    -webkit-line-clamp: 3;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+}
+
+@layer utilities {
+  .text-shadow-gold {
+    text-shadow: 0 0 30px rgba(217, 173, 80, 0.5);
+  }
+
+  .shadow-gold {
+    box-shadow: 0 0 30px rgba(217, 173, 80, 0.2);
+  }
+
+  .shadow-gold-lg {
+    box-shadow: 0 0 60px rgba(217, 173, 80, 0.3);
+  }
+}
+
+/* Fondo animado de herramientas de barbería (AnimatedBarberBackground) */
+.barber-bg__tool {
+  opacity: 0.12;
+  transform: rotate(var(--tool-rotate, 0deg));
+  animation-name: barber-tool-float;
+  animation-timing-function: ease-in-out;
+  animation-iteration-count: infinite;
+  will-change: transform, opacity;
+}
+
+@keyframes barber-tool-float {
+  0%   { transform: translate(0, 0) rotate(var(--tool-rotate, 0deg)); opacity: 0.1; }
+  25%  { transform: translate(18px, -26px) rotate(calc(var(--tool-rotate, 0deg) + 8deg)); opacity: 0.17; }
+  50%  { transform: translate(-10px, -48px) rotate(calc(var(--tool-rotate, 0deg) - 6deg)); opacity: 0.13; }
+  75%  { transform: translate(-22px, -18px) rotate(calc(var(--tool-rotate, 0deg) + 4deg)); opacity: 0.18; }
+  100% { transform: translate(0, 0) rotate(var(--tool-rotate, 0deg)); opacity: 0.1; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .barber-bg__tool { animation: none; opacity: 0.12; }
+}
+
+/* Mapa de ubicación (BarberMap) */
+.sh-map { background: #0d0d0d; }
+.sh-map .leaflet-tile-pane { filter: invert(1) hue-rotate(180deg) brightness(0.9) contrast(0.95) saturate(0.35); }
+.sh-map .leaflet-control-zoom a {
+  background: #141414; color: #D9AD50; border-color: rgba(217, 173, 80, 0.3);
+}
+.sh-map .leaflet-control-zoom a:hover { background: #1f1f1f; }
+.sh-map .leaflet-control-attribution { background: rgba(17, 17, 17, 0.7); color: #71717a; font-size: 10px; }
+.sh-map .leaflet-control-attribution a { color: #a1a1aa; }
+.sh-map .leaflet-popup-content-wrapper, .sh-map .leaflet-popup-tip {
+  background: #141414; color: #fff; border: 1px solid rgba(217, 173, 80, 0.4); box-shadow: 0 10px 30px rgba(0,0,0,.5);
+}
+.sh-popup { display: flex; flex-direction: column; gap: 2px; font-family: Montserrat, sans-serif; }
+.sh-popup strong { color: #E6C27A; font-size: 13px; }
+.sh-popup span { color: #d4d4d8; font-size: 12px; }
+
+.sh-pin { position: relative; width: 56px; height: 70px; display: flex; flex-direction: column; align-items: center; }
+.sh-pin__body {
+  position: relative; z-index: 1; width: 52px; height: 52px; border-radius: 9999px;
+  background: #0d0d0d; border: 3px solid #D9AD50; box-shadow: 0 6px 18px rgba(0,0,0,.6), 0 0 0 4px rgba(217,173,80,.15);
+  display: flex; align-items: center; justify-content: center; overflow: hidden;
+}
+.sh-pin__body img { width: 40px; height: 40px; object-fit: contain; }
+.sh-pin__tip {
+  width: 0; height: 0; margin-top: -2px;
+  border-left: 9px solid transparent; border-right: 9px solid transparent; border-top: 14px solid #D9AD50;
+}
+.sh-pin__pulse {
+  position: absolute; left: 50%; bottom: -6px; width: 30px; height: 12px; margin-left: -15px; border-radius: 50%;
+  background: rgba(217, 173, 80, 0.45); animation: sh-pin-pulse 2s ease-out infinite;
+}
+@keyframes sh-pin-pulse {
+  0% { transform: scale(0.6); opacity: 0.9; }
+  100% { transform: scale(2.6); opacity: 0; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .sh-pin__pulse { animation: none; }
+}
+
+/* ---------------------------------------------------------------------------
+   Elementos de la marca Salón Hermanos (manual de identidad)
+   Negro carbón y marfil como base, dorado para resaltar y rojo/azul del poste
+   solo como acentos pequeños.
+   --------------------------------------------------------------------------- */
+
+/* Franja del poste de barbería (rojo, marfil, azul) */
+.barber-stripe {
+  height: 6px;
+  background: repeating-linear-gradient(-45deg, #D71920 0 10px, #F5F0E6 10px 20px, #174A9C 20px 30px, #F5F0E6 30px 40px);
+}
+.barber-stripe--animated { background-size: 56.57px 56.57px; animation: barber-pole-move 2.4s linear infinite; }
+@keyframes barber-pole-move {
+  from { background-position: 0 0; }
+  to { background-position: 56.57px 0; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .barber-stripe--animated { animation: none; }
+}
+
+/* Filete dorado con rombo al centro, como los del logo */
+.gold-rule {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  color: #D9AD50;
+}
+.gold-rule::before,
+.gold-rule::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: linear-gradient(to right, transparent, #D9AD50);
+}
+.gold-rule::after { background: linear-gradient(to left, transparent, #D9AD50); }
+
+/* Rótulo «BARBERÍA · TRADICIONAL» entre dos filetes */
+.brand-kicker {
+  font-family: 'Montserrat', system-ui, sans-serif;
+  font-weight: 700;
+  font-size: 0.72rem;
+  letter-spacing: 0.32em;
+  text-transform: uppercase;
+  color: #F5F0E6;
+}
+
+/* Cinta «CLUB DE CABALLEROS» */
+.brand-ribbon {
+  position: relative;
+  display: inline-block;
+  padding: 0.55rem 2.2rem;
+  background: #111111;
+  border-top: 2px solid #D9AD50;
+  border-bottom: 2px solid #D9AD50;
+  color: #F5F0E6;
+  font-family: 'Montserrat', system-ui, sans-serif;
+  font-weight: 800;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  font-size: 0.8rem;
+}
+.brand-ribbon::before,
+.brand-ribbon::after {
+  content: '';
+  position: absolute;
+  top: 6px;
+  width: 1.4rem;
+  height: 100%;
+  border: 2px solid #D9AD50;
+  background: #111111;
+  z-index: -1;
+}
+.brand-ribbon::before { left: -0.9rem; border-right: 0; clip-path: polygon(0 0, 100% 0, 100% 100%, 0 100%, 40% 50%); }
+.brand-ribbon::after { right: -0.9rem; border-left: 0; clip-path: polygon(0 0, 100% 0, 60% 50%, 100% 100%, 0 100%); }
+
+/* Título tipo «HERMANOS»: serif robusta en marfil */
+.brand-title {
+  font-family: 'Alfa Slab One', 'Roboto Slab', Georgia, serif;
+  color: #F5F0E6;
+  letter-spacing: 0.01em;
+  line-height: 1;
+}
+
+/* Tarjeta con marco dorado fino y esquinas marcadas (estilo letrero clásico) */
+.frame-gold {
+  position: relative;
+  border: 1px solid rgba(217, 173, 80, 0.35);
+  background: linear-gradient(180deg, rgba(26, 26, 26, 0.92) 0%, rgba(17, 17, 17, 0.96) 100%);
+}
+.frame-gold::before {
+  content: '';
+  position: absolute;
+  inset: 6px;
+  border: 1px solid rgba(217, 173, 80, 0.14);
+  border-radius: inherit;
+  pointer-events: none;
+}
+
+/* Vibración del PIN incorrecto en el portal del barbero */
+@keyframes shake {
+  0%, 100% { transform: translateX(0); }
+  20%, 60% { transform: translateX(-8px); }
+  40%, 80% { transform: translateX(8px); }
+}

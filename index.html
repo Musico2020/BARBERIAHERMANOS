@@ -1,0 +1,78 @@
+<!doctype html>
+<html lang="es-CO">
+  <head>
+    <script>
+      // Aplica el tema guardado (claro u oscuro) antes de pintar, para que no parpadee
+      try { if (localStorage.getItem('sh-theme') === 'light') document.documentElement.dataset.theme = 'light'; } catch (e) {}
+    </script>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
+    <title>Salón Hermanos | Barbería tradicional en Valledupar — Club de Caballeros</title>
+    <meta name="description" content="Salón Hermanos, barbería tradicional en Valledupar (barrio Tobías Daza). Corte caballero, corte de niño y dama, degradado, barba, cejas y keratina. Reserva tu cita en línea." />
+    <meta name="robots" content="index, follow, max-image-preview:large" />
+    <meta name="theme-color" content="#111111" />
+    <link rel="canonical" href="%VITE_SITE_URL%/" />
+
+    <link rel="icon" type="image/png" sizes="192x192" href="/icon-192.png" />
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+
+    <!-- Vista previa al compartir el link (WhatsApp, Facebook, Instagram, X) -->
+    <meta property="og:type" content="website" />
+    <meta property="og:locale" content="es_CO" />
+    <meta property="og:site_name" content="Salón Hermanos" />
+    <meta property="og:title" content="Salón Hermanos — Barbería tradicional · Club de Caballeros" />
+    <meta property="og:description" content="Barbería tradicional en Valledupar. Cortes, degradado, barba y cejas. Reserva tu cita en línea." />
+    <meta property="og:url" content="%VITE_SITE_URL%/" />
+    <meta property="og:image" content="%VITE_SITE_URL%/og-image.png" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:image" content="%VITE_SITE_URL%/og-image.png" />
+
+    <!-- Ficha del negocio para Google (datos estructurados schema.org) -->
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "BarberShop",
+      "@id": "%VITE_SITE_URL%/#barberia",
+      "name": "Salón Hermanos",
+      "slogan": "Barbería tradicional · Club de Caballeros",
+      "description": "Barbería tradicional en Valledupar: corte caballero, niño y dama, degradado, barba, cejas y keratina.",
+      "url": "%VITE_SITE_URL%/",
+      "image": "%VITE_SITE_URL%/og-image.png",
+      "logo": "%VITE_SITE_URL%/icon-512.png",
+      "priceRange": "$3.000 - $50.000",
+      "currenciesAccepted": "COP",
+      "address": {
+        "@type": "PostalAddress",
+        "streetAddress": "Barrio Tobías Daza, Mz B casa 16, segunda etapa",
+        "addressLocality": "Valledupar",
+        "addressRegion": "Cesar",
+        "addressCountry": "CO"
+      },
+      "areaServed": { "@type": "City", "name": "Valledupar" },
+      "potentialAction": {
+        "@type": "ReserveAction",
+        "target": "%VITE_SITE_URL%/",
+        "result": { "@type": "Reservation", "name": "Cita en Salón Hermanos" }
+      }
+    }
+    </script>
+
+    <!-- Tipografías del manual de identidad: Alfa Slab One / Roboto Slab (HERMANOS), Lobster (Salón), Montserrat (textos) -->
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Alfa+Slab+One&family=Lobster&family=Montserrat:wght@400;500;600;700;800&family=Roboto+Slab:wght@500;600;700;800;900&display=swap" rel="stylesheet" />
+  </head>
+  <body>
+    <div id="root"></div>
+    <!-- Contenido visible si JavaScript no carga (también lo leen algunos buscadores) -->
+    <noscript>
+      <h1>Salón Hermanos — Barbería tradicional · Club de Caballeros</h1>
+      <p>Barbería tradicional en Valledupar. Corte caballero, corte de niño y dama, degradado, barba, cejas y keratina.</p>
+      <p>Dirección: Barrio Tobías Daza, Mz B casa 16, segunda etapa, Valledupar, Cesar.</p>
+    </noscript>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>

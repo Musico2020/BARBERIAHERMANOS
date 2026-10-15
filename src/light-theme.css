@@ -1,0 +1,121 @@
+/*
+  Tema claro (botón sol/luna). La web se diseñó en oscuro con colores fijos de Tailwind
+  (text-white, bg-white/5, border-white/10, bg-[#121212]...), así que aquí se traducen a
+  sus equivalentes claros cuando <html data-theme="light">.
+
+  Lo que lleva la clase .keep-dark (visor de fotos, ticket, etiquetas sobre fotos) no cambia.
+  Los selectores [class^="x"], [class*=" x"] solo toman la clase base, no las variantes hover:.
+*/
+
+html[data-theme='light'] {
+  color-scheme: light;
+}
+
+html[data-theme='light'] body {
+  background-color: #F5F0E6;
+  color: #18181b;
+}
+html[data-theme='light'] body::before { opacity: 0.05; filter: invert(1); }
+html[data-theme='light'] body::after {
+  background: radial-gradient(ellipse 90% 70% at 50% 30%, rgba(245, 240, 230, 0.15) 0%, rgba(245, 240, 230, 0.85) 100%);
+}
+html[data-theme='light'] ::selection { color: #18181b; }
+
+/* Fondo animado de herramientas */
+html[data-theme='light'] .barber-bg { background-color: #F5F0E6 !important; }
+html[data-theme='light'] .barber-bg__tool { color: #B58C3C; }
+
+/* ---- Fondos oscuros fijos → claros ---- */
+html[data-theme='light'] :is([class^='bg-dark'], [class*=' bg-dark']):not(.keep-dark, .keep-dark *) { background-color: #F5F0E6; }
+html[data-theme='light'] :is([class*='bg-[#0'], [class*='bg-[#1']):not(.keep-dark, .keep-dark *) { background-color: #ffffff; }
+html[data-theme='light'] :is([class^='bg-white/'], [class*=' bg-white/']):not(.keep-dark, .keep-dark *) { background-color: rgba(24, 24, 27, 0.035); }
+html[data-theme='light'] [class*='hover:bg-white/']:not(.keep-dark, .keep-dark *):hover { background-color: rgba(24, 24, 27, 0.06); }
+html[data-theme='light'] :is(.glass, .glass-dark):not(.keep-dark, .keep-dark *) { background: rgba(255, 255, 255, 0.82); }
+html[data-theme='light'] .glass-gold:not(.keep-dark, .keep-dark *) { background: rgba(217, 173, 80, 0.1); border-color: rgba(154, 123, 28, 0.3); }
+html[data-theme='light'] .table-card:not(.keep-dark, .keep-dark *) {
+  background: #ffffff;
+  border-color: rgba(24, 24, 27, 0.09);
+  box-shadow: 0 12px 32px -18px rgba(24, 24, 27, 0.25);
+}
+html[data-theme='light'] .table-th { background: rgba(24, 24, 27, 0.03); color: #52525b; border-bottom-color: rgba(24, 24, 27, 0.08); }
+html[data-theme='light'] .table-row-hover { border-bottom-color: rgba(24, 24, 27, 0.06); }
+html[data-theme='light'] .table-row-hover:hover { background-color: rgba(217, 173, 80, 0.08); }
+
+/* ---- Bordes ---- */
+html[data-theme='light'] :is([class^='border-white'], [class*=' border-white']):not(.keep-dark, .keep-dark *) { border-color: rgba(24, 24, 27, 0.12); }
+html[data-theme='light'] :is([class*='divide-white'] > *):not(.keep-dark, .keep-dark *) { border-color: rgba(24, 24, 27, 0.08); }
+
+/* ---- Textos ---- */
+html[data-theme='light'] :is([class^='text-white'], [class*=' text-white']):not(.keep-dark, .keep-dark *) { color: #18181b; }
+html[data-theme='light'] [class*='hover:text-white']:not(.keep-dark, .keep-dark *):hover { color: #000000; }
+html[data-theme='light'] :is([class^='text-zinc-200'], [class*=' text-zinc-200'], [class^='text-zinc-300'], [class*=' text-zinc-300']):not(.keep-dark, .keep-dark *) { color: #3f3f46; }
+html[data-theme='light'] :is([class^='text-zinc-400'], [class*=' text-zinc-400']):not(.keep-dark, .keep-dark *) { color: #52525b; }
+html[data-theme='light'] :is([class^='text-zinc-500'], [class*=' text-zinc-500']):not(.keep-dark, .keep-dark *) { color: #71717a; }
+html[data-theme='light'] :is([class^='text-zinc-600'], [class*=' text-zinc-600'], [class^='text-zinc-700'], [class*=' text-zinc-700']):not(.keep-dark, .keep-dark *) { color: #8b8b94; }
+html[data-theme='light'] :is(input, select, textarea):not(.keep-dark, .keep-dark *) { color: #18181b; }
+html[data-theme='light'] :is(input, textarea)::placeholder { color: #a1a1aa; }
+html[data-theme='light'] option { background: #ffffff !important; color: #18181b; }
+
+/* Dorado más oscuro para que se lea sobre fondo claro */
+html[data-theme='light'] :is([class^='text-gold'], [class*=' text-gold']):not(.keep-dark, .keep-dark *) { color: #7E5E22; }
+html[data-theme='light'] :is(.gold-text, .gold-shimmer):not(.keep-dark, .keep-dark *) {
+  background-image: linear-gradient(135deg, #8C6A2A 0%, #B58C3C 50%, #8C6A2A 100%);
+}
+html[data-theme='light'] .section-label { color: #7E5E22; }
+
+/* Colores de estado: versiones más oscuras para fondo claro */
+html[data-theme='light'] :is([class^='text-emerald-'], [class*=' text-emerald-'], [class^='text-green-'], [class*=' text-green-']):not(.keep-dark, .keep-dark *) { color: #047857; }
+html[data-theme='light'] :is([class^='text-rose-'], [class*=' text-rose-'], [class^='text-red-'], [class*=' text-red-']):not(.keep-dark, .keep-dark *) { color: #be123c; }
+html[data-theme='light'] :is([class^='text-amber-'], [class*=' text-amber-']):not(.keep-dark, .keep-dark *) { color: #b45309; }
+html[data-theme='light'] :is([class^='text-sky-'], [class*=' text-sky-'], [class^='text-blue-'], [class*=' text-blue-']):not(.keep-dark, .keep-dark *) { color: #1d4ed8; }
+html[data-theme='light'] :is([class^='text-violet-'], [class*=' text-violet-'], [class^='text-cyan-'], [class*=' text-cyan-']):not(.keep-dark, .keep-dark *) { color: #6d28d9; }
+html[data-theme='light'] .status-pending { color: #92400e; }
+html[data-theme='light'] .status-confirmed { color: #1e40af; }
+html[data-theme='light'] .status-completed, html[data-theme='light'] .status-available { color: #065f46; }
+html[data-theme='light'] .status-cancelled, html[data-theme='light'] .status-busy { color: #9f1239; }
+html[data-theme='light'] .status-no-show { color: #3f3f46; }
+
+/* Botones */
+html[data-theme='light'] .btn-dark-glass { background: #ffffff; border-color: rgba(24, 24, 27, 0.14); color: #27272a; }
+html[data-theme='light'] .btn-dark-glass:hover { background: #fffaf0; color: #000; }
+html[data-theme='light'] .btn-danger-glass { color: #be123c; }
+
+/* Portada: el degradado oscuro se vuelve dorado suave */
+html[data-theme='light'] #inicio { background: radial-gradient(ellipse at 30% 50%, rgba(217, 173, 80, 0.18) 0%, rgba(245, 240, 230, 0.4) 60%, rgba(245, 240, 230, 0.7) 100%) !important; }
+
+/* Mapa: sin el filtro que lo oscurece */
+html[data-theme='light'] .sh-map .leaflet-tile-pane { filter: saturate(0.8); }
+html[data-theme='light'] .sh-map .leaflet-control-zoom a { background: #ffffff; color: #18181b; }
+html[data-theme='light'] .sh-map .leaflet-control-attribution { background: rgba(255, 255, 255, 0.8); }
+
+/* Logo marfil y dorado: en fondo claro se usa la versión monocromática oscura (manual de marca) */
+html[data-theme='light'] img[src*='logo-salon-hermanos']:not(.keep-dark img, .sh-map img) { filter: brightness(0.16) sepia(0.5); }
+
+/* Gráficas */
+html[data-theme='light'] .recharts-cartesian-grid line { stroke: rgba(24, 24, 27, 0.08); }
+html[data-theme='light'] .recharts-text { fill: #71717a; }
+
+/* Tarjetas translúcidas negras (no los fondos de ventanas emergentes, que llevan inset-0) */
+html[data-theme='light'] :is([class^='bg-black/'], [class*=' bg-black/']):not([class*='inset-0'], .keep-dark, .keep-dark *) { background-color: rgba(255, 255, 255, 0.85); }
+
+/* Degradados que terminan en negro (bordes de secciones, portada) */
+html[data-theme='light'] :is([class*='from-dark'], [class*='from-black'], [class*='from-[#0'], [class*='from-[#1']):not(.keep-dark, .keep-dark *) {
+  --tw-gradient-from: rgba(245, 240, 230, 0.92) var(--tw-gradient-from-position);
+  --tw-gradient-to: rgba(245, 240, 230, 0) var(--tw-gradient-to-position);
+}
+html[data-theme='light'] :is([class*='via-dark'], [class*='via-black']):not(.keep-dark, .keep-dark *) {
+  --tw-gradient-stops: var(--tw-gradient-from), rgba(245, 240, 230, 0.5) var(--tw-gradient-via-position), var(--tw-gradient-to);
+}
+html[data-theme='light'] :is([class*='to-dark'], [class*='to-black']):not(.keep-dark, .keep-dark *) {
+  --tw-gradient-to: rgba(245, 240, 230, 0.92) var(--tw-gradient-to-position);
+}
+
+/* Botón con borde dorado («Ver servicios», «Ver disponibilidad»): dorado más oscuro para que se lea */
+html[data-theme='light'] .btn-outline-gold { color: #7E5E22; border-color: rgba(143, 113, 20, 0.55); }
+
+/* Textos en marfil (marca) → oscuros en tema claro */
+html[data-theme='light'] :is([class^='text-ivory'], [class*=' text-ivory']):not(.keep-dark, .keep-dark *) { color: #27272a; }
+html[data-theme='light'] :is([class^='text-ivory-muted'], [class*=' text-ivory-muted']):not(.keep-dark, .keep-dark *) { color: #52525b; }
+html[data-theme='light'] .brand-kicker, html[data-theme='light'] .brand-title { color: #18181b; }
+html[data-theme='light'] .brand-ribbon, html[data-theme='light'] .brand-ribbon::before, html[data-theme='light'] .brand-ribbon::after { background: #111111; }
+html[data-theme='light'] .frame-gold:not(.keep-dark, .keep-dark *) { background: #ffffff; }

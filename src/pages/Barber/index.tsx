@@ -1,0 +1,501 @@
+import { useState } from 'react';
+import {
+  CalendarDays, Wallet, History, User, LogOut, Star, Check, X, CheckCheck, MessageCircle, Clock,
+  KeyRound, Loader2, CheckCircle2, AlertCircle, ChevronLeft, ChevronRight, Scissors,
+} from 'lucide-react';
+import BarberLogin from './BarberLogin';
+import { usePageMeta } from '../../hooks/usePageMeta';
+import { getBarberBookings, setBarberBookingStatus, changeBarberPin, BarberPortalError } from '../../services/barberPortal';
+import { formatCOP } from '../../data';
+import { todayKey, addDays, dayShort, dayOfMonth, monthShort, monthLong, formatDateLong, nowMinutes, timeToMinutes } from '../../lib/dates';
+import { useAutoRefresh } from '../../hooks/useAutoRefresh';
+import type { Barber, Booking } from '../../types';
+import BarberAvatar from '../../components/common/BarberAvatar';
+import ShiftedTag from '../../components/common/ShiftedTag';
+import { isShifted } from '../../lib/shifted';
+import ThemeToggle from '../../components/common/ThemeToggle';
+import { Panel, KpiCard, StatusBadge, Initials, EmptyState } from '../../components/admin/ui';
+import { GoldBarChart } from '../../components/admin/charts';
+
+// Portal del barbero: su agenda, lo que gana, su historial y su perfil.
+// Cada consulta al servidor va con el PIN, que se valida allá.
+
+type BarberTab = 'agenda' | 'ganancias' | 'historial' | 'perfil';
+
+const TABS: { id: BarberTab; label: string; icon: React.ElementType }[] = [
+  { id: 'agenda', label: 'Agenda', icon: CalendarDays },
+  { id: 'ganancias', label: 'Ganancias', icon: Wallet },
+  { id: 'historial', label: 'Historial', icon: History },
+  { id: 'perfil', label: 'Mi perfil', icon: User },
+];
+
+const isOpen = (b: Booking) => b.status === 'pending' || b.status === 'confirmed';
+const whatsappLink = (phone: string) => `https://wa.me/57${phone.replace(/\D/g, '').slice(-10)}`;
+const lowerFirst = (s: string) => s.charAt(0).toLowerCase() + s.slice(1);
+
+function inMinutes(time: string): string {
+  const diff = timeToMinutes(time) - nowMinutes();
+  if (diff <= 0) return 'ahora';
+  if (diff < 60) return `en ${diff} min`;
+  const h = Math.floor(diff / 60);
+  const m = diff % 60;
+  return `en ${h} h${m ? ` ${m} min` : ''}`;
+}
+
+// ---------------------------------------------------------------------------
+
+function AppointmentCard({ b, onStatus, busy }: { b: Booking; onStatus: (id: string, s: Booking['status']) => void; busy: boolean }) {
+  return (
+    <li className={`flex gap-3 sm:gap-4 rounded-2xl border p-3.5 sm:p-4 transition-colors ${
+      isOpen(b) ? 'border-white/10 bg-white/[0.03]' : 'border-white/[0.05] bg-white/[0.015]'
+    } ${b.status === 'cancelled' || b.status === 'no-show' ? 'opacity-55' : ''}`}>
+      <div className="flex flex-col items-center w-14 shrink-0 pt-0.5">
+        <span className="font-mono text-lg font-bold text-gold leading-none">{b.time}</span>
+        <span className="w-px flex-1 bg-gradient-to-b from-gold/40 to-transparent mt-2" />
+      </div>
+      <div className="flex-1 min-w-0">
+        <div className="flex items-start justify-between gap-2">
+          <div className="min-w-0">
+            <p className="text-white font-semibold truncate">{b.clientName}</p>
+            <p className="text-zinc-400 text-sm truncate">{b.serviceName}</p>
+          </div>
+          <StatusBadge status={b.status} />
+        </div>
+        {isShifted(b) && <div className="mt-1.5"><ShiftedTag b={b} /></div>}
+        <div className="flex flex-wrap items-center gap-x-3 gap-y-1 mt-2 text-xs">
+          <span className="font-mono text-gold font-semibold">{formatCOP(b.price)}</span>
+          <a href={whatsappLink(b.clientPhone)} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 text-emerald-400 hover:text-emerald-300">
+            <MessageCircle size={12} /> {b.clientPhone}
+          </a>
+        </div>
+        {isOpen(b) && (
+          <div className="grid grid-cols-2 sm:flex gap-2 mt-3">
+            {b.status === 'pending' && (
+              <button disabled={busy} onClick={() => onStatus(b.id, 'confirmed')} className="col-span-2 sm:col-span-1 inline-flex items-center justify-center gap-1.5 px-3.5 py-2 rounded-xl border border-sky-500/30 bg-sky-500/10 text-sky-300 text-xs font-semibold hover:bg-sky-500/20 disabled:opacity-50">
+                <CheckCheck size={14} /> Confirmar
+              </button>
+            )}
+            <button disabled={busy} onClick={() => onStatus(b.id, 'completed')} className="inline-flex items-center justify-center gap-1.5 px-3.5 py-2 rounded-xl border border-emerald-500/30 bg-emerald-500/10 text-emerald-300 text-xs font-semibold hover:bg-emerald-500/20 disabled:opacity-50">
+              <Check size={14} /> Completado
+            </button>
+            <button disabled={busy} onClick={() => onStatus(b.id, 'no-show')} className="inline-flex items-center justify-center gap-1.5 px-3.5 py-2 rounded-xl border border-rose-500/25 text-rose-300 text-xs font-semibold hover:bg-rose-500/10 disabled:opacity-50">
+              <X size={14} /> No asistió
+            </button>
+          </div>
+        )}
+      </div>
+    </li>
+  );
+}
+
+function AgendaTab({ appts, barber, onStatus, busyId }: { appts: Booking[]; barber: Barber; onStatus: (id: string, s: Booking['status']) => void; busyId: string | null }) {
+  const today = todayKey();
+  const days = Array.from({ length: 7 }, (_, i) => addDays(today, i));
+  const [day, setDay] = useState(today);
+  const list = appts.filter((b) => b.date === day).sort((a, b) => a.time.localeCompare(b.time));
+  const active = list.filter((b) => b.status !== 'cancelled');
+  const done = list.filter((b) => b.status === 'completed');
+  const pendingCount = list.filter(isOpen).length;
+  const earned = Math.round((done.reduce((s, b) => s + b.price, 0) * barber.commission) / 100);
+  const next = day === today ? list.find((b) => isOpen(b) && timeToMinutes(b.time) + 30 >= nowMinutes()) : undefined;
+
+  return (
+    <div className="space-y-5">
+      <div className="flex gap-2 overflow-x-auto pb-1 -mx-1 px-1" style={{ scrollbarWidth: 'none' }}>
+        {days.map((d, i) => {
+          const count = appts.filter((b) => b.date === d && isOpen(b)).length;
+          const selected = d === day;
+          return (
+            <button
+              key={d}
+              onClick={() => setDay(d)}
+              aria-pressed={selected}
+              className={`flex flex-col items-center min-w-[64px] px-3 py-2.5 rounded-2xl border shrink-0 transition-all ${
+                selected ? 'border-gold bg-gold/15' : 'border-white/10 bg-white/[0.03] hover:border-white/25'
+              }`}
+            >
+              <span className={`text-[10px] font-semibold uppercase ${selected ? 'text-gold' : 'text-zinc-500'}`}>{i === 0 ? 'Hoy' : i === 1 ? 'Mañana' : dayShort(d)}</span>
+              <span className={`text-xl font-bold font-mono ${selected ? 'text-gold' : 'text-white'}`}>{dayOfMonth(d)}</span>
+              <span className={`text-[10px] ${count ? 'text-emerald-400 font-semibold' : 'text-zinc-600'}`}>{count ? `${count} citas` : monthShort(d)}</span>
+            </button>
+          );
+        })}
+      </div>
+
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+        <KpiCard label="Citas" value={active.length} sub={day === today ? 'hoy' : formatDateLong(day)} icon={CalendarDays} accent="blue" />
+        <KpiCard label="Por atender" value={pendingCount} sub="pendientes o confirmadas" icon={Clock} accent="violet" />
+        <KpiCard label="Completadas" value={done.length} sub={`de ${active.length}`} icon={CheckCircle2} accent="emerald" />
+        <KpiCard label="Tu ganancia" value={formatCOP(earned)} sub={`${barber.commission}% de lo completado`} icon={Wallet} />
+      </div>
+
+      {next && (
+        <div className="relative overflow-hidden rounded-2xl border border-gold/40 bg-gradient-to-br from-gold/20 via-gold/[0.06] to-transparent p-5">
+          <p className="text-[11px] uppercase tracking-[0.18em] text-gold font-semibold">Próxima cita · {inMinutes(next.time)}</p>
+          <div className="flex items-end justify-between gap-4 mt-2">
+            <div className="flex items-center gap-3 min-w-0">
+              <Initials name={next.clientName} className="w-12 h-12 text-sm" />
+              <div className="min-w-0">
+                <p className="text-white text-lg font-semibold truncate">{next.clientName}</p>
+                <p className="text-zinc-300 text-sm truncate">{next.serviceName}</p>
+              </div>
+            </div>
+            <span className="font-mono text-3xl font-bold gold-text shrink-0">{next.time}</span>
+          </div>
+        </div>
+      )}
+
+      <Panel title={day === today ? 'Agenda de hoy' : formatDateLong(day)} subtitle={`${active.length} ${active.length === 1 ? 'cita' : 'citas'}`} bodyClassName="p-3 sm:p-4">
+        {list.length === 0 ? (
+          <EmptyState icon={CalendarDays}>No tienes citas este día.</EmptyState>
+        ) : (
+          <ul className="space-y-2.5">
+            {list.map((b) => <AppointmentCard key={b.id} b={b} onStatus={onStatus} busy={busyId === b.id} />)}
+          </ul>
+        )}
+      </Panel>
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+
+function EarningsTab({ appts, barber }: { appts: Booking[]; barber: Barber }) {
+  const today = todayKey();
+  const commission = (list: Booking[]) => Math.round((list.reduce((s, b) => s + b.price, 0) * barber.commission) / 100);
+  const done = appts.filter((b) => b.status === 'completed');
+  const weekStart = addDays(today, -6);
+  const month = today.slice(0, 7);
+  const doneToday = done.filter((b) => b.date === today);
+  const doneWeek = done.filter((b) => b.date >= weekStart && b.date <= today);
+  const doneMonth = done.filter((b) => b.date.startsWith(month));
+  const series = Array.from({ length: 14 }, (_, i) => addDays(today, i - 13)).map((d) => ({
+    name: `${dayOfMonth(d)}`,
+    revenue: commission(done.filter((b) => b.date === d)),
+  }));
+
+  return (
+    <div className="space-y-5">
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+        <KpiCard label="Hoy" value={formatCOP(commission(doneToday))} sub={`${doneToday.length} servicios`} icon={Wallet} />
+        <KpiCard label="Últimos 7 días" value={formatCOP(commission(doneWeek))} sub={`${doneWeek.length} servicios`} icon={Wallet} accent="emerald" />
+        <KpiCard label={`En ${monthLong(today)}`} value={formatCOP(commission(doneMonth))} sub={`${doneMonth.length} servicios · ${barber.commission}%`} icon={Wallet} accent="violet" />
+      </div>
+      <Panel title="Lo que has ganado" subtitle={`Tu comisión por día · últimos 14 días`}>
+        <GoldBarChart data={series} dataKey="revenue" nameKey="name" height={230} emptyText="Todavía no tienes servicios completados en estos días." />
+      </Panel>
+      <Panel title="Servicios completados hoy" subtitle={`${doneToday.length} servicios`} bodyClassName="p-3 sm:p-4">
+        {doneToday.length === 0 ? (
+          <EmptyState icon={Scissors}>Aún no has completado servicios hoy.</EmptyState>
+        ) : (
+          <ul className="divide-y divide-white/[0.06]">
+            {doneToday.sort((a, b) => a.time.localeCompare(b.time)).map((b) => (
+              <li key={b.id} className="flex items-center gap-3 px-2 py-3">
+                <span className="font-mono text-sm text-zinc-400 w-12">{b.time}</span>
+                <div className="flex-1 min-w-0">
+                  <p className="text-white text-sm font-medium truncate">{b.clientName}</p>
+                  <p className="text-zinc-500 text-xs truncate">{b.serviceName} · {formatCOP(b.price)}</p>
+                </div>
+                <span className="font-mono text-emerald-400 text-sm font-semibold">+{formatCOP(Math.round((b.price * barber.commission) / 100))}</span>
+              </li>
+            ))}
+          </ul>
+        )}
+      </Panel>
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+
+function HistoryTab({ appts }: { appts: Booking[] }) {
+  const [nowY, nowM] = todayKey().split('-').map(Number);
+  const [ym, setYm] = useState({ y: nowY, m: nowM });
+  const key = `${ym.y}-${String(ym.m).padStart(2, '0')}`;
+  const list = appts.filter((b) => b.date.startsWith(key)).sort((a, b) => b.date.localeCompare(a.date) || a.time.localeCompare(b.time));
+  const done = list.filter((b) => b.status === 'completed');
+  const byDate = list.reduce<Record<string, Booking[]>>((acc, b) => { (acc[b.date] ??= []).push(b); return acc; }, {});
+  const move = (dir: number) => setYm(({ y, m }) => {
+    const n = m + dir;
+    return n < 1 ? { y: y - 1, m: 12 } : n > 12 ? { y: y + 1, m: 1 } : { y, m: n };
+  });
+  const atPresent = ym.y === nowY && ym.m === nowM;
+
+  return (
+    <div className="space-y-5">
+      <div className="flex items-center justify-between gap-3">
+        <div className="flex items-center gap-1 bg-white/[0.03] rounded-xl p-1 border border-white/10">
+          <button onClick={() => move(-1)} aria-label="Mes anterior" className="w-8 h-8 rounded-lg flex items-center justify-center text-zinc-400 hover:text-gold"><ChevronLeft size={16} /></button>
+          <span className="text-white text-sm font-semibold min-w-[130px] text-center capitalize">{monthLong(`${key}-01`)} {ym.y}</span>
+          <button onClick={() => move(1)} disabled={atPresent} aria-label="Mes siguiente" className="w-8 h-8 rounded-lg flex items-center justify-center text-zinc-400 hover:text-gold disabled:opacity-30"><ChevronRight size={16} /></button>
+        </div>
+        <p className="text-right text-xs text-zinc-500">
+          <span className="text-white font-semibold">{done.length}</span> completados · <span className="text-gold font-mono">{formatCOP(done.reduce((s, b) => s + b.price, 0))}</span>
+        </p>
+      </div>
+
+      {list.length === 0 ? (
+        <Panel><EmptyState icon={History}>No tienes citas en este mes.</EmptyState></Panel>
+      ) : (
+        Object.entries(byDate).map(([date, items]) => (
+          <Panel key={date} title={formatDateLong(date)} subtitle={`${items.length} ${items.length === 1 ? 'cita' : 'citas'}`} bodyClassName="px-3 sm:px-4 pb-3 pt-2">
+            <ul className="divide-y divide-white/[0.06]">
+              {items.map((b) => (
+                <li key={b.id} className="flex items-center gap-3 px-2 py-3">
+                  <span className="font-mono text-sm text-gold w-12 shrink-0">{b.time}</span>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-white text-sm font-medium truncate">{b.clientName}</p>
+                    <p className="text-zinc-500 text-xs truncate">{b.serviceName} · {formatCOP(b.price)}</p>
+                  </div>
+                  <StatusBadge status={b.status} />
+                </li>
+              ))}
+            </ul>
+          </Panel>
+        ))
+      )}
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+
+function ProfileTab({ barber, appts, pin, onPinChanged }: { barber: Barber; appts: Booking[]; pin: string; onPinChanged: (pin: string) => void }) {
+  const month = todayKey().slice(0, 7);
+  const doneMonth = appts.filter((b) => b.status === 'completed' && b.date.startsWith(month));
+  const revenue = doneMonth.reduce((s, b) => s + b.price, 0);
+  const [form, setForm] = useState({ current: '', next: '', confirm: '' });
+  const [saving, setSaving] = useState(false);
+  const [status, setStatus] = useState<{ ok: boolean; text: string } | null>(null);
+  const digits = (v: string) => v.replace(/\D/g, '').slice(0, 4);
+
+  const save = async () => {
+    if (form.current !== pin) return setStatus({ ok: false, text: 'El PIN actual no es correcto.' });
+    if (!/^\d{4}$/.test(form.next)) return setStatus({ ok: false, text: 'El PIN nuevo debe tener 4 números.' });
+    if (form.next !== form.confirm) return setStatus({ ok: false, text: 'La confirmación no coincide.' });
+    if (form.next === form.current) return setStatus({ ok: false, text: 'El PIN nuevo debe ser distinto al actual.' });
+    setSaving(true);
+    setStatus(null);
+    try {
+      const result = await changeBarberPin(barber.id, form.current, form.next);
+      if (result === 'OK') {
+        onPinChanged(form.next);
+        setForm({ current: '', next: '', confirm: '' });
+        setStatus({ ok: true, text: 'PIN cambiado. Úsalo la próxima vez que entres.' });
+      } else {
+        setStatus({ ok: false, text: result === 'PIN_LOCKED' ? 'Demasiados intentos. Espera 15 minutos.' : 'No se pudo cambiar el PIN.' });
+      }
+    } catch (err) {
+      console.error('No se pudo cambiar el PIN', err);
+      setStatus({ ok: false, text: 'Error de conexión. Intenta de nuevo.' });
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const pinInput = (label: string, key: keyof typeof form, autoComplete: string) => (
+    <label className="block">
+      <span className="text-xs text-zinc-400 font-medium block mb-1.5">{label}</span>
+      <input
+        type="password"
+        inputMode="numeric"
+        autoComplete={autoComplete}
+        maxLength={4}
+        value={form[key]}
+        onChange={(e) => setForm({ ...form, [key]: digits(e.target.value) })}
+        className="w-full bg-white/[0.04] border border-white/10 rounded-xl px-3.5 py-2.5 text-white font-mono tracking-[0.5em] focus:outline-none focus:border-gold/50"
+      />
+    </label>
+  );
+
+  return (
+    <div className="grid lg:grid-cols-2 gap-5">
+      <div className="space-y-5">
+        <div className="table-card p-6 text-center">
+          <BarberAvatar barber={barber} className="w-24 h-24 rounded-full text-2xl mx-auto border-2 border-gold/50 shadow-gold" />
+          <h2 className="font-serif text-2xl font-bold text-white mt-4">{barber.name}</h2>
+          <p className="flex items-center justify-center gap-1.5 mt-1 text-sm">
+            <Star size={14} className="text-gold fill-gold" />
+            <span className="text-white font-mono font-semibold">{barber.rating}</span>
+            <span className="text-zinc-500">({barber.reviewCount} reseñas)</span>
+          </p>
+          {barber.bio && <p className="text-zinc-400 text-sm mt-4 leading-relaxed">{barber.bio}</p>}
+          <div className="flex flex-wrap justify-center gap-2 mt-5">
+            {barber.specialties.map((s) => (
+              <span key={s} className="text-xs px-3 py-1.5 rounded-full border border-gold/25 bg-gold/10 text-gold">{s}</span>
+            ))}
+          </div>
+        </div>
+        <div className="grid grid-cols-3 gap-3">
+          <KpiCard label="Servicios" value={doneMonth.length} sub="este mes" icon={Scissors} />
+          <KpiCard label="Facturado" value={formatCOP(revenue)} sub="este mes" icon={Wallet} accent="emerald" />
+          <KpiCard label="Comisión" value={`${barber.commission}%`} sub="por servicio" icon={Star} accent="violet" />
+        </div>
+      </div>
+
+      <Panel title="Cambiar mi PIN" subtitle="El PIN de 4 números con el que entras a este portal">
+        <div className="space-y-4">
+          {pinInput('PIN actual', 'current', 'current-password')}
+          {pinInput('PIN nuevo', 'next', 'new-password')}
+          {pinInput('Repite el PIN nuevo', 'confirm', 'new-password')}
+        </div>
+        <div className="flex flex-col-reverse sm:flex-row sm:items-center justify-between gap-3 pt-5 mt-5 border-t border-white/[0.06]">
+          {status && (
+            <p role="status" className={`flex items-center gap-2 text-sm ${status.ok ? 'text-emerald-400' : 'text-red-400'}`}>
+              {status.ok ? <CheckCircle2 size={15} /> : <AlertCircle size={15} />} {status.text}
+            </p>
+          )}
+          <button onClick={save} disabled={saving} className="btn-gold px-5 py-2.5 rounded-xl text-sm font-semibold flex items-center justify-center gap-2 disabled:opacity-60 sm:ml-auto">
+            {saving ? <Loader2 size={15} className="animate-spin" /> : <KeyRound size={15} />} Cambiar PIN
+          </button>
+        </div>
+      </Panel>
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+
+function BarberDashboard({ barber, pin, onLogout, onPinChanged }: { barber: Barber; pin: string; onLogout: () => void; onPinChanged: (pin: string) => void }) {
+  const [tab, setTab] = useState<BarberTab>('agenda');
+  const [appts, setAppts] = useState<Booking[]>([]);
+  const [loaded, setLoaded] = useState(false);
+  const [busyId, setBusyId] = useState<string | null>(null);
+  const [shiftNotice, setShiftNotice] = useState('');
+  const [error, setError] = useState('');
+
+  const handlePortalError = (err: unknown, fallback: string) => {
+    console.error(fallback, err);
+    if (err instanceof BarberPortalError && (err.code === 'INVALID_PIN' || err.code === 'PIN_LOCKED')) {
+      onLogout();
+      return;
+    }
+    setError(fallback);
+  };
+
+  useAutoRefresh(() => {
+    getBarberBookings(barber.id, pin)
+      .then((list) => { setAppts(list); setError(''); setLoaded(true); })
+      .catch((err) => handlePortalError(err, 'No se pudieron cargar tus citas. Se reintentará automáticamente.'));
+  }, [barber.id, pin]);
+
+  const updateStatus = async (id: string, status: Booking['status']) => {
+    setBusyId(id);
+    try {
+      await setBarberBookingStatus(barber.id, pin, id, status);
+      setAppts((prev) => prev.map((b) => (b.id === id ? { ...b, status } : b)));
+      setError('');
+      // Si terminó antes de tiempo, la base adelantó las citas pegadas: se recarga la agenda
+      if (status === 'completed') {
+        const fresh = await getBarberBookings(barber.id, pin);
+        setAppts(fresh);
+        const since = Date.now() - 2 * 60 * 1000;
+        const moved = fresh.filter((b) => isShifted(b) && b.shiftedAt && new Date(b.shiftedAt).getTime() >= since);
+        if (moved.length) setShiftNotice(`Se ${moved.length === 1 ? 'adelantó 1 cita' : `adelantaron ${moved.length} citas`}: ${moved.map((b) => `${b.clientName.split(' ')[0]} ahora a las ${b.time}`).join(', ')}. Toca «Avisar al cliente» para escribirles.`);
+      }
+    } catch (err) {
+      handlePortalError(err, 'No se pudo guardar el cambio. Intenta de nuevo.');
+    } finally {
+      setBusyId(null);
+    }
+  };
+
+  const today = todayKey();
+  const openToday = appts.filter((b) => b.date === today && isOpen(b)).length;
+  const hour = Math.floor(nowMinutes() / 60);
+  const greeting = hour < 12 ? 'Buenos días' : hour < 19 ? 'Buenas tardes' : 'Buenas noches';
+
+  return (
+    <div className="min-h-screen bg-dark/90 relative z-10 pb-24 lg:pb-10">
+      <header className="sticky top-0 z-30 glass border-b border-white/10">
+        <div className="max-w-6xl mx-auto px-4 sm:px-6 py-3 flex items-center gap-3">
+          <img src="/logo-salon-hermanos.png" alt="" width={900} height={594} className="hidden sm:block w-16 h-auto object-contain" />
+          <BarberAvatar barber={barber} className="w-10 h-10 rounded-full text-sm border border-gold/40 sm:hidden" />
+          <div className="min-w-0 flex-1">
+            <p className="text-white font-semibold leading-tight truncate">{greeting}, {barber.shortName}</p>
+            <p className="text-zinc-500 text-xs truncate">
+              {formatDateLong(today)} · {openToday ? `${openToday} ${openToday === 1 ? 'cita' : 'citas'} por atender hoy` : 'sin citas pendientes hoy'}
+            </p>
+          </div>
+          <nav className="hidden lg:flex items-center gap-1 p-1 rounded-xl bg-white/[0.03] border border-white/10" aria-label="Secciones">
+            {TABS.map(({ id, label, icon: Icon }) => (
+              <button
+                key={id}
+                onClick={() => setTab(id)}
+                aria-current={tab === id ? 'page' : undefined}
+                className={`inline-flex items-center gap-2 px-3.5 py-2 rounded-lg text-sm font-medium transition-all ${tab === id ? 'bg-gold text-dark font-semibold' : 'text-zinc-400 hover:text-white'}`}
+              >
+                <Icon size={16} /> {label}
+              </button>
+            ))}
+          </nav>
+          <BarberAvatar barber={barber} className="hidden sm:flex w-10 h-10 rounded-full text-sm border border-gold/40" />
+          <ThemeToggle className="!w-10 !h-10 !rounded-xl" />
+          <button onClick={onLogout} aria-label="Cerrar sesión" title="Cerrar sesión" className="w-10 h-10 rounded-xl border border-white/10 flex items-center justify-center text-zinc-400 hover:text-rose-400 hover:border-rose-500/30 transition-colors">
+            <LogOut size={17} />
+          </button>
+        </div>
+      </header>
+
+      <main className="max-w-6xl mx-auto px-4 sm:px-6 py-5 sm:py-7">
+        <h1 className="font-serif text-2xl sm:text-3xl font-bold text-white mb-5">
+          {TABS.find((t) => t.id === tab)?.label}
+          {tab === 'agenda' && <span className="block text-sm font-sans font-normal text-zinc-500 mt-1">Toca un día para ver sus citas · {lowerFirst(formatDateLong(today))}</span>}
+        </h1>
+        {error && <div className="mb-5 p-3 rounded-xl bg-red-500/10 border border-red-500/20 text-red-400 text-sm">{error}</div>}
+        {shiftNotice && (
+          <div className="mb-5 p-3 rounded-xl bg-amber-500/10 border border-amber-500/25 text-amber-300 text-sm flex items-start justify-between gap-3">
+            <span>{shiftNotice}</span>
+            <button onClick={() => setShiftNotice('')} className="text-amber-200/70 hover:text-amber-100 text-xs shrink-0">Cerrar</button>
+          </div>
+        )}
+        {!loaded ? (
+          <div className="flex flex-col items-center justify-center py-24 gap-3">
+            <Loader2 size={26} className="animate-spin text-gold" />
+            <p className="text-zinc-500 text-sm">Cargando tu agenda...</p>
+          </div>
+        ) : (
+          <>
+            {tab === 'agenda' && <AgendaTab appts={appts} barber={barber} onStatus={updateStatus} busyId={busyId} />}
+            {tab === 'ganancias' && <EarningsTab appts={appts} barber={barber} />}
+            {tab === 'historial' && <HistoryTab appts={appts} />}
+            {tab === 'perfil' && <ProfileTab barber={barber} appts={appts} pin={pin} onPinChanged={onPinChanged} />}
+          </>
+        )}
+      </main>
+
+      {/* Celular: barra inferior */}
+      <nav className="lg:hidden fixed bottom-0 inset-x-0 z-30 glass border-t border-white/10 px-2 pt-2 pb-[max(0.5rem,env(safe-area-inset-bottom))] grid grid-cols-4" aria-label="Secciones">
+        {TABS.map(({ id, label, icon: Icon }) => (
+          <button
+            key={id}
+            onClick={() => setTab(id)}
+            aria-current={tab === id ? 'page' : undefined}
+            className={`flex flex-col items-center gap-1 py-1.5 rounded-xl transition-all ${tab === id ? 'text-gold' : 'text-zinc-500'}`}
+          >
+            <span className={`w-10 h-7 rounded-full flex items-center justify-center ${tab === id ? 'bg-gold/15' : ''}`}><Icon size={19} /></span>
+            <span className="text-[10px] font-semibold">{label}</span>
+          </button>
+        ))}
+      </nav>
+    </div>
+  );
+}
+
+export default function BarberPage() {
+  usePageMeta({ title: 'Portal del barbero | Salón Hermanos', noindex: true });
+  const [session, setSession] = useState<{ barber: Barber; pin: string } | null>(null);
+
+  if (!session) {
+    return <BarberLogin onLogin={(barber, pin) => setSession({ barber, pin })} />;
+  }
+
+  return (
+    <BarberDashboard
+      barber={session.barber}
+      pin={session.pin}
+      onLogout={() => setSession(null)}
+      onPinChanged={(pin) => setSession({ ...session, pin })}
+    />
+  );
+}

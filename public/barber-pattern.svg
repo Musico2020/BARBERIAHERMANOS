@@ -1,0 +1,81 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="320" height="320" viewBox="0 0 320 320" fill="none">
+  <!-- Tijeras clásicas de barbero (Top Left) -->
+  <g transform="translate(45, 45) rotate(-25)" stroke="#D4AF37" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round">
+    <!-- Cuchilla 1 -->
+    <path d="M-5 25 L12 0 L38 -32 C40 -35 44 -35 44 -32 L40 -15 L22 10 Z" />
+    <!-- Cuchilla 2 -->
+    <path d="M25 45 L10 20 L-20 -15 C-22 -18 -26 -16 -24 -13 L-12 5 L5 25 Z" />
+    <!-- Tornillo pivote -->
+    <circle cx="11" cy="18" r="2.5" fill="#D4AF37" />
+    <!-- Anillo mango 1 -->
+    <ellipse cx="-12" cy="38" rx="8" ry="12" transform="rotate(-15 -12 38)" />
+    <!-- Apoyadedo -->
+    <path d="M-19 46 C-24 50 -26 56 -24 60" />
+    <!-- Anillo mango 2 -->
+    <ellipse cx="36" cy="56" rx="8" ry="12" transform="rotate(30 36 56)" />
+  </g>
+
+  <!-- Máquina cortapelo profesional (Clipper) (Top Right) -->
+  <g transform="translate(245, 60) rotate(20)" stroke="#D4AF37" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round">
+    <!-- Cuchillas superiores con dientes -->
+    <path d="M-18 -38 L18 -38 L16 -30 L-16 -30 Z" />
+    <path d="M-14 -38 L-14 -31 M-10 -38 L-10 -31 M-6 -38 L-6 -31 M-2 -38 L-2 -31 M2 -38 L2 -31 M6 -38 L6 -31 M10 -38 L10 -31 M14 -38 L14 -31" />
+    <!-- Cabezal de corte -->
+    <path d="M-16 -30 L16 -30 L18 -18 L-18 -18 Z" />
+    <!-- Palanca de ajuste -->
+    <path d="M-18 -22 L-23 -20 L-22 -14 L-17 -16" />
+    <!-- Cuerpo ergonómico -->
+    <path d="M-18 -18 C-19 5 -15 25 -12 42 C-10 48 10 48 12 42 C15 25 19 5 18 -18" />
+    <!-- Agarre / textura antideslizante -->
+    <path d="M-12 -2 L12 -2 M-11 6 L11 6 M-10 14 L10 14" stroke-dasharray="2 3" />
+    <!-- Botón de encendido -->
+    <rect x="-4" y="22" width="8" height="10" rx="2" />
+    <!-- Cable o base de carga -->
+    <path d="M-7 46 L7 46 L5 54 L-5 54 Z" />
+  </g>
+
+  <!-- Peine de barbero (Center Left) -->
+  <g transform="translate(60, 210) rotate(-35)" stroke="#D4AF37" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round">
+    <!-- Lomo del peine -->
+    <path d="M-45 -10 L45 -10 C48 -10 48 -5 45 -5 L-45 -5 C-48 -5 -48 -10 -45 -10 Z" />
+    <!-- Dientes anchos (izquierda) -->
+    <path d="M-40 -5 L-40 16 M-34 -5 L-34 16 M-28 -5 L-28 16 M-22 -5 L-22 16 M-16 -5 L-16 16 M-10 -5 L-10 16 M-4 -5 L-4 16" />
+    <!-- Dientes finos (derecha) -->
+    <path d="M2 -5 L2 16 M6 -5 L6 16 M10 -5 L10 16 M14 -5 L14 16 M18 -5 L18 16 M22 -5 L22 16 M26 -5 L26 16 M30 -5 L30 16 M34 -5 L34 16 M38 -5 L38 16 M42 -5 L42 16" />
+  </g>
+
+  <!-- Navaja clásica recta de barbero (Straight Razor) (Bottom Right) -->
+  <g transform="translate(230, 230) rotate(-15)" stroke="#D4AF37" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round">
+    <!-- Mango abierto de la navaja -->
+    <path d="M-35 25 C-15 32 15 30 35 15 C38 13 40 18 36 21 C14 38 -18 39 -38 31 C-42 29 -40 23 -35 25 Z" />
+    <!-- Tornillo pivote -->
+    <circle cx="-35" cy="27" r="2" fill="#D4AF37" />
+    <!-- Hoja de acero -->
+    <path d="M-34 27 L-15 8 L30 -15 C34 -17 36 -12 33 -10 L-5 18 L-28 29" />
+    <!-- Espiga / lomo de la cuchilla -->
+    <path d="M-15 8 L28 -12" stroke-width="1.8" />
+  </g>
+
+  <!-- Brocha de afeitar (Center Floating) -->
+  <g transform="translate(160, 150) rotate(15)" stroke="#D4AF37" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round">
+    <!-- Cerdas de la brocha -->
+    <path d="M-14 -10 C-18 -26 -10 -35 0 -38 C10 -35 18 -26 14 -10 Z" />
+    <!-- Textura cerdas -->
+    <path d="M-7 -12 C-9 -24 -4 -32 0 -35 C4 -32 9 -24 7 -12" stroke-dasharray="1 3" />
+    <!-- Anillo del mango -->
+    <rect x="-14" y="-10" width="28" height="6" rx="2" />
+    <!-- Mango torneado clásico -->
+    <path d="M-12 -4 C-14 4 -6 10 -10 20 C-12 24 -6 28 0 28 C6 28 12 24 10 20 C6 10 14 4 12 -4 Z" />
+  </g>
+
+  <!-- Pequeñas estrellas de barbería (vintage emblems) -->
+  <g fill="#D4AF37" opacity="0.8">
+    <!-- Estrella 1 -->
+    <path d="M160 55 L162 61 L168 63 L162 65 L160 71 L158 65 L152 63 L158 61 Z" />
+    <!-- Estrella 2 -->
+    <path d="M110 130 L111 134 L115 135 L111 136 L110 140 L109 136 L105 135 L109 134 Z" transform="scale(0.8)" />
+    <!-- Estrella 3 -->
+    <path d="M290 170 L291.5 174 L296 175.5 L291.5 177 L290 181 L288.5 177 L284 175.5 L288.5 174 Z" transform="scale(0.8)" />
+  </g>
+</svg>
+
