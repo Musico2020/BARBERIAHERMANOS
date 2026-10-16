@@ -651,7 +651,7 @@
   background: #0d0d0d; border: 3px solid #D9AD50; box-shadow: 0 6px 18px rgba(0,0,0,.6), 0 0 0 4px rgba(217,173,80,.15);
   display: flex; align-items: center; justify-content: center; overflow: hidden;
 }
-.sh-pin__body img { width: 40px; height: 40px; object-fit: contain; }
+.sh-pin__body img { width: 36px; height: auto; object-fit: contain; }
 .sh-pin__tip {
   width: 0; height: 0; margin-top: -2px;
   border-left: 9px solid transparent; border-right: 9px solid transparent; border-top: 14px solid #D9AD50;

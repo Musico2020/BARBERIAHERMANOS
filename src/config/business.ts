@@ -17,10 +17,10 @@ export const businessConfig: BusinessConfig = {
   country: 'Colombia',
   primaryColor: '#D9AD50',
   accentColor: '#D71920',
-  // Mapa: sin coordenadas exactas se busca la dirección en Google Maps.
-  // Cuando se tenga el punto exacto del local: location: { lat: 10.4..., lng: -73.2... }
   mapEmbedUrl: '',
-  location: null,
+  // Punto exacto del local (confirmado por el negocio); el mapa y «Cómo llegar» lo usan,
+  // y en pantalla se muestra la dirección escrita de arriba
+  location: { lat: 10.451021821669805, lng: -73.27921320802251 },
   // PENDIENTE: confirmar el horario real con la barbería
   hours: [
     { day: 'Lunes', open: '08:00', close: '19:00', closed: false },
