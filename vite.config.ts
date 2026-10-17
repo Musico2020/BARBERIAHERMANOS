@@ -6,12 +6,12 @@ const PUBLIC_PAGES = ['/', '/galeria', '/shop'];
 
 /**
  * Genera robots.txt y sitemap.xml al publicar.
- * VITE_SITE_URL es la dirección pública de la web (por ejemplo https://exclusivebarber.co),
+ * VITE_SITE_URL es la dirección pública de la web (por ejemplo https://salonhermanos.co),
  * configurada en Vercel -> Settings -> Environment Variables.
  */
 function seoFiles(siteUrl: string): Plugin {
   return {
-    name: 'exclusive-barber-seo-files',
+    name: 'salon-hermanos-seo-files',
     apply: 'build',
     generateBundle() {
       const robots = [
@@ -49,8 +49,5 @@ export default defineConfig(({ mode }) => {
 
   return {
     plugins: [react(), seoFiles(siteUrl)],
-    optimizeDeps: {
-      exclude: ['lucide-react'],
-    },
   };
 });

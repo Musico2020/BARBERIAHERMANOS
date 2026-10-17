@@ -66,7 +66,21 @@ if not errorlevel 1 (
   echo        La web ya estaba corriendo.
   goto abrir
 )
-start "Salon Hermanos - web" cmd /k "npm run dev -- --host 127.0.0.1 --port 5173 --strictPort"
+rem Se usa la version compilada (la misma que se publica): carga en segundos y gasta poca memoria.
+rem Solo se vuelve a compilar si algo cambio desde la ultima vez.
+powershell -NoProfile -Command "$d = 'dist\index.html'; if (-not (Test-Path $d)) { exit 1 }; $t = (Get-Item $d).LastWriteTime; $n = Get-ChildItem src, public, index.html, .env, tailwind.config.js -Recurse -File | Where-Object { $_.LastWriteTime -gt $t } | Select-Object -First 1; if ($n) { exit 1 } else { exit 0 }"
+if errorlevel 1 (
+  echo        Preparando la web, tarda un par de minutos solo cuando hubo cambios...
+  call npm run build > "%TEMP%\salon-hermanos-build.log" 2>&1
+  if errorlevel 1 (
+    echo.
+    echo  No se pudo preparar la web. Detalle:
+    type "%TEMP%\salon-hermanos-build.log"
+    pause
+    exit /b 1
+  )
+)
+start "Salon Hermanos - web" cmd /k "npm run preview -- --host 127.0.0.1 --port 5173 --strictPort"
 set /a intentos=0
 :esperar_web
 "%SystemRoot%\System32\timeout.exe" /t 2 /nobreak >nul
