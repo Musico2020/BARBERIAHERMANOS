@@ -67,13 +67,16 @@ export default function Navbar({ onBooking }: NavbarProps) {
       >
         <div className="max-w-7xl mx-auto px-4 sm:px-6 flex items-center justify-between">
           <a href="/" className="flex items-center group" aria-label={`${businessConfig.name} — inicio`}>
-            <img
-              src="/logo-salon-hermanos.png"
-              alt={businessConfig.name}
-              width={900}
-              height={594}
-              className={`w-auto object-contain transition-all duration-300 group-hover:scale-105 ${scrolled ? 'h-11 sm:h-12' : 'h-12 sm:h-16'}`}
-            />
+            {/* Logo con entrada suave y un destello dorado que lo recorre cada pocos segundos (ver .brand-logo en index.css) */}
+            <span className="brand-logo transition-transform duration-300 group-hover:scale-105">
+              <img
+                src="/logo-salon-hermanos.png"
+                alt={businessConfig.name}
+                width={900}
+                height={594}
+                className={`block w-auto object-contain transition-all duration-300 ${scrolled ? 'h-12 sm:h-16' : 'h-16 sm:h-24'}`}
+              />
+            </span>
           </a>
 
           <div className="hidden lg:flex items-center gap-8">

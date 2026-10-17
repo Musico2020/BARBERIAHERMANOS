@@ -15,7 +15,7 @@ export default function Hero({ onBooking }: HeroProps) {
       <div aria-hidden className="pointer-events-none absolute inset-3 sm:inset-6 border border-gold/20 rounded-[1.75rem]" />
       <div aria-hidden className="pointer-events-none absolute inset-5 sm:inset-9 border border-gold/[0.07] rounded-[1.5rem]" />
 
-      <div className="relative z-10 w-full max-w-5xl mx-auto px-5 sm:px-8 text-center pt-28 sm:pt-32 pb-10">
+      <div className="relative z-10 w-full max-w-5xl mx-auto px-5 sm:px-8 text-center pt-32 sm:pt-40 pb-10">
         <SpecialDaysNotice />
 
         <div className="animate-fade-in">

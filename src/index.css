@@ -766,6 +766,41 @@
   pointer-events: none;
 }
 
+/* Logo del menú: entra con un leve zoom y un destello dorado lo recorre cada pocos segundos.
+   El destello usa el propio logo como máscara, así solo brilla sobre las letras y las navajas. */
+.brand-logo {
+  position: relative;
+  display: inline-block;
+  animation: brand-logo-in 1.1s cubic-bezier(0.2, 0.8, 0.2, 1) both;
+  filter: drop-shadow(0 6px 16px rgba(0, 0, 0, 0.55));
+}
+.brand-logo::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: linear-gradient(110deg, transparent 38%, rgba(255, 244, 214, 0.95) 50%, transparent 62%);
+  background-size: 260% 100%;
+  background-repeat: no-repeat;
+  -webkit-mask: url('/logo-salon-hermanos.png') center / contain no-repeat;
+  mask: url('/logo-salon-hermanos.png') center / contain no-repeat;
+  mix-blend-mode: screen;
+  animation: brand-logo-shine 5.5s ease-in-out 1.4s infinite;
+}
+@keyframes brand-logo-in {
+  0% { opacity: 0; transform: scale(0.82) translateY(-6px); }
+  60% { opacity: 1; }
+  100% { opacity: 1; transform: scale(1) translateY(0); }
+}
+@keyframes brand-logo-shine {
+  0% { background-position: 140% 0; }
+  35%, 100% { background-position: -40% 0; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .brand-logo { animation: none; }
+  .brand-logo::after { animation: none; opacity: 0; }
+}
+
 /* Tarjeta de cada silla en «La jornada de hoy» (dashboard) */
 .chair-card {
   background: linear-gradient(180deg, rgba(30, 27, 22, 0.95) 0%, rgba(17, 17, 17, 0.97) 100%);

@@ -159,3 +159,7 @@ html[data-theme='light'] #inicio .brand-title { color: #111111; }
 /* Botones oscuros translúcidos → blancos con filete dorado */
 html[data-theme='light'] .btn-dark-glass { border-color: rgba(181, 140, 60, 0.35); }
 html[data-theme='light'] .btn-dark-glass:hover { background: #FBF4E4; border-color: rgba(181, 140, 60, 0.6); }
+
+/* Logo en tema claro: el destello va en dorado y sin la sombra oscura */
+html[data-theme='light'] .brand-logo { filter: none; }
+html[data-theme='light'] .brand-logo::after { mix-blend-mode: normal; background-image: linear-gradient(110deg, transparent 38%, rgba(217, 173, 80, 0.75) 50%, transparent 62%); }
