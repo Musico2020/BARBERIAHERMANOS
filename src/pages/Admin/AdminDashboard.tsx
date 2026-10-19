@@ -285,7 +285,10 @@ export default function AdminDashboard({ onNavigate }: { onNavigate?: (tab: Admi
                     </div>
                     <div className="min-w-0 flex-1">
                       <p className="text-white text-sm font-semibold truncate">{barber.name}</p>
-                      <p className="text-zinc-500 text-xs">{count} servicios · gana {formatCOP(earnings)} ({barber.commission}%)</p>
+                      <p className="text-zinc-500 text-xs">
+                        {count} servicios · entrega al salón <span className="text-gold font-semibold">{formatCOP(revenue - earnings)}</span> ({100 - barber.commission}%)
+                        {' '}· se queda <span className="text-emerald-400 font-semibold">{formatCOP(earnings)}</span> ({barber.commission}%)
+                      </p>
                     </div>
                     <span className="font-mono text-gold text-sm font-bold">{formatCOP(revenue)}</span>
                   </div>

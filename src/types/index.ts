@@ -90,6 +90,24 @@ export interface SpecialDay {
   noticeFrom?: string;
 }
 
+/** Hora cerrada de un día con ajuste. Sin barberId cierra para todo el salón. */
+export interface ClosedRange {
+  start: string;
+  end: string;
+  barberId?: string;
+}
+
+/**
+ * Ajuste de una fecha (Panel → Turnos): ese día usa su propio horario (sirve para abrir un domingo,
+ * un festivo o un día cerrado) y sus horas cerradas reemplazan al almuerzo por defecto.
+ */
+export interface DayOverride {
+  date: string;
+  open: string;
+  close: string;
+  closed: ClosedRange[];
+}
+
 export interface LunchBreak {
   enabled: boolean;
   start: string;
@@ -111,6 +129,8 @@ export interface BusinessConfig {
   hours: BusinessHours[];
   holidayHours: BusinessHours;
   specialDays: SpecialDay[];
+  /** Ajustes de fechas puntuales hechos en Panel → Turnos */
+  dayOverrides: DayOverride[];
   /** Mostrar «El primero que esté libre» al reservar */
   allowAnyBarber: boolean;
   /** Almuerzo: sin reservas por la web en ese rango (no aplica domingos ni festivos) */

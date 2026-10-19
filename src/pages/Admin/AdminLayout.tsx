@@ -2,13 +2,13 @@ import { useState, useRef, useEffect } from 'react';
 import {
   LayoutDashboard, Calendar, ClipboardList, Users,
   UserCircle, BarChart2, Settings, LogOut, ExternalLink, Menu, Bell,
-  CheckCheck, AlertCircle, CalendarCheck, MessageCircle, BellRing, ShoppingBag, Images,
+  CheckCheck, AlertCircle, CalendarCheck, MessageCircle, BellRing, ShoppingBag, Images, CalendarClock,
 } from 'lucide-react';
 import { ClipperIcon } from '../../components/common/BarberIcons';
 import ThemeToggle from '../../components/common/ThemeToggle';
 import { useAdminNotifications, relativeTime, type AdminNotificationType } from '../../hooks/useAdminNotifications';
 
-export type AdminTab = 'dashboard' | 'calendar' | 'bookings' | 'messages' | 'barbers' | 'services' | 'products' | 'gallery' | 'clients' | 'reports' | 'settings';
+export type AdminTab = 'dashboard' | 'calendar' | 'shifts' | 'bookings' | 'messages' | 'barbers' | 'services' | 'products' | 'gallery' | 'clients' | 'reports' | 'settings';
 
 interface Props {
   activeTab: AdminTab;
@@ -36,9 +36,10 @@ const notifBg = (type: AdminNotificationType) => {
 const navItems: { id: AdminTab; label: string; icon: React.ElementType; group: string; description: string }[] = [
   { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard, group: 'Día a día', description: 'Cómo va el negocio hoy y este mes' },
   { id: 'calendar', label: 'Calendario', icon: Calendar, group: 'Día a día', description: 'Agenda por día y por semana' },
+  { id: 'shifts', label: 'Turnos', icon: CalendarClock, group: 'Día a día', description: 'Abrir o cerrar horas de un día' },
   { id: 'bookings', label: 'Reservas', icon: ClipboardList, group: 'Día a día', description: 'Todas las citas y su estado' },
   { id: 'messages', label: 'Mensajes', icon: MessageCircle, group: 'Día a día', description: 'Lo que escriben desde la web' },
-  { id: 'barbers', label: 'Barberos', icon: Users, group: 'Negocio', description: 'Equipo, fotos, PIN y comisiones' },
+  { id: 'barbers', label: 'Barberos', icon: Users, group: 'Negocio', description: 'Equipo, fotos, PIN y porcentajes' },
   { id: 'services', label: 'Servicios', icon: ClipperIcon, group: 'Negocio', description: 'Precios y duración de cada servicio' },
   { id: 'products', label: 'Productos', icon: ShoppingBag, group: 'Negocio', description: 'Lo que se muestra en el Shop' },
   { id: 'gallery', label: 'Galería', icon: Images, group: 'Negocio', description: 'Fotos de los trabajos para la web' },

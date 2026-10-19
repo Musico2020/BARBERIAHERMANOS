@@ -1,7 +1,7 @@
 import { businessConfig } from '../config/business';
 import { todayKey, nowMinutes, timeToMinutes, addDays } from './dates';
 import { holidayName } from './holidays';
-import type { BusinessHours, SpecialDay } from '../types';
+import type { BusinessHours, DayOverride, SpecialDay } from '../types';
 
 // Horario de atención según src/config/business.ts (hours va de lunes a domingo).
 // Los festivos de Colombia se detectan solos y usan businessConfig.holidayHours.
@@ -22,14 +22,34 @@ export function specialDayOf(dateKey: string): SpecialDay['type'] | null {
   return businessConfig.specialDays.find((d) => d.date === dateKey)?.type ?? null;
 }
 
+/** Ajuste de la fecha hecho en Panel → Turnos (horario propio y horas cerradas), si lo hay. */
+export function dayOverrideOf(dateKey: string): DayOverride | null {
+  return businessConfig.dayOverrides.find((d) => d.date === dateKey) ?? null;
+}
+
 /** Desde qué día se anuncia un día especial en la página principal (por defecto, el día anterior). */
 export function noticeStart(d: SpecialDay): string {
   return d.noticeFrom ?? addDays(d.date, -1);
 }
 
+/** Horario normal de ese día (semana, domingo o festivo), sin días especiales ni ajustes. */
+export function regularHoursFor(dateKey: string): { open: string; close: string } | null {
+  const entry = entryFor(dateKey);
+  return entry && !entry.closed && entry.open && entry.close ? { open: entry.open, close: entry.close } : null;
+}
+
+/** ¿Ese día aplica el almuerzo por defecto? (lunes a sábado que no sean festivo) */
+export function regularLunchFor(dateKey: string): { start: string; end: string } | null {
+  const { enabled, start, end } = businessConfig.lunch;
+  return enabled && weekday(dateKey) !== 0 && !holidayName(dateKey) ? { start, end } : null;
+}
+
 /** Apertura y cierre (en minutos) de ese día, o null si la barbería está cerrada. */
 export function hoursFor(dateKey: string): { open: number; close: number; openLabel: string; closeLabel: string } | null {
   if (specialDayOf(dateKey) === 'closed') return null;
+  // Un ajuste del día manda sobre el horario de la semana, del domingo o del festivo
+  const override = dayOverrideOf(dateKey);
+  if (override) return { open: timeToMinutes(override.open), close: timeToMinutes(override.close), openLabel: override.open, closeLabel: override.close };
   const entry = entryFor(dateKey);
   if (!entry || entry.closed || !entry.open || !entry.close) return null;
   return { open: timeToMinutes(entry.open), close: timeToMinutes(entry.close), openLabel: entry.open, closeLabel: entry.close };
@@ -41,7 +61,8 @@ export function hoursFor(dateKey: string): { open: number; close: number; openLa
  */
 export function lunchFor(dateKey: string): { start: number; end: number; startLabel: string; endLabel: string } | null {
   const { enabled, start, end } = businessConfig.lunch;
-  if (!enabled || weekday(dateKey) === 0 || holidayName(dateKey) || !hoursFor(dateKey)) return null;
+  // Con ajuste del día no hay almuerzo por defecto: sus horas cerradas lo reemplazan
+  if (!enabled || weekday(dateKey) === 0 || holidayName(dateKey) || dayOverrideOf(dateKey) || !hoursFor(dateKey)) return null;
   return { start: timeToMinutes(start), end: timeToMinutes(end), startLabel: start, endLabel: end };
 }
 

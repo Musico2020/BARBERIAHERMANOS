@@ -25,7 +25,7 @@ const emptyForm: BarberForm = {
   phone: '',
   bio: '',
   specialties: '',
-  commission: 30,
+  commission: 77,
   pin: '',
 };
 
@@ -310,8 +310,8 @@ export default function AdminBarbers() {
                   <p className="text-zinc-500 text-[10px] uppercase font-medium mt-0.5">Ingresos</p>
                 </div>
                 <div className="bg-white/[0.03] border border-white/[0.06] rounded-xl p-2.5 text-center">
-                  <p className="font-mono text-base font-bold text-emerald-400">{barber.commission}%</p>
-                  <p className="text-zinc-500 text-[10px] uppercase font-medium mt-0.5">Comisión</p>
+                  <p className="font-mono text-base font-bold text-gold">{100 - barber.commission}%</p>
+                  <p className="text-zinc-500 text-[10px] uppercase font-medium mt-0.5">Entrega al salón</p>
                 </div>
               </div>
 
@@ -476,23 +476,34 @@ export default function AdminBarbers() {
                 />
               </div>
 
+              {/* En la base se guarda lo que se queda el barbero (commission); aquí se escribe lo que entrega al salón */}
               <div>
-                <label className="text-zinc-400 text-xs mb-1.5 block">
-                  Comisión: <span className="text-gold font-mono font-bold">{form.commission}%</span>
+                <label htmlFor="barber-share" className="text-zinc-400 text-xs mb-1.5 block">
+                  Porcentaje que entrega al salón
                 </label>
-                <input
-                  type="range"
-                  min={10}
-                  max={70}
-                  step={5}
-                  value={form.commission}
-                  onChange={(e) => setForm({ ...form, commission: Number(e.target.value) })}
-                  className="w-full accent-yellow-500 h-1.5 cursor-pointer"
-                />
-                <div className="flex justify-between text-zinc-600 text-xs mt-1">
-                  <span>10%</span>
-                  <span>70%</span>
+                <div className="flex items-center gap-3">
+                  <div className="relative w-28">
+                    <input
+                      id="barber-share"
+                      type="number"
+                      inputMode="numeric"
+                      min={0}
+                      max={100}
+                      step={1}
+                      value={100 - form.commission}
+                      onChange={(e) => {
+                        const toSalon = Math.min(100, Math.max(0, Math.round(Number(e.target.value) || 0)));
+                        setForm({ ...form, commission: 100 - toSalon });
+                      }}
+                      className="w-full bg-white/5 border border-white/10 rounded-xl pl-3 pr-8 py-2.5 text-white font-mono text-base focus:outline-none focus:border-gold/50"
+                    />
+                    <span className="absolute right-3 top-1/2 -translate-y-1/2 text-zinc-500 text-sm">%</span>
+                  </div>
+                  <p className="text-zinc-400 text-sm">
+                    El barbero se queda con <span className="text-emerald-400 font-mono font-bold">{form.commission}%</span>
+                  </p>
                 </div>
+                <p className="text-zinc-600 text-xs mt-1.5">Para el dueño del salón: 0 % (se queda con todo).</p>
               </div>
 
               <div>

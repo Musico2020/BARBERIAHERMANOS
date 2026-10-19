@@ -36,10 +36,12 @@ export const businessConfig: BusinessConfig = {
   // «El primero que esté libre» al reservar (se apaga en Panel → Configuración → Reglas)
   allowAnyBarber: true,
   // Almuerzo: no se reciben reservas por la web en ese rango, salvo domingos y festivos
-  lunch: { enabled: true, start: '12:00', end: '13:00' },
+  lunch: { enabled: true, start: '12:00', end: '14:00' },
   // Reglas de reserva (se cambian en Panel → Configuración → Reglas)
   slotStep: 30,
   daysAhead: 14,
   // Fechas puntuales que cambian el horario ('closed' o 'walk-in'); se editan en el panel
   specialDays: [],
+  // Ajustes de fechas puntuales (Panel → Turnos)
+  dayOverrides: [],
 };

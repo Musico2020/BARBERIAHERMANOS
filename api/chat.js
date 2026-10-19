@@ -73,7 +73,7 @@ async function loadBusiness(db) {
 function businessText({ settings: s, services, barbers }) {
   const hours = (s.hours ?? []).map((h) => `- ${h.day}: ${h.closed ? 'cerrado' : `${h.open} a ${h.close}`}`).join('\n');
   const holiday = s.holidayHours ? (s.holidayHours.closed ? 'cerrado' : `${s.holidayHours.open} a ${s.holidayHours.close}, de corrido`) : '10:00 a 15:00, de corrido';
-  const lunch = s.lunch?.enabled === false ? 'No hay pausa de almuerzo.' : `Almuerzo de ${s.lunch?.start ?? '12:00'} a ${s.lunch?.end ?? '13:00'} de lunes a sábado (sin citas en ese rango). Domingos y festivos se trabaja de corrido.`;
+  const lunch = s.lunch?.enabled === false ? 'No hay pausa de almuerzo.' : `Almuerzo de ${s.lunch?.start ?? '12:00'} a ${s.lunch?.end ?? '14:00'} de lunes a sábado (sin citas en ese rango). Domingos y festivos se trabaja de corrido.`;
   const special = (s.specialDays ?? [])
     .filter((d) => d.date >= nowInBogota().date)
     .map((d) => `- ${longDate(d.date)}: ${d.type === 'closed' ? 'cerrado, no hay servicio' : 'abierto solo por orden de llegada (sin reservas por la web)'}${d.note ? ` (${d.note})` : ''}`)

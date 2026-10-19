@@ -121,6 +121,8 @@ export interface BusySlot {
   barberId: string;
   startTime: string;
   duration: number;
+  /** booking: una cita · closed: hora cerrada desde Panel → Turnos */
+  kind?: 'booking' | 'closed';
 }
 
 /** Horas ocupadas de un día (sin datos de clientes). Sin barberId devuelve las de todos. */
@@ -130,10 +132,11 @@ export async function getBusySlots(date: string, barberId?: string): Promise<Bus
     p_barber_id: barberId || null,
   });
   if (error) throw error;
-  return (data as { barber_id: string; start_time: string; duration: number }[]).map((row) => ({
+  return (data as { barber_id: string; start_time: string; duration: number; kind?: string }[]).map((row) => ({
     barberId: row.barber_id,
     startTime: row.start_time,
     duration: row.duration,
+    kind: row.kind === 'closed' ? 'closed' : 'booking',
   }));
 }
 

@@ -80,7 +80,7 @@ export function generateSlots(date: string, busy: BusySlot[], barberIds: string[
   for (const id of barberIds) {
     const blocks: { start: number; end: number; kind: Edge }[] = busy
       .filter((b) => b.barberId === id)
-      .map((b) => ({ start: timeToMinutes(b.startTime), end: timeToMinutes(b.startTime) + b.duration, kind: 'booking' }));
+      .map((b) => ({ start: timeToMinutes(b.startTime), end: timeToMinutes(b.startTime) + b.duration, kind: b.kind === 'closed' ? 'other' : 'booking' }));
     // El almuerzo es un borde, pero pegarse a él no cuenta como «recomendada»
     if (lunch) blocks.push({ start: lunch.start, end: lunch.end, kind: 'other' });
     for (const gap of freeGaps(from, hours.close, blocks)) {

@@ -1,6 +1,6 @@
 import { supabase } from '../lib/supabase';
 import { businessConfig } from '../config/business';
-import type { BusinessConfig, BusinessHours, LunchBreak, SpecialDay } from '../types';
+import type { BusinessConfig, BusinessHours, DayOverride, LunchBreak, SpecialDay } from '../types';
 
 // Configuración del negocio que el administrador puede cambiar desde el panel.
 // Se guarda en la tabla business_settings; los valores de src/config/business.ts son el respaldo.
@@ -8,7 +8,7 @@ import type { BusinessConfig, BusinessHours, LunchBreak, SpecialDay } from '../t
 
 export type EditableSettings = Pick<
   BusinessConfig,
-  'tagline' | 'address' | 'phone' | 'whatsapp' | 'email' | 'instagram' | 'tiktok' | 'facebook' | 'hours' | 'holidayHours' | 'specialDays' | 'allowAnyBarber' | 'slotStep' | 'daysAhead' | 'lunch'
+  'tagline' | 'address' | 'phone' | 'whatsapp' | 'email' | 'instagram' | 'tiktok' | 'facebook' | 'hours' | 'holidayHours' | 'specialDays' | 'allowAnyBarber' | 'slotStep' | 'daysAhead' | 'lunch' | 'dayOverrides'
 >;
 
 /** Opciones de «las citas empiezan cada…» (minutos) */
@@ -40,6 +40,14 @@ function validSpecialDay(d: unknown): d is SpecialDay {
     (x.noticeFrom === undefined || DATE_RE.test(x.noticeFrom)) && (x.note === undefined || typeof x.note === 'string');
 }
 
+function validDayOverride(o: unknown): o is DayOverride {
+  const x = o as DayOverride;
+  return !!x && DATE_RE.test(x.date) && TIME_RE.test(x.open) && TIME_RE.test(x.close) && x.open < x.close &&
+    Array.isArray(x.closed) &&
+    x.closed.every((c) => !!c && TIME_RE.test(c.start) && TIME_RE.test(c.end) && c.start < c.end &&
+      (c.barberId === undefined || typeof c.barberId === 'string'));
+}
+
 /** Copia en businessConfig solo los valores guardados que sean válidos. */
 function apply(data: Partial<EditableSettings>) {
   for (const key of TEXT_KEYS) {
@@ -54,6 +62,9 @@ function apply(data: Partial<EditableSettings>) {
   if (validSlotStep(data.slotStep)) businessConfig.slotStep = data.slotStep;
   if (validDaysAhead(data.daysAhead)) businessConfig.daysAhead = data.daysAhead;
   if (validLunch(data.lunch)) businessConfig.lunch = data.lunch;
+  if (Array.isArray(data.dayOverrides) && data.dayOverrides.every(validDayOverride)) {
+    businessConfig.dayOverrides = [...data.dayOverrides].sort((a, b) => a.date.localeCompare(b.date));
+  }
   if (Array.isArray(data.specialDays) && data.specialDays.every(validSpecialDay)) {
     businessConfig.specialDays = [...data.specialDays].sort((a, b) => a.date.localeCompare(b.date));
   }
@@ -71,8 +82,8 @@ export async function loadSettings(): Promise<void> {
 }
 
 export function currentSettings(): EditableSettings {
-  const { tagline, address, phone, whatsapp, email, instagram, tiktok, facebook, hours, holidayHours, specialDays, allowAnyBarber, slotStep, daysAhead, lunch } = businessConfig;
-  return structuredClone({ tagline, address, phone, whatsapp, email, instagram, tiktok, facebook, hours, holidayHours, specialDays, allowAnyBarber, slotStep, daysAhead, lunch });
+  const { tagline, address, phone, whatsapp, email, instagram, tiktok, facebook, hours, holidayHours, specialDays, allowAnyBarber, slotStep, daysAhead, lunch, dayOverrides } = businessConfig;
+  return structuredClone({ tagline, address, phone, whatsapp, email, instagram, tiktok, facebook, hours, holidayHours, specialDays, allowAnyBarber, slotStep, daysAhead, lunch, dayOverrides });
 }
 
 /** Guarda los cambios (solo administradores) y los aplica de inmediato en esta pestaña. */
@@ -82,6 +93,7 @@ export async function saveSettings(patch: Partial<EditableSettings>): Promise<vo
   if (!next.specialDays.every(validSpecialDay)) throw new Error('INVALID_SPECIAL_DAY');
   if (!validSlotStep(next.slotStep) || !validDaysAhead(next.daysAhead)) throw new Error('INVALID_RULES');
   if (!validLunch(next.lunch)) throw new Error('INVALID_LUNCH');
+  if (!next.dayOverrides.every(validDayOverride)) throw new Error('INVALID_DAY_OVERRIDE');
   const { error } = await supabase
     .from('business_settings')
     .upsert({ id: true, data: next, updated_at: new Date().toISOString() });

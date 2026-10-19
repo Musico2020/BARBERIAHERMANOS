@@ -189,7 +189,7 @@ export async function ruleReply({ text: raw, biz, today, availability, hoursFor 
 
   if (intent.horario && !wantsSlots && !intent.almuerzo) {
     const hol = s.holidayHours && !s.holidayHours.closed ? `Festivos: ${hour12(s.holidayHours.open)} a ${hour12(s.holidayHours.close)}, de corrido.` : 'Festivos: cerrado.';
-    const lunchLine = s.lunch?.enabled === false ? '' : dot(`De lunes a sábado salimos a almorzar de ${hour12(s.lunch?.start ?? '12:00')} a ${hour12(s.lunch?.end ?? '13:00')}`);
+    const lunchLine = s.lunch?.enabled === false ? '' : dot(`De lunes a sábado salimos a almorzar de ${hour12(s.lunch?.start ?? '12:00')} a ${hour12(s.lunch?.end ?? '14:00')}`);
     if (date) {
       // Un día puntual: el servidor ya sabe de festivos y días especiales
       const h = await hoursFor(date);
@@ -205,7 +205,7 @@ export async function ruleReply({ text: raw, biz, today, availability, hoursFor 
       parts.push(`Nuestro horario:\n${hours}\n${hol}${lunchLine ? `\n${lunchLine}` : ''}`);
     }
   } else if (intent.almuerzo) {
-    parts.push(s.lunch?.enabled === false ? 'No cerramos al mediodía.' : `De lunes a sábado salimos a almorzar de ${hour12(s.lunch?.start ?? '12:00')} a ${hour12(s.lunch?.end ?? '13:00')}, y domingos y festivos atendemos de corrido.`);
+    parts.push(s.lunch?.enabled === false ? 'No cerramos al mediodía.' : `De lunes a sábado salimos a almorzar de ${hour12(s.lunch?.start ?? '12:00')} a ${hour12(s.lunch?.end ?? '14:00')}, y domingos y festivos atendemos de corrido.`);
   }
 
   if (intent.ubicacion) {

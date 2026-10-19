@@ -46,7 +46,7 @@ INSERT INTO business_settings (id, data) VALUES (true, '{
     {"day": "Domingo", "open": "09:00", "close": "13:00", "closed": false}
   ],
   "holidayHours": {"day": "Festivos", "open": "09:00", "close": "13:00", "closed": false},
-  "lunch": {"enabled": true, "start": "12:00", "end": "13:00"},
+  "lunch": {"enabled": true, "start": "12:00", "end": "14:00"},
   "allowAnyBarber": true,
   "slotStep": 30,
   "daysAhead": 14,
@@ -57,11 +57,11 @@ INSERT INTO business_settings (id, data) VALUES (true, '{
 -- cada barbero lo cambia desde su portal.
 INSERT INTO barbers (name, short_name, role, phone, bio, specialties, rating, review_count, available, pin, commission, avatar) VALUES
   ('Walter Manjarrez', 'Walter', 'barbero', '', 'Barbero y fundador de Salón Hermanos.',
-   '["Corte caballero","Degradado","Barba","Cejas"]', 5, 0, true, '1111', 50, 'WM'),
+   '["Corte caballero","Degradado","Barba","Cejas"]', 5, 0, true, '1111', 100, 'WM'),
   ('Nelson Márquez', 'Nelson', 'barbero', '', 'Barbero de Salón Hermanos.',
-   '["Corte caballero","Degradado","Barba","Cejas"]', 5, 0, true, '2222', 50, 'NM'),
+   '["Corte caballero","Degradado","Barba","Cejas"]', 5, 0, true, '2222', 77, 'NM'),
   ('Gerardo Reinero', 'Gerardo', 'barbero', '', 'Barbero de Salón Hermanos.',
-   '["Corte caballero","Degradado","Barba","Cejas"]', 5, 0, true, '3333', 50, 'GR');
+   '["Corte caballero","Degradado","Barba","Cejas"]', 5, 0, true, '3333', 78, 'GR');
 
 -- Servicios y precios de Salón Hermanos (duraciones provisionales: se ajustan en Panel → Servicios)
 INSERT INTO services (name, category, duration, price, description, popular) VALUES
