@@ -48,7 +48,7 @@ INSERT INTO business_settings (id, data) VALUES (true, '{
   "holidayHours": {"day": "Festivos", "open": "09:00", "close": "13:00", "closed": false},
   "lunch": {"enabled": true, "start": "12:00", "end": "14:00"},
   "allowAnyBarber": true,
-  "slotStep": 30,
+  "slotStep": 15,
   "daysAhead": 14,
   "specialDays": []
 }'::jsonb);

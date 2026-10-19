@@ -100,10 +100,10 @@ export default function AppointmentStep({ value, onChange, onContinue }: Props) 
   // Los servicios se atienden uno detrás de otro: se busca un hueco del largo de todos
   const duration = cartDuration(items) || 30;
   const role = cartRole(items) ?? 'barbero';
-  // Servicio más corto: los pedazos libres más cortos que eso no sirven, así que no se dejan
-  const minGap = services.length ? Math.min(...services.map((s) => s.duration)) : 15;
+  // Cada cuántos minutos puede empezar una cita (Panel → Configuración → Reglas)
+  const step = businessConfig.slotStep;
   const freeTimes = (day: string, barberIds: string[]) =>
-    busyByDate[day] ? generateSlots(day, busyByDate[day], barberIds, duration, minGap).map((s) => s.time) : [];
+    busyByDate[day] ? generateSlots(day, busyByDate[day], barberIds, duration, step).map((s) => s.time) : [];
 
   // Solo se ofrece el equipo que hace el servicio elegido
   const team = barbers.filter((b) => b.role === role);
@@ -153,7 +153,7 @@ export default function AppointmentStep({ value, onChange, onContinue }: Props) 
     scrollTo(timeRef);
   };
 
-  const allSlots = hasItems && !mustChoose && busyByDate[date] ? generateSlots(date, busyByDate[date], selectedIds, duration, minGap) : [];
+  const allSlots = hasItems && !mustChoose && busyByDate[date] ? generateSlots(date, busyByDate[date], selectedIds, duration, step) : [];
   const freeCount = allSlots.length;
   // Recomendadas: pegadas a otra cita (el día queda compacto). Si no hay ninguna, se muestran todas igual.
   const recommended = allSlots.filter((s) => s.recommended);

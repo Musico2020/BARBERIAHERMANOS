@@ -12,7 +12,7 @@ export type EditableSettings = Pick<
 >;
 
 /** Opciones de «las citas empiezan cada…» (minutos) */
-export const SLOT_STEP_OPTIONS = [10, 15, 20, 30, 40, 45, 60] as const;
+export const SLOT_STEP_OPTIONS = [5, 10, 15, 20, 30, 60] as const;
 /** Opciones de anticipación (días). El servidor no acepta reservas a más de 30 días. */
 export const DAYS_AHEAD_OPTIONS = [3, 7, 14, 21, 30] as const;
 

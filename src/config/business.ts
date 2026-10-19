@@ -38,7 +38,7 @@ export const businessConfig: BusinessConfig = {
   // Almuerzo: no se reciben reservas por la web en ese rango, salvo domingos y festivos
   lunch: { enabled: true, start: '12:00', end: '14:00' },
   // Reglas de reserva (se cambian en Panel → Configuración → Reglas)
-  slotStep: 30,
+  slotStep: 15,
   daysAhead: 14,
   // Fechas puntuales que cambian el horario ('closed' o 'walk-in'); se editan en el panel
   specialDays: [],

@@ -3,7 +3,7 @@ import {
   Store, Clock, CalendarX, ShieldCheck, ListChecks, Save, Loader2, CheckCircle2, AlertCircle, Trash2, Plus,
   Eye, EyeOff, KeyRound, Users, Megaphone, MessageCircle,
 } from 'lucide-react';
-import { currentSettings, saveSettings, DAYS_AHEAD_OPTIONS, type EditableSettings } from '../../services/settings';
+import { currentSettings, saveSettings, DAYS_AHEAD_OPTIONS, SLOT_STEP_OPTIONS, type EditableSettings } from '../../services/settings';
 import { changeAdminPassword, currentAdminEmail, AdminAuthError } from '../../services/adminAuth';
 import { getBarbers, updateBarber } from '../../services/barbers';
 import { noticeStart } from '../../lib/businessHours';
@@ -585,11 +585,20 @@ function BookingRulesCard() {
         <div>
           <p className="text-white text-sm font-medium">Horas que se ofrecen</p>
           <p className="text-zinc-400 text-xs leading-relaxed mt-1">
-            Se calculan cada día según lo que dura cada servicio (Panel → Servicios): cada cita empieza cuando
-            termina la anterior, sin huecos ni intervalos fijos. Si el barbero marca una cita como «Completada»
-            antes de tiempo, las citas que seguían pegadas se adelantan y aparecen marcadas para avisarle al cliente.
+            El cliente elige la hora que quiera entre las que salen cada tantos minutos (abajo). Solo se ofrecen
+            las horas en que el servicio completo cabe según lo que dura (Panel → Servicios), sin cruzarse con
+            otra cita, el almuerzo, las horas cerradas ni el cierre. Las horas justo al terminar otra cita salen
+            como «recomendadas» porque no dejan huecos.
           </p>
         </div>
+        <ChoiceRow
+          label="Las citas pueden empezar cada"
+          hint="Con 15 minutos se ofrece 2:00, 2:15, 2:30… Con 5 minutos casi cualquier hora."
+          options={SLOT_STEP_OPTIONS}
+          value={form.slotStep}
+          onChange={(slotStep) => { setForm({ ...form, slotStep }); setStatus(null); }}
+          format={(n) => `${n} minutos`}
+        />
         <ChoiceRow
           label="Se puede reservar con anticipación de hasta"
           hint="Cuántos días hacia adelante ve el cliente para elegir (máximo 30)."

@@ -103,7 +103,7 @@ ${team}
 
 Reglas de reserva:
 - Se reserva desde el botón "Reservar" de la web: el cliente elige uno o varios servicios, el día, con quién y la hora. No se pide anticipo; se paga en la barbería.
-- Se puede reservar hasta ${s.daysAhead ?? 14} días adelante. Las citas empiezan cada ${s.slotStep ?? 30} minutos.
+- Se puede reservar hasta ${s.daysAhead ?? 14} días adelante. Las citas pueden empezar cada ${s.slotStep ?? 15} minutos; el cliente elige la hora que quiera entre las libres.
 - La manicura se reserva aparte de los servicios de barbería (la hace otra persona).
 - Para cambiar o cancelar una cita, escribir por WhatsApp con al menos 2 horas de anticipación.`;
 }
@@ -188,8 +188,9 @@ async function availability(db, biz, input) {
     if (wanted && !wanted.available) return { ...base, estado: `${wanted.name} no está disponible por ahora para reservas.` };
     if (wanted) staff = staff.filter((b) => b.id === wanted.id);
   }
-  // Horas «pegadas» a las citas (igual que src/lib/availability.ts): en cada hueco libre del barbero se
-  // ofrece la hora en que empieza, las siguientes según la duración y la que termina justo al final
+  // Igual que src/lib/availability.ts: cualquier hora cada «step» minutos en la que el servicio completo
+  // quepa en un hueco libre, más la hora justo al terminar otra cita
+  const step = Number(biz.settings.slotStep) > 0 ? Number(biz.settings.slotStep) : 15;
   const from = date === today.date ? Math.max(hours.o_open, Math.ceil((today.minutes + 1) / 5) * 5) : hours.o_open;
   const result = staff.map((b) => {
     const blocks = busy
@@ -205,17 +206,14 @@ async function availability(db, biz, input) {
       cursor = Math.max(cursor, x.end);
     }
     if (cursor < hours.o_close) gaps.push({ start: cursor, end: hours.o_close });
-    // Sin pedazos inútiles: no se ofrece una hora que deje libre menos que el servicio más corto
-    const minGap = Math.min(...biz.services.map((x) => x.duration), 15);
-    const useful = (piece) => piece === 0 || piece >= minGap;
     const times = [];
     for (const g of gaps) {
-      if (g.end - g.start < duration) continue;
-      const candidates = new Set();
-      for (let t = g.start; t + duration <= g.end; t += duration) candidates.add(t);
-      candidates.add(g.end - duration);
-      const valid = [...candidates].filter((t) => useful(t - g.start) && useful(g.end - t - duration)).sort((x, y) => x - y);
-      times.push(...(valid.length ? valid : [g.start]).map(toTime));
+      const last = g.end - duration;
+      if (last < g.start) continue;
+      const starts = new Set();
+      if (g.start !== from) starts.add(g.start);
+      for (let t = Math.ceil(g.start / step) * step; t <= last; t += step) starts.add(t);
+      times.push(...[...starts].sort((x, y) => x - y).map(toTime));
     }
     return { nombre: b.name, horas_libres: times.slice(0, 24), total_libres: times.length };
   });

@@ -2,16 +2,12 @@ import type { BusySlot } from '../services/bookings';
 import { todayKey, nowMinutes, timeToMinutes, minutesToTime } from './dates';
 import { bookingHoursFor, lunchFor } from './businessHours';
 
-// Horas que se ofrecen al reservar, «pegadas» a las citas: no hay intervalo fijo. Para cada barbero se
-// buscan los huecos libres del día (horario de atención, sin almuerzo ni citas) y en cada hueco se
-// ofrece la hora en que empieza, las siguientes según lo que dura el servicio pedido y la que lo deja
-// terminando justo al final del hueco.
+// Horas que se ofrecen al reservar. Para cada barbero se buscan los huecos libres del día (horario de
+// atención, sin almuerzo, sin horas cerradas y sin citas) y en cada hueco se ofrece cualquier hora del
+// reloj cada `step` minutos (2:00, 2:15, 2:30…) en la que el servicio completo quepa según su duración.
 //
-// Para no perder tiempo:
-//  - No se ofrece una hora que deje, antes o después, un pedazo libre más corto que el servicio más
-//    corto (en ese pedazo no cabría nada). Si el hueco es tan justo que siempre sobra un pedacito, se
-//    ofrece igual la hora pegada al inicio, para no perder la cita.
-//  - Las horas pegadas a otra cita salen como «recomendadas»: así el día queda compacto.
+// Además se ofrece la hora justo al terminar otra cita y la que termina justo cuando empieza la siguiente,
+// aunque no caigan en el intervalo: salen como «recomendadas» porque no dejan huecos en la agenda.
 
 export interface Slot {
   time: string;
@@ -46,31 +42,24 @@ export function freeGaps(open: number, close: number, blocks: { start: number; e
   return gaps;
 }
 
-/** Horas de inicio de un hueco que no dejan pedazos inútiles, marcando las pegadas a una cita. */
-export function startsInGap(gap: Gap, duration: number, minGap: number): { start: number; recommended: boolean }[] {
-  if (gap.end - gap.start < duration) return [];
-  const candidates = new Set<number>();
-  for (let t = gap.start; t + duration <= gap.end; t += duration) candidates.add(t);
-  candidates.add(gap.end - duration);
-  const useful = (piece: number) => piece === 0 || piece >= minGap;
-  const valid = [...candidates]
-    .filter((t) => useful(t - gap.start) && useful(gap.end - t - duration))
-    .sort((a, b) => a - b);
-  // Hueco justo: siempre sobra un pedacito, pero la cita se ofrece pegada al inicio
-  const starts = valid.length ? valid : [gap.start];
-  return starts.map((t) => ({
-    start: t,
-    recommended: (t === gap.start && gap.startEdge === 'booking') || (t + duration === gap.end && gap.endEdge === 'booking'),
-  }));
+/** Horas de inicio posibles en un hueco: cada `step` minutos del reloj, más las pegadas a otra cita. */
+export function startsInGap(gap: Gap, duration: number, step: number): { start: number; recommended: boolean }[] {
+  const last = gap.end - duration;
+  if (last < gap.start) return [];
+  const starts = new Map<number, boolean>();
+  for (let t = Math.ceil(gap.start / step) * step; t <= last; t += step) starts.set(t, false);
+  if (gap.startEdge === 'booking') starts.set(gap.start, true);
+  if (gap.endEdge === 'booking') starts.set(last, true);
+  return [...starts.entries()].sort((a, b) => a[0] - b[0]).map(([start, recommended]) => ({ start, recommended }));
 }
 
 /**
  * Horas libres del día para un servicio de `duration` minutos con alguno de `barberIds`.
- * `minGap`: duración del servicio más corto (los pedazos libres más cortos que eso se pierden).
- * Solo dentro del horario de atención, fuera del almuerzo y desde ahora si es hoy (hora de Colombia).
- * Los días cerrados o por orden de llegada no tienen horas.
+ * `step`: cada cuántos minutos puede empezar una cita (Panel → Configuración → Reglas).
+ * Solo dentro del horario de atención, fuera del almuerzo y de las horas cerradas, y desde ahora si es hoy
+ * (hora de Colombia). Los días cerrados o por orden de llegada no tienen horas.
  */
-export function generateSlots(date: string, busy: BusySlot[], barberIds: string[], duration: number, minGap = 15): Slot[] {
+export function generateSlots(date: string, busy: BusySlot[], barberIds: string[], duration: number, step = 15): Slot[] {
   const hours = bookingHoursFor(date);
   if (!hours) return [];
   const lunch = lunchFor(date);
@@ -84,7 +73,7 @@ export function generateSlots(date: string, busy: BusySlot[], barberIds: string[
     // El almuerzo es un borde, pero pegarse a él no cuenta como «recomendada»
     if (lunch) blocks.push({ start: lunch.start, end: lunch.end, kind: 'other' });
     for (const gap of freeGaps(from, hours.close, blocks)) {
-      for (const s of startsInGap(gap, duration, minGap)) slots.set(s.start, (slots.get(s.start) ?? false) || s.recommended);
+      for (const s of startsInGap(gap, duration, step)) slots.set(s.start, (slots.get(s.start) ?? false) || s.recommended);
     }
   }
   return [...slots.entries()]
