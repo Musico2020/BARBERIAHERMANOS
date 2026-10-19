@@ -5,6 +5,24 @@ Barbería tradicional · Club de Caballeros. Barrio Tobías Daza, Valledupar.
 Web pública con reserva de turnos en línea, panel de administración y portal de cada barbero.
 React 18 + Vite + TypeScript + Tailwind CSS, con base de datos en Supabase.
 
+## Publicación
+
+| Qué | Dónde |
+|---|---|
+| Web pública | https://salon-hermanos.vercel.app |
+| Panel | https://salon-hermanos.vercel.app/admin |
+| Portal del barbero | https://salon-hermanos.vercel.app/barber |
+| Hosting | Vercel, cuenta musico2020, proyecto `salon-hermanos` |
+| Base de datos | Supabase, organización «Salón Hermanos», proyecto `salon-hermanos` (us-east-1) |
+
+- Cada `git push` a `main` publica solo en Vercel.
+- Variables en Vercel: `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY`, `VITE_SITE_URL`,
+  `APP_SUPABASE_URL` y `APP_SUPABASE_SERVICE_ROLE_KEY` (secreta, solo para `api/`).
+- Cambios en la base: se agregan en `supabase/migrations/` y se aplican con `npx supabase db push`.
+- El registro público de usuarios está desactivado: solo entran los correos de `admin_users`.
+- Pendiente para WhatsApp automático: cuenta de Twilio con plantillas aprobadas y sus variables
+  (`TWILIO_*`), y `notification_settings.whatsapp_endpoint` apuntando a `/api/send-whatsapp`.
+
 ## Correr en local
 
 Requisitos: Node.js 20+ y Docker Desktop abierto.
