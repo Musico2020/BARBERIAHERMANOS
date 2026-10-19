@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { inviteToBookLink } from '../../lib/whatsapp';
 import { Search, Star, Loader2, MessageCircle, AlertTriangle, Users, Crown, UserCheck } from 'lucide-react';
 import { getBookings } from '../../services/bookings';
 import { getClients, normalizePhone, type ClientRecord } from '../../services/clients';
@@ -83,11 +84,12 @@ const columns: Column<Client>[] = [
     key: 'phone', header: 'WhatsApp', aside: true,
     render: (c) => (
       <a
-        href={`https://wa.me/57${c.phone}`}
+        href={inviteToBookLink(c.name, c.phone)}
         target="_blank"
         rel="noopener noreferrer"
         className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 hover:bg-emerald-500/20 text-xs font-mono transition-all whitespace-nowrap"
-        title="Escribir por WhatsApp"
+        title="Invitar a reservar por WhatsApp (el mensaje ya lleva el enlace de la página)"
+        aria-label={`Invitar a ${c.name} a reservar por WhatsApp`}
       >
         <MessageCircle size={13} />
         {formatPhone(c.phone)}

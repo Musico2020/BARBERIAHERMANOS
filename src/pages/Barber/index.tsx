@@ -1,8 +1,9 @@
 import { useState } from 'react';
 import {
   CalendarDays, Wallet, History, User, LogOut, Star, Check, X, CheckCheck, MessageCircle, Clock,
-  KeyRound, Loader2, CheckCircle2, AlertCircle, ChevronLeft, ChevronRight, Scissors,
+  KeyRound, Loader2, CheckCircle2, AlertCircle, ChevronLeft, ChevronRight, Scissors, CalendarClock,
 } from 'lucide-react';
+import BarberShifts from './BarberShifts';
 import BarberLogin from './BarberLogin';
 import { usePageMeta } from '../../hooks/usePageMeta';
 import { getBarberBookings, setBarberBookingStatus, changeBarberPin, BarberPortalError } from '../../services/barberPortal';
@@ -20,10 +21,11 @@ import { GoldBarChart } from '../../components/admin/charts';
 // Portal del barbero: su agenda, lo que gana, su historial y su perfil.
 // Cada consulta al servidor va con el PIN, que se valida allá.
 
-type BarberTab = 'agenda' | 'ganancias' | 'historial' | 'perfil';
+type BarberTab = 'agenda' | 'turnos' | 'ganancias' | 'historial' | 'perfil';
 
 const TABS: { id: BarberTab; label: string; icon: React.ElementType }[] = [
   { id: 'agenda', label: 'Agenda', icon: CalendarDays },
+  { id: 'turnos', label: 'Turnos', icon: CalendarClock },
   { id: 'ganancias', label: 'Ganancias', icon: Wallet },
   { id: 'historial', label: 'Historial', icon: History },
   { id: 'perfil', label: 'Mi perfil', icon: User },
@@ -483,6 +485,7 @@ function BarberDashboard({ barber, pin, onLogout, onPinChanged }: { barber: Barb
         ) : (
           <>
             {tab === 'agenda' && <AgendaTab appts={appts} barber={barber} onStatus={updateStatus} busyId={busyId} />}
+            {tab === 'turnos' && <BarberShifts barber={barber} pin={pin} appts={appts} />}
             {tab === 'ganancias' && <EarningsTab appts={appts} barber={barber} />}
             {tab === 'historial' && <HistoryTab appts={appts} />}
             {tab === 'perfil' && <ProfileTab barber={barber} appts={appts} pin={pin} onPinChanged={onPinChanged} />}
@@ -491,7 +494,7 @@ function BarberDashboard({ barber, pin, onLogout, onPinChanged }: { barber: Barb
       </main>
 
       {/* Celular: barra inferior */}
-      <nav className="lg:hidden fixed bottom-0 inset-x-0 z-30 glass border-t border-white/10 px-2 pt-2 pb-[max(0.5rem,env(safe-area-inset-bottom))] grid grid-cols-4" aria-label="Secciones">
+      <nav className="lg:hidden fixed bottom-0 inset-x-0 z-30 glass border-t border-white/10 px-2 pt-2 pb-[max(0.5rem,env(safe-area-inset-bottom))] grid grid-cols-5" aria-label="Secciones">
         {TABS.map(({ id, label, icon: Icon }) => (
           <button
             key={id}

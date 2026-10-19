@@ -56,3 +56,25 @@ export async function changeBarberPin(barberId: string, currentPin: string, newP
   if (error) throw error;
   return data as ChangePinResult;
 }
+
+export type DayClosuresResult = BarberAuthResult | 'INVALID_DATE' | 'DAY_CLOSED' | 'INVALID_RANGES';
+
+/**
+ * El barbero cierra sus propias horas de un día (reemplaza las que tenía cerradas ese día).
+ * No toca lo cerrado para todo el salón ni a los demás barberos. `ranges` vacío = abre todas sus horas.
+ */
+export async function setBarberDayClosures(
+  barberId: string,
+  pin: string,
+  date: string,
+  ranges: { start: string; end: string }[],
+): Promise<DayClosuresResult> {
+  const { data, error } = await supabase.rpc('barber_set_day_closures', {
+    p_barber_id: barberId,
+    p_pin: pin,
+    p_date: date,
+    p_ranges: ranges,
+  });
+  if (error) throw error;
+  return data as DayClosuresResult;
+}
