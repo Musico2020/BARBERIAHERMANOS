@@ -69,6 +69,15 @@ async function loadBusiness(db) {
   return { settings: settingsRows[0]?.data ?? {}, services, barbers, products };
 }
 
+/** Regla del anticipo, según Panel → Configuración → Reglas */
+function depositRule(s) {
+  const d = s.deposit;
+  if (d && d.enabled === false) return 'No se pide anticipo; se paga en la barbería.';
+  const pct = d?.percent ?? 30;
+  const mins = d?.minutes ?? 30;
+  return `Para separar la hora se paga un anticipo del ${pct} % con el QR de Nequi / Bre-B que aparece al terminar la reserva y se envía el comprobante (hay ${mins} minutos; si no, la hora se libera). El resto se paga en el salón. Si cancela con al menos 2 horas de anticipación se le devuelve el anticipo.`;
+}
+
 /** Datos del negocio para el modelo. Cambia poco: va en el prompt de sistema y se guarda en caché. */
 function businessText({ settings: s, services, barbers }) {
   const hours = (s.hours ?? []).map((h) => `- ${h.day}: ${h.closed ? 'cerrado' : `${h.open} a ${h.close}`}`).join('\n');
@@ -102,7 +111,7 @@ Equipo:
 ${team}
 
 Reglas de reserva:
-- Se reserva desde el botón "Reservar" de la web: el cliente elige uno o varios servicios, el día, con quién y la hora. No se pide anticipo; se paga en la barbería.
+- Se reserva desde el botón "Reservar" de la web: el cliente elige uno o varios servicios, el día, con quién y la hora. ${depositRule(s)}
 - Se puede reservar hasta ${s.daysAhead ?? 14} días adelante. Las citas pueden empezar cada ${s.slotStep ?? 15} minutos; el cliente elige la hora que quiera entre las libres.
 - La manicura se reserva aparte de los servicios de barbería (la hace otra persona).
 - Para cambiar o cancelar una cita, escribir por WhatsApp con al menos 2 horas de anticipación.`;

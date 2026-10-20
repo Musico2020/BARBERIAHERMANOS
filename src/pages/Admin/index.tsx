@@ -12,6 +12,7 @@ import AdminProducts from './AdminProducts';
 import AdminGallery from './AdminGallery';
 import AdminCalendar from './AdminCalendar';
 import AdminShifts from './AdminShifts';
+import AdminPayments from './AdminPayments';
 import AdminClients from './AdminClients';
 import AdminReports from './AdminReports';
 import AdminSettings from './AdminSettings';
@@ -51,6 +52,7 @@ export default function AdminPage() {
       case 'dashboard': return <AdminDashboard onNavigate={setActiveTab} />;
       case 'calendar': return <AdminCalendar />;
       case 'shifts': return <AdminShifts />;
+      case 'payments': return <AdminPayments />;
       case 'bookings': return <AdminBookings />;
       case 'messages': return <AdminMessages />;
       case 'barbers': return <AdminBarbers />;

@@ -118,6 +118,11 @@ const dot = (s) => (s.endsWith('.') ? s : `${s}.`);
 /** «Hoy miércoles 14…», «Mañana jueves 15…» o «El sábado 17…» */
 const onDay = (label) => (/^(hoy|mañana) /.test(label) ? label[0].toUpperCase() + label.slice(1) : `El ${label}`);
 
+/** Cómo se paga, según el anticipo configurado en el panel */
+const depositText = (s) => (s.deposit && s.deposit.enabled === false
+  ? 'No pedimos anticipo: pagas en el salón el día de tu cita.'
+  : `Para separar tu hora pagas un anticipo del ${s.deposit?.percent ?? 30} % con el QR de Nequi que te aparece al terminar la reserva, y el resto lo pagas en el salón.`);
+
 /**
  * Respuesta por reglas. Devuelve { reply, actions }.
  * ctx: { text, biz, today: {date, minutes}, availability(input), hoursFor(fecha) }
@@ -173,7 +178,7 @@ export async function ruleReply({ text: raw, biz, today, availability, hoursFor 
       }
     }
   } else if (intent.reservar) {
-    parts.push('¡Claro! Toca "Reservar ahora": eliges los servicios, el día, con quién y la hora. No pides anticipo; pagas en la barbería. Si quieres, dime un día y te digo qué horas hay libres.');
+    parts.push(`¡Claro! Toca "Reservar ahora": eliges los servicios, el día, con quién y la hora. ${depositText(s)} Si quieres, dime un día y te digo qué horas hay libres.`);
     actions.push({ type: 'book' });
   }
 
@@ -228,7 +233,7 @@ export async function ruleReply({ text: raw, biz, today, availability, hoursFor 
     else parts.push('Todavía no tenemos productos publicados en la web. Déjanos tu mensaje y te confirmamos si lo tenemos en la barbería.');
     if (!wanted.length) actions.push({ type: 'handoff' });
   }
-  if (intent.pago) parts.push('No pedimos anticipo: pagas en la barbería el día de tu cita. Para formas de pago puntuales, déjanos tu mensaje y te confirmamos.');
+  if (intent.pago) parts.push(`${depositText(s)} Para otras formas de pago, déjanos tu mensaje y te confirmamos.`);
   if (intent.cancelar) parts.push(`Para cambiar o cancelar tu cita escríbenos al WhatsApp ${s.whatsapp || 'de la barbería'} con al menos 2 horas de anticipación. 🙏`);
 
   if (!parts.length && intent.humano) {

@@ -7,6 +7,7 @@ import { loadClientContact, saveClientContact, type ClientContact } from '../../
 import AppointmentStep, { type Appointment } from './AppointmentStep';
 import DetailsStep from './DetailsStep';
 import BookingTicket, { type TicketData } from './BookingTicket';
+import DepositStep from './DepositStep';
 import { timeToMinutes, minutesToTime } from '../../lib/dates';
 import { cartSchedule, cartDuration, cartPrice } from '../../lib/bookingCart';
 
@@ -60,6 +61,8 @@ export default function BookingModal({ isOpen, onClose, preselectedService }: Bo
   const [appointment, setAppointment] = useState<Appointment>(emptyAppointment(preselectedService ?? null));
   const [contact, setContact] = useState<ClientContact>(loadClientContact);
   const [ticket, setTicket] = useState<TicketData | null>(null);
+  // Anticipo pendiente de la reserva recién hecha: se muestra el QR antes del ticket
+  const [deposit, setDeposit] = useState<{ ids: string[]; amount: number; expiresAt: string | null } | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
@@ -69,6 +72,7 @@ export default function BookingModal({ isOpen, onClose, preselectedService }: Bo
       setAppointment(emptyAppointment(preselectedService ?? null));
       setContact(loadClientContact());
       setTicket(null);
+      setDeposit(null);
       setError('');
     }
   }, [isOpen, preselectedService]);
@@ -92,7 +96,7 @@ export default function BookingModal({ isOpen, onClose, preselectedService }: Bo
     const schedule = cartSchedule(items, time);
     setLoading(true);
     setError('');
-    const created: { bookingId: string; barberName: string }[] = [];
+    const created: { bookingId: string; barberName: string; depositAmount: number; depositExpiresAt: string | null }[] = [];
     try {
       // Cada servicio es una cita, uno detrás de otro y con el mismo barbero
       let barberId = barber?.id ?? '';
@@ -109,6 +113,11 @@ export default function BookingModal({ isOpen, onClose, preselectedService }: Bo
         created.push(booking);
       }
       saveClientContact(contact);
+      const depositTotal = created.reduce((s, b) => s + b.depositAmount, 0);
+      if (depositTotal > 0) {
+        const expiries = created.map((b) => b.depositExpiresAt).filter((x): x is string => !!x).sort();
+        setDeposit({ ids: created.map((b) => b.bookingId), amount: depositTotal, expiresAt: expiries[0] ?? null });
+      }
       setTicket({
         bookingId: created[0].bookingId,
         clientName: contact.name.trim(),
@@ -118,6 +127,7 @@ export default function BookingModal({ isOpen, onClose, preselectedService }: Bo
         time,
         price: cartPrice(items),
         endTime: minutesToTime(timeToMinutes(time) + cartDuration(items)),
+        deposit: depositTotal > 0 ? depositTotal : undefined,
       });
       created.forEach((b) => notifyWhatsApp({ bookingId: b.bookingId }));
     } catch (err) {
@@ -154,7 +164,18 @@ export default function BookingModal({ isOpen, onClose, preselectedService }: Bo
             >
               <X size={16} />
             </button>
-            <BookingTicket ticket={ticket} onClose={onClose} />
+            {deposit ? (
+              <DepositStep
+                bookingIds={deposit.ids}
+                amount={deposit.amount}
+                total={ticket.price}
+                expiresAt={deposit.expiresAt}
+                clientName={ticket.clientName}
+                onSubmitted={() => setDeposit(null)}
+              />
+            ) : (
+              <BookingTicket ticket={ticket} onClose={onClose} />
+            )}
           </>
         ) : (
           <>

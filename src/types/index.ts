@@ -55,6 +55,29 @@ export interface Booking {
   originalTime?: string;
   /** Cuándo se adelantó */
   shiftedAt?: string;
+  /** Anticipo pedido al reservar por la web (0 = no aplica) */
+  depositAmount: number;
+  /** none: sin anticipo · awaiting: esperando pago · submitted: comprobante enviado · verified · rejected · expired */
+  depositStatus: DepositStatus;
+  depositExpiresAt?: string;
+  depositPayer?: string;
+  depositReceiptPath?: string;
+  depositSubmittedAt?: string;
+}
+
+export type DepositStatus = 'none' | 'awaiting' | 'submitted' | 'verified' | 'rejected' | 'expired';
+
+/** Anticipo al reservar por la web (Panel → Configuración → Reglas) */
+export interface DepositConfig {
+  enabled: boolean;
+  /** Porcentaje del precio (se redondea hacia arriba a $100) */
+  percent: number;
+  /** Minutos para pagar antes de que la reserva se cancele sola */
+  minutes: number;
+  /** Llave Bre-B / Nequi que se muestra con el QR */
+  key: string;
+  /** Titular de la cuenta */
+  holder: string;
 }
 
 export interface Testimonial {
@@ -131,6 +154,7 @@ export interface BusinessConfig {
   specialDays: SpecialDay[];
   /** Ajustes de fechas puntuales hechos en Panel → Turnos */
   dayOverrides: DayOverride[];
+  deposit: DepositConfig;
   /** Mostrar «El primero que esté libre» al reservar */
   allowAnyBarber: boolean;
   /** Almuerzo: sin reservas por la web en ese rango (no aplica domingos ni festivos) */

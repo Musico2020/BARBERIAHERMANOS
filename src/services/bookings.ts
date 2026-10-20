@@ -17,6 +17,12 @@ interface BookingRow {
   created_at: string;
   original_time?: string | null;
   shifted_at?: string | null;
+  deposit_amount?: number | null;
+  deposit_status?: string | null;
+  deposit_expires_at?: string | null;
+  deposit_payer?: string | null;
+  deposit_receipt_path?: string | null;
+  deposit_submitted_at?: string | null;
 }
 
 export function rowToBooking(row: BookingRow): Booking {
@@ -36,6 +42,12 @@ export function rowToBooking(row: BookingRow): Booking {
     createdAt: row.created_at,
     originalTime: row.original_time ?? undefined,
     shiftedAt: row.shifted_at ?? undefined,
+    depositAmount: row.deposit_amount ?? 0,
+    depositStatus: (row.deposit_status ?? 'none') as Booking['depositStatus'],
+    depositExpiresAt: row.deposit_expires_at ?? undefined,
+    depositPayer: row.deposit_payer ?? undefined,
+    depositReceiptPath: row.deposit_receipt_path ?? undefined,
+    depositSubmittedAt: row.deposit_submitted_at ?? undefined,
   };
 }
 
@@ -181,6 +193,10 @@ export interface CreatedBooking {
   barberId: string;
   barberName: string;
   barberShortName: string;
+  /** Anticipo de esta cita (0 si no aplica) */
+  depositAmount: number;
+  /** Hasta cuándo hay plazo para pagarlo (ISO) */
+  depositExpiresAt: string | null;
 }
 
 export async function createBooking(booking: NewBooking): Promise<CreatedBooking> {
@@ -197,12 +213,14 @@ export async function createBooking(booking: NewBooking): Promise<CreatedBooking
     const code = KNOWN_CODES.find((c) => error.message === c) ?? 'UNKNOWN';
     throw new BookingError(code, error);
   }
-  const result = data as { booking_id: string; barber_id: string; barber_name: string; barber_short_name: string };
+  const result = data as { booking_id: string; barber_id: string; barber_name: string; barber_short_name: string; deposit_amount?: number; deposit_expires_at?: string | null };
   return {
     bookingId: result.booking_id,
     barberId: result.barber_id,
     barberName: result.barber_name,
     barberShortName: result.barber_short_name,
+    depositAmount: result.deposit_amount ?? 0,
+    depositExpiresAt: result.deposit_expires_at ?? null,
   };
 }
 

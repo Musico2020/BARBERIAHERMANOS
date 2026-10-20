@@ -2,13 +2,15 @@ import { useState, useRef, useEffect } from 'react';
 import {
   LayoutDashboard, Calendar, ClipboardList, Users,
   UserCircle, BarChart2, Settings, LogOut, ExternalLink, Menu, Bell,
-  CheckCheck, AlertCircle, CalendarCheck, MessageCircle, BellRing, ShoppingBag, Images, CalendarClock,
+  CheckCheck, AlertCircle, CalendarCheck, MessageCircle, BellRing, ShoppingBag, Images, CalendarClock, Banknote,
 } from 'lucide-react';
 import { ClipperIcon } from '../../components/common/BarberIcons';
 import ThemeToggle from '../../components/common/ThemeToggle';
 import { useAdminNotifications, relativeTime, type AdminNotificationType } from '../../hooks/useAdminNotifications';
+import { useAutoRefresh } from '../../hooks/useAutoRefresh';
+import { countDepositsToReview } from '../../services/deposits';
 
-export type AdminTab = 'dashboard' | 'calendar' | 'shifts' | 'bookings' | 'messages' | 'barbers' | 'services' | 'products' | 'gallery' | 'clients' | 'reports' | 'settings';
+export type AdminTab = 'dashboard' | 'calendar' | 'shifts' | 'payments' | 'bookings' | 'messages' | 'barbers' | 'services' | 'products' | 'gallery' | 'clients' | 'reports' | 'settings';
 
 interface Props {
   activeTab: AdminTab;
@@ -37,6 +39,7 @@ const navItems: { id: AdminTab; label: string; icon: React.ElementType; group: s
   { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard, group: 'Día a día', description: 'Cómo va el negocio hoy y este mes' },
   { id: 'calendar', label: 'Calendario', icon: Calendar, group: 'Día a día', description: 'Agenda por día y por semana' },
   { id: 'shifts', label: 'Turnos', icon: CalendarClock, group: 'Día a día', description: 'Abrir o cerrar horas de un día' },
+  { id: 'payments', label: 'Pagos', icon: Banknote, group: 'Día a día', description: 'Anticipos por verificar' },
   { id: 'bookings', label: 'Reservas', icon: ClipboardList, group: 'Día a día', description: 'Todas las citas y su estado' },
   { id: 'messages', label: 'Mensajes', icon: MessageCircle, group: 'Día a día', description: 'Lo que escriben desde la web' },
   { id: 'barbers', label: 'Barberos', icon: Users, group: 'Negocio', description: 'Equipo, fotos, PIN y porcentajes' },
@@ -54,6 +57,11 @@ export default function AdminLayout({ activeTab, onTabChange, onLogout, children
   const [notifOpen, setNotifOpen] = useState(false);
   const notifRef = useRef<HTMLDivElement>(null);
   const { notifications, unreadCount, unreadMessages, permission, requestPermission, markRead, markAllRead } = useAdminNotifications();
+  // Comprobantes de anticipo esperando que el administrador los revise
+  const [paymentsToReview, setPaymentsToReview] = useState(0);
+  useAutoRefresh(() => {
+    countDepositsToReview().then(setPaymentsToReview).catch((err) => console.error('No se pudieron contar los pagos por verificar', err));
+  }, [activeTab], 30_000);
 
   useEffect(() => {
     const handleClick = (e: MouseEvent) => {
@@ -105,6 +113,11 @@ export default function AdminLayout({ activeTab, onTabChange, onLogout, children
                   {activeTab === id && <span className="absolute left-0 top-2 bottom-2 w-[3px] rounded-r-full bg-gold" />}
                   <Icon size={17} strokeWidth={1.75} className={activeTab === id ? 'text-gold' : 'text-zinc-500'} />
                   <span className="flex-1 text-left">{label}</span>
+                  {id === 'payments' && paymentsToReview > 0 && (
+                    <span className="min-w-[20px] h-5 px-1.5 rounded-full bg-amber-500 text-dark text-[10px] font-bold flex items-center justify-center" title="Comprobantes por verificar">
+                      {paymentsToReview}
+                    </span>
+                  )}
                   {id === 'messages' && unreadMessages > 0 && (
                     <span className="min-w-[20px] h-5 px-1.5 rounded-full bg-green-500 text-white text-[10px] font-bold flex items-center justify-center">
                       {unreadMessages}

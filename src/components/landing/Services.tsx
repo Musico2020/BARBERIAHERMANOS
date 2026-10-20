@@ -3,6 +3,7 @@ import { Clock, ChevronRight } from 'lucide-react';
 import { CategoryIcon } from '../common/BarberIcons';
 import { formatCOP } from '../../data';
 import { getServices } from '../../services/services';
+import { businessConfig } from '../../config/business';
 import type { Service } from '../../types';
 
 // Lista de precios al estilo de un tablero de barbería clásica: marco dorado, nombre y precio
@@ -84,7 +85,10 @@ export default function Services({ onBooking }: ServicesProps) {
             La carta del <span className="font-script font-normal text-gold">Salón</span>
           </h2>
           <p className="text-zinc-400 text-base sm:text-lg max-w-2xl mx-auto">
-            Toca cualquier servicio para reservarlo. Pagas en el salón, sin anticipo.
+            Toca cualquier servicio para reservarlo.{' '}
+            {businessConfig.deposit.enabled
+              ? `Separas tu turno con el ${businessConfig.deposit.percent} % por Nequi y el resto lo pagas en el salón.`
+              : 'Pagas en el salón, sin anticipo.'}
           </p>
         </div>
 

@@ -614,10 +614,82 @@ function BookingRulesCard() {
 }
 
 
+const DEPOSIT_PERCENTS = [10, 20, 30, 40, 50] as const;
+const DEPOSIT_MINUTES = [15, 30, 45, 60, 120] as const;
+
+/** Anticipo al reservar por la web: se paga con el QR de Nequi y se verifica en Panel → Pagos */
+function DepositCard() {
+  const [form, setForm] = useState(() => currentSettings().deposit);
+  const [saving, setSaving] = useState(false);
+  const [status, setStatus] = useState<Status>(null);
+  const set = (patch: Partial<typeof form>) => { setForm({ ...form, ...patch }); setStatus(null); };
+
+  const save = async () => {
+    setSaving(true);
+    setStatus(null);
+    try {
+      await saveSettings({ deposit: { ...form, key: form.key.trim(), holder: form.holder.trim() } });
+      setStatus({ kind: 'ok', text: 'Anticipo guardado. Las reservas nuevas ya lo usan.' });
+    } catch (err) {
+      console.error('No se pudo guardar el anticipo', err);
+      setStatus({ kind: 'error', text: 'No se pudo guardar. Revisa los datos e intenta de nuevo.' });
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <Panel title="Anticipo al reservar" subtitle="Se paga con tu QR de Nequi y lo verificas en Panel → Pagos">
+      <div className="space-y-5">
+        <label className="flex items-center justify-between gap-4 cursor-pointer">
+          <span>
+            <span className="block text-white text-sm font-medium">Pedir anticipo en las reservas de la web</span>
+            <span className="block text-zinc-500 text-xs">Las citas que registras desde el panel no lo piden.</span>
+          </span>
+          <input type="checkbox" checked={form.enabled} onChange={(e) => set({ enabled: e.target.checked })} className="w-5 h-5 accent-yellow-500" />
+        </label>
+        {form.enabled && (
+          <>
+            <ChoiceRow
+              label="Porcentaje del valor del servicio"
+              hint="Se redondea hacia arriba a los $100. Ej.: 30 % de $20.000 = $6.000."
+              options={DEPOSIT_PERCENTS}
+              value={form.percent}
+              onChange={(percent) => set({ percent })}
+              format={(n) => `${n} %`}
+            />
+            <ChoiceRow
+              label="Tiempo para pagar y enviar el comprobante"
+              hint="Si no lo envía a tiempo, la reserva se cancela sola y la hora queda libre."
+              options={DEPOSIT_MINUTES}
+              value={form.minutes}
+              onChange={(minutes) => set({ minutes })}
+              format={(n) => (n < 60 ? `${n} min` : `${n / 60} h`)}
+            />
+            <div className="grid sm:grid-cols-2 gap-3">
+              <label className="text-xs text-zinc-400">
+                Llave Bre-B / Nequi
+                <input value={form.key} onChange={(e) => set({ key: e.target.value })} className="mt-1 w-full bg-white/5 border border-white/10 rounded-xl px-3 py-2.5 text-white text-sm font-mono" />
+              </label>
+              <label className="text-xs text-zinc-400">
+                Titular de la cuenta
+                <input value={form.holder} onChange={(e) => set({ holder: e.target.value })} className="mt-1 w-full bg-white/5 border border-white/10 rounded-xl px-3 py-2.5 text-white text-sm" />
+              </label>
+            </div>
+            <p className="text-zinc-500 text-xs">El QR que ve el cliente es la imagen public/pago-qr.jpg del proyecto; si cambias de cuenta, avísame para cambiarla.</p>
+          </>
+        )}
+      </div>
+      <SaveBar saving={saving} status={status} onSave={save} label="Guardar anticipo" />
+    </Panel>
+  );
+}
+
 function RulesTab() {
   return (
     <div className="grid lg:grid-cols-2 gap-5">
       <BookingRulesCard />
+      <DepositCard />
       <AnyBarberCard />
       <Panel title="Reglas de reserva" subtitle="Funcionan automáticamente">
         <Row label="El servicio debe terminar antes del cierre" value="Sí" />

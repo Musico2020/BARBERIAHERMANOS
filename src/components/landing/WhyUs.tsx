@@ -1,4 +1,5 @@
 import { Zap, Wallet, Ticket } from 'lucide-react';
+import { businessConfig } from '../../config/business';
 
 const features = [
   {
@@ -10,8 +11,10 @@ const features = [
   },
   {
     icon: Wallet,
-    title: 'Pagas en el salón',
-    desc: 'No necesitas tarjeta para reservar. Pagas el servicio cuando llegas, sin cobros anticipados.',
+    title: businessConfig.deposit.enabled ? 'Separas con un anticipo' : 'Pagas en el salón',
+    desc: businessConfig.deposit.enabled
+      ? `Apartas tu hora con el ${businessConfig.deposit.percent} % por Nequi o Bre-B desde la misma reserva, y el resto lo pagas en el salón.`
+      : 'No necesitas tarjeta para reservar. Pagas el servicio cuando llegas, sin cobros anticipados.',
     color: 'from-barber-blue/25 to-transparent',
     border: 'border-barber-blue/40',
   },

@@ -1,5 +1,6 @@
 import { ArrowRight } from 'lucide-react';
 import { ClipperIcon } from '../common/BarberIcons';
+import { businessConfig } from '../../config/business';
 
 interface BookingCTAProps {
   onBooking: () => void;
@@ -50,7 +51,9 @@ export default function BookingCTA({ onBooking }: BookingCTAProps) {
           </div>
 
           <p className="text-zinc-600 text-sm mt-6">
-            Pago al llegar · Sin anticipo · Cambios o cancelaciones con 2 horas de anticipación
+            {businessConfig.deposit.enabled
+              ? `Anticipo del ${businessConfig.deposit.percent} % por Nequi · El resto en el salón · Cambios o cancelaciones con 2 horas de anticipación`
+              : 'Pago al llegar · Sin anticipo · Cambios o cancelaciones con 2 horas de anticipación'}
           </p>
         </div>
       </div>
