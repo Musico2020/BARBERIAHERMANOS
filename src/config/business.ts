@@ -45,5 +45,5 @@ export const businessConfig: BusinessConfig = {
   // Ajustes de fechas puntuales (Panel → Turnos)
   dayOverrides: [],
   // Anticipo al reservar por la web: se paga con el QR de Nequi (public/pago-qr.jpg) y se verifica en Panel → Pagos
-  deposit: { enabled: true, percent: 50, minutes: 30, key: '0092002945', holder: 'Walter Camilo Manjarrez Blandon', allowFull: true, allowCash: true },
+  deposit: { enabled: true, percent: 50, minutes: 30, key: '0092002945', holder: 'Walter Camilo Manjarrez Blandon', allowFull: true, allowCash: false },
 };

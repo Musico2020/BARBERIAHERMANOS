@@ -75,7 +75,7 @@ function depositRule(s) {
   if (d && d.enabled === false) return 'No se pide anticipo; se paga en la barbería.';
   const pct = d?.percent ?? 50;
   const mins = d?.minutes ?? 30;
-  return `Para separar la hora se paga un anticipo del ${pct} % con el QR de Nequi / Bre-B que aparece al terminar la reserva y se envía el comprobante (hay ${mins} minutos; si no, la hora se libera). El resto se paga en el salón. También puede pagar el 100 % por transferencia, o elegir pagar el anticipo en efectivo comprometiéndose a ir al salón a pagarlo antes de la cita. Si paga por transferencia y no asiste a la cita, pierde el dinero pagado; si va a cancelar, debe avisar con al menos 2 horas de anticipación.`;
+  return `Para separar la hora se paga un anticipo del ${pct} % con el QR de Nequi / Bre-B que aparece al terminar la reserva y se envía el comprobante (hay ${mins} minutos; si no, la hora se libera). El resto se paga en el salón. También puede pagar el 100 % por transferencia.${d?.allowCash === true ? ' O puede elegir pagar el anticipo en efectivo, comprometiéndose a ir al salón a pagarlo antes de la cita.' : ' El anticipo es solo por transferencia; no se recibe en efectivo.'} Si paga por transferencia y no asiste a la cita, pierde el dinero pagado; si va a cancelar, debe avisar con al menos 2 horas de anticipación.`;
 }
 
 /** Datos del negocio para el modelo. Cambia poco: va en el prompt de sistema y se guarda en caché. */
