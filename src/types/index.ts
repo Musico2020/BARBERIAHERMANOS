@@ -30,7 +30,12 @@ export interface Barber {
   bio: string;
   totalServicesMonth: number;
   earningsMonth: number;
+  /** Horario de trabajo por día de la semana ("0" = domingo … "6" = sábado); el día que falta sigue el horario del salón */
+  workHours?: WorkHours;
 }
+
+export type WorkDay = { off: true } | { off?: false; open: string; close: string };
+export type WorkHours = Partial<Record<'0' | '1' | '2' | '3' | '4' | '5' | '6', WorkDay>>;
 
 export interface TimeSlot {
   time: string;

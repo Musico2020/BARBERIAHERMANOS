@@ -18,6 +18,7 @@ interface BarberRow {
   earnings_month: number;
   avatar: string;
   photo_url: string;
+  work_hours?: Barber['workHours'] | null;
 }
 
 function rowToBarber(row: BarberRow): Barber {
@@ -37,12 +38,13 @@ function rowToBarber(row: BarberRow): Barber {
     earningsMonth: row.earnings_month,
     avatar: row.avatar,
     photoUrl: row.photo_url ?? '',
+    workHours: row.work_hours ?? {},
   };
 }
 
 // Columnas que se pueden leer desde la web. El PIN no está: solo se valida en el servidor.
 const BARBER_COLUMNS =
-  'id, name, short_name, role, phone, bio, specialties, rating, review_count, available, commission, total_services_month, earnings_month, avatar, photo_url';
+  'id, name, short_name, role, phone, bio, specialties, rating, review_count, available, commission, total_services_month, earnings_month, avatar, photo_url, work_hours';
 
 export async function getBarbers(): Promise<Barber[]> {
   const { data, error } = await supabase
@@ -79,6 +81,7 @@ export async function createBarber(barber: Omit<Barber, 'id' | 'reviewCount' | '
       total_services_month: 0,
       earnings_month: 0,
       avatar: barber.avatar,
+      work_hours: barber.workHours ?? {},
     })
     .select(BARBER_COLUMNS)
     .single();
@@ -97,6 +100,7 @@ export async function updateBarber(id: string, updates: Partial<Barber>): Promis
   if (updates.available !== undefined) dbUpdates.available = updates.available;
   if (updates.pin !== undefined) dbUpdates.pin = updates.pin;
   if (updates.commission !== undefined) dbUpdates.commission = updates.commission;
+  if (updates.workHours !== undefined) dbUpdates.work_hours = updates.workHours;
 
   const { error } = await supabase
     .from('barbers')

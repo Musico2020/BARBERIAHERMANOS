@@ -1,13 +1,14 @@
 import { useState, useEffect, useRef } from 'react';
-import { Star, Phone, Edit2, ToggleLeft, ToggleRight, X, Plus, User, Loader2, Camera, Trash2 } from 'lucide-react';
+import { Star, Phone, Edit2, ToggleLeft, ToggleRight, X, Plus, User, Loader2, Camera, Trash2, Clock } from 'lucide-react';
 import { getBarbers, updateBarberAvailability, createBarber, updateBarber, uploadBarberPhoto, deleteBarberWithPhoto } from '../../services/barbers';
 import { getBookingsByMonth } from '../../services/bookings';
 import { formatCOP } from '../../data';
 import { todayKey } from '../../lib/dates';
 import { barberMonthStats } from '../../lib/stats';
-import type { Barber, Booking, StaffRole } from '../../types';
+import type { Barber, Booking, StaffRole, WorkHours } from '../../types';
 import { IMAGE_ACCEPT } from '../../lib/imageFile';
 import BarberAvatar from '../../components/common/BarberAvatar';
+import WorkHoursEditor, { validWorkHours, workHoursSummary } from '../../components/admin/WorkHoursEditor';
 
 interface BarberForm {
   name: string;
@@ -17,6 +18,7 @@ interface BarberForm {
   specialties: string;
   commission: number;
   pin: string;
+  workHours: WorkHours;
 }
 
 const emptyForm: BarberForm = {
@@ -27,6 +29,7 @@ const emptyForm: BarberForm = {
   specialties: '',
   commission: 77,
   pin: '',
+  workHours: {},
 };
 
 export default function AdminBarbers() {
@@ -132,6 +135,7 @@ export default function AdminBarbers() {
       specialties: barber.specialties.join(', '),
       commission: barber.commission,
       pin: '',
+      workHours: barber.workHours ?? {},
     });
     setErrors({});
     setSaveError('');
@@ -147,6 +151,10 @@ export default function AdminBarbers() {
     // El portal del barbero usa un teclado de 4 dígitos
     if (form.pin && !/^\d{4}$/.test(form.pin)) e.pin = 'El PIN debe tener exactamente 4 números';
     setErrors(e);
+    if (!validWorkHours(form.workHours)) {
+      setSaveError('Revisa el horario: la hora de salida debe ser después de la de entrada.');
+      return false;
+    }
     return Object.keys(e).length === 0;
   };
 
@@ -169,6 +177,7 @@ export default function AdminBarbers() {
           bio: form.bio,
           specialties,
           commission: form.commission,
+          workHours: form.workHours,
         };
         if (form.pin) updates.pin = form.pin;
         await updateBarber(editTarget.id, updates);
@@ -199,6 +208,7 @@ export default function AdminBarbers() {
           available: true,
           commission: form.commission,
           pin: form.pin,
+          workHours: form.workHours,
         });
         setList((prev) => [...prev, newBarber]);
       }
@@ -290,6 +300,14 @@ export default function AdminBarbers() {
                   <span className="text-zinc-300 font-mono">{barber.phone}</span>
                 </div>
                 <p className="text-zinc-400 text-xs leading-relaxed line-clamp-2">{barber.bio}</p>
+                <div className="flex items-start gap-2 text-xs">
+                  <Clock size={13} className="text-zinc-500 mt-0.5 shrink-0" />
+                  {workHoursSummary(barber.workHours).length === 0 ? (
+                    <span className="text-zinc-400">Horario del salón</span>
+                  ) : (
+                    <span className="text-zinc-300 leading-relaxed">{workHoursSummary(barber.workHours).join(' · ')}</span>
+                  )}
+                </div>
               </div>
 
               <div className="flex flex-wrap gap-1.5 mb-5">
@@ -504,6 +522,11 @@ export default function AdminBarbers() {
                   </p>
                 </div>
                 <p className="text-zinc-600 text-xs mt-1.5">Para el dueño del salón: 0 % (se queda con todo).</p>
+              </div>
+
+              <div>
+                <span className="text-zinc-400 text-xs mb-1.5 block">Horario de trabajo</span>
+                <WorkHoursEditor value={form.workHours} onChange={(workHours) => { setForm({ ...form, workHours }); setSaveError(''); }} />
               </div>
 
               <div>
