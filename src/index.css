@@ -814,3 +814,15 @@
   20%, 60% { transform: translateX(-8px); }
   40%, 80% { transform: translateX(8px); }
 }
+
+/* Opciones de las listas desplegables: el navegador las pinta en blanco; en el tema oscuro van oscuras y legibles
+   (el tema claro las vuelve blancas con letra oscura en light-theme.css) */
+html:not([data-theme='light']) select option,
+html:not([data-theme='light']) select optgroup {
+  background-color: #161616;
+  color: #f5f0e6;
+}
+html:not([data-theme='light']) select option:checked {
+  background-color: #3a2e14;
+  color: #e6c27a;
+}
