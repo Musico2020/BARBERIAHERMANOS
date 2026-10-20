@@ -1,6 +1,7 @@
 import type { BusySlot } from '../services/bookings';
 import { todayKey, nowMinutes, timeToMinutes, minutesToTime } from './dates';
-import { bookingHoursFor, lunchFor } from './businessHours';
+import { bookingHoursFor, barberHoursFor, lunchFor } from './businessHours';
+import type { WorkHours } from '../types';
 
 // Horas que se ofrecen al reservar. Para cada barbero se buscan los huecos libres del día (horario de
 // atención, sin almuerzo, sin horas cerradas y sin citas) y en cada hueco se ofrece cualquier hora del
@@ -59,14 +60,24 @@ export function startsInGap(gap: Gap, duration: number, step: number): { start: 
  * Solo dentro del horario de atención, fuera del almuerzo y de las horas cerradas, y desde ahora si es hoy
  * (hora de Colombia). Los días cerrados o por orden de llegada no tienen horas.
  */
-export function generateSlots(date: string, busy: BusySlot[], barberIds: string[], duration: number, step = 15): Slot[] {
-  const hours = bookingHoursFor(date);
-  if (!hours) return [];
+export function generateSlots(
+  date: string,
+  busy: BusySlot[],
+  barberIds: string[],
+  duration: number,
+  step = 15,
+  /** Horario propio de cada barbero (Panel → Barberos); el que no aparece usa el del salón */
+  workHoursOf: (barberId: string) => WorkHours | undefined = () => undefined,
+): Slot[] {
+  if (!bookingHoursFor(date)) return [];
   const lunch = lunchFor(date);
   // Hoy: desde la hora actual, redondeada a los 5 minutos siguientes
-  const from = date === todayKey() ? Math.max(hours.open, Math.ceil((nowMinutes() + 1) / 5) * 5) : hours.open;
+  const nowFrom = date === todayKey() ? Math.ceil((nowMinutes() + 1) / 5) * 5 : 0;
   const slots = new Map<number, boolean>();
   for (const id of barberIds) {
+    const hours = barberHoursFor(date, workHoursOf(id));
+    if (!hours) continue;
+    const from = Math.max(hours.open, nowFrom);
     const blocks: { start: number; end: number; kind: Edge }[] = busy
       .filter((b) => b.barberId === id)
       .map((b) => ({ start: timeToMinutes(b.startTime), end: timeToMinutes(b.startTime) + b.duration, kind: b.kind === 'closed' ? 'other' : 'booking' }));

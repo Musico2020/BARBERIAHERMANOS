@@ -1,7 +1,7 @@
 import { businessConfig } from '../config/business';
 import { todayKey, nowMinutes, timeToMinutes, addDays } from './dates';
 import { holidayName } from './holidays';
-import type { BusinessHours, DayOverride, SpecialDay } from '../types';
+import type { BusinessHours, DayOverride, SpecialDay, WorkHours } from '../types';
 
 // Horario de atención según src/config/business.ts (hours va de lunes a domingo).
 // Los festivos de Colombia se detectan solos y usan businessConfig.holidayHours.
@@ -69,6 +69,20 @@ export function lunchFor(dateKey: string): { start: number; end: number; startLa
 /** Horario en que se puede reservar por la web: null si está cerrado o se atiende por orden de llegada. */
 export function bookingHoursFor(dateKey: string): ReturnType<typeof hoursFor> {
   return specialDayOf(dateKey) === 'walk-in' ? null : hoursFor(dateKey);
+}
+
+/**
+ * Horario de trabajo de un barbero ese día (igual que barber_windows_for en la base de datos):
+ * null si el salón no recibe reservas ese día o si el barbero descansa; su horario propio si lo tiene
+ * (puede ir más allá del horario del salón); si no, el del salón.
+ */
+export function barberHoursFor(dateKey: string, workHours: WorkHours | undefined): { open: number; close: number } | null {
+  const salon = bookingHoursFor(dateKey);
+  if (!salon) return null;
+  const day = workHours?.[String(weekday(dateKey)) as keyof WorkHours];
+  if (!day) return { open: salon.open, close: salon.close };
+  if (day.off) return null;
+  return { open: timeToMinutes(day.open), close: timeToMinutes(day.close) };
 }
 
 function formatHour(time: string): string {

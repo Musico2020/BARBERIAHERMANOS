@@ -178,10 +178,12 @@ async function availability(db, biz, input) {
   if (date < today.date) return { error: 'Esa fecha ya pasó.' };
   if (date > addDays(today.date, Math.min(daysAhead, 30) - 1)) return { aviso: `Solo se puede reservar hasta ${daysAhead} días adelante.` };
 
-  const [[hours], [lunch], busy] = await Promise.all([
+  const [[hours], [lunch], busy, windows] = await Promise.all([
     db.rpc('business_hours_for', { p_date: date }).then((r) => (Array.isArray(r) ? r : [r])),
     db.rpc('lunch_break_for', { p_date: date }).then((r) => (Array.isArray(r) ? r : [r])),
     db.rpc('get_busy_slots', { p_date: date, p_barber_id: null }),
+    // Horario de trabajo de cada barbero ese día (su horario propio o el del salón)
+    db.rpc('barber_windows_for', { p_date: date }).catch(() => []),
   ]);
   const base = { fecha: date, dia: longDate(date) };
   if (hours.o_status === 'CLOSED') return { ...base, estado: 'Cerrado ese día. No hay servicio.' };
@@ -201,8 +203,12 @@ async function availability(db, biz, input) {
   // Igual que src/lib/availability.ts: cualquier hora cada «step» minutos en la que el servicio completo
   // quepa en un hueco libre, más la hora justo al terminar otra cita
   const step = Number(biz.settings.slotStep) > 0 ? Number(biz.settings.slotStep) : 15;
-  const from = date === today.date ? Math.max(hours.o_open, Math.ceil((today.minutes + 1) / 5) * 5) : hours.o_open;
   const result = staff.map((b) => {
+    const w = (Array.isArray(windows) ? windows : []).find((x) => x.barber_id === b.id);
+    if (w && w.o_open === null) return { nombre: b.name, horas_libres: [], total_libres: 0, nota: 'No trabaja ese día' };
+    const open = w ? w.o_open : hours.o_open;
+    const close = w ? w.o_close : hours.o_close;
+    const from = date === today.date ? Math.max(open, Math.ceil((today.minutes + 1) / 5) * 5) : open;
     const blocks = busy
       .filter((x) => x.barber_id === b.id)
       .map((x) => ({ start: toMin(x.start_time), end: toMin(x.start_time) + x.duration }));
@@ -212,10 +218,10 @@ async function availability(db, biz, input) {
     let cursor = from;
     for (const x of blocks) {
       if (x.end <= cursor) continue;
-      if (x.start > cursor) gaps.push({ start: cursor, end: Math.min(x.start, hours.o_close) });
+      if (x.start > cursor) gaps.push({ start: cursor, end: Math.min(x.start, close) });
       cursor = Math.max(cursor, x.end);
     }
-    if (cursor < hours.o_close) gaps.push({ start: cursor, end: hours.o_close });
+    if (cursor < close) gaps.push({ start: cursor, end: close });
     const times = [];
     for (const g of gaps) {
       const last = g.end - duration;
@@ -225,7 +231,7 @@ async function availability(db, biz, input) {
       for (let t = Math.ceil(g.start / step) * step; t <= last; t += step) starts.add(t);
       times.push(...[...starts].sort((x, y) => x - y).map(toTime));
     }
-    return { nombre: b.name, horas_libres: times.slice(0, 24), total_libres: times.length };
+    return { nombre: b.name, horario: `${toTime(open)} a ${toTime(close)}`, horas_libres: times.slice(0, 24), total_libres: times.length };
   });
   return {
     ...base,

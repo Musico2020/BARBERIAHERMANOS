@@ -102,8 +102,10 @@ export default function AppointmentStep({ value, onChange, onContinue }: Props) 
   const role = cartRole(items) ?? 'barbero';
   // Cada cuántos minutos puede empezar una cita (Panel → Configuración → Reglas)
   const step = businessConfig.slotStep;
+  // Horario propio de cada barbero: puede trabajar antes o después del horario del salón
+  const workHoursOf = (id: string) => barbers.find((b) => b.id === id)?.workHours;
   const freeTimes = (day: string, barberIds: string[]) =>
-    busyByDate[day] ? generateSlots(day, busyByDate[day], barberIds, duration, step).map((s) => s.time) : [];
+    busyByDate[day] ? generateSlots(day, busyByDate[day], barberIds, duration, step, workHoursOf).map((s) => s.time) : [];
 
   // Solo se ofrece el equipo que hace el servicio elegido
   const team = barbers.filter((b) => b.role === role);
@@ -153,7 +155,7 @@ export default function AppointmentStep({ value, onChange, onContinue }: Props) 
     scrollTo(timeRef);
   };
 
-  const allSlots = hasItems && !mustChoose && busyByDate[date] ? generateSlots(date, busyByDate[date], selectedIds, duration, step) : [];
+  const allSlots = hasItems && !mustChoose && busyByDate[date] ? generateSlots(date, busyByDate[date], selectedIds, duration, step, workHoursOf) : [];
   const freeCount = allSlots.length;
   // Recomendadas: pegadas a otra cita (el día queda compacto). Si no hay ninguna, se muestran todas igual.
   const recommended = allSlots.filter((s) => s.recommended);

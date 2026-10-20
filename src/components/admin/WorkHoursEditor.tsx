@@ -90,7 +90,7 @@ export default function WorkHoursEditor({ value, onChange }: Props) {
         );
       })}
       <p className="text-zinc-600 text-xs">
-        Fuera de su horario no le aparecen turnos para reservar. El horario del salón y el almuerzo se siguen respetando.
+        Con «Horario propio» se le ofrecen turnos en todo ese horario, aunque sea antes o después del horario del salón (ej.: hasta las 8:00 p. m.). Fuera de él no le aparecen turnos. El almuerzo y las horas cerradas se siguen respetando.
       </p>
     </div>
   );
