@@ -121,7 +121,7 @@ const onDay = (label) => (/^(hoy|mañana) /.test(label) ? label[0].toUpperCase()
 /** Cómo se paga, según el anticipo configurado en el panel */
 const depositText = (s) => (s.deposit && s.deposit.enabled === false
   ? 'No pedimos anticipo: pagas en el salón el día de tu cita.'
-  : `Para separar tu hora pagas un anticipo del ${s.deposit?.percent ?? 30} % con el QR de Nequi que te aparece al terminar la reserva, y el resto lo pagas en el salón.`);
+  : `Para separar tu hora pagas un anticipo del ${s.deposit?.percent ?? 50} % con el QR de Nequi que te aparece al terminar la reserva (o el 100 % si prefieres), y el resto lo pagas en el salón. También puedes elegir pagar el anticipo en efectivo: te comprometes a ir al salón a pagarlo antes de tu cita. Si pagas por transferencia y no asistes, pierdes el dinero pagado.`);
 
 /**
  * Respuesta por reglas. Devuelve { reply, actions }.

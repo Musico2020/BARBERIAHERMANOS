@@ -1,7 +1,7 @@
 import { useState, useRef, useCallback } from 'react';
 import { getRecentlyCreatedBookings } from '../services/bookings';
 import { getContactMessages, setContactMessageRead, markAllContactMessagesRead } from '../services/contactMessages';
-import { formatDateLong } from '../lib/dates';
+import { formatDateLong, time12 } from '../lib/dates';
 import { useAutoRefresh } from './useAutoRefresh';
 
 // Notificaciones reales del panel: reservas nuevas (últimas 48 h) y mensajes del chat sin leer.
@@ -95,7 +95,7 @@ export function useAdminNotifications() {
           id: `booking-${b.id}`,
           type: (b.status === 'cancelled' ? 'cancelled' : 'booking') as AdminNotificationType,
           title: b.status === 'cancelled' ? 'Reserva cancelada' : 'Nueva reserva',
-          description: `${b.clientName} · ${b.serviceName} con ${b.barberName} · ${formatDateLong(b.date)}, ${b.time}`,
+          description: `${b.clientName} · ${b.serviceName} con ${b.barberName} · ${formatDateLong(b.date)}, ${time12(b.time)}`,
           createdAt: b.createdAt,
           read: false,
         })),

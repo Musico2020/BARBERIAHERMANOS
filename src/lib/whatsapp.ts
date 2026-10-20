@@ -19,7 +19,7 @@ export function bookingInvitation(name: string): string {
   const first = name.trim().split(/\s+/)[0] ?? '';
   return [
     `Hola${first ? ` ${first}` : ''} 👋, te saludamos de ${businessConfig.name} 💈.`,
-    'Ya puedes reservar tu turno en línea: eliges el servicio, el día, la hora y tu barbero, sin esperas y sin anticipo.',
+    'Ya puedes reservar tu turno en línea: eliges el servicio, el día, la hora y tu barbero, sin esperas.',
     `Reserva aquí 👉 ${siteUrl()}`,
     '¡Te esperamos!',
   ].join('\n\n');

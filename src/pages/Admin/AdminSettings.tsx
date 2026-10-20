@@ -614,7 +614,7 @@ function BookingRulesCard() {
 }
 
 
-const DEPOSIT_PERCENTS = [10, 20, 30, 40, 50] as const;
+const DEPOSIT_PERCENTS = [20, 30, 40, 50, 60, 70] as const;
 const DEPOSIT_MINUTES = [15, 30, 45, 60, 120] as const;
 
 /** Anticipo al reservar por la web: se paga con el QR de Nequi y se verifica en Panel → Pagos */
@@ -652,7 +652,7 @@ function DepositCard() {
           <>
             <ChoiceRow
               label="Porcentaje del valor del servicio"
-              hint="Se redondea hacia arriba a los $100. Ej.: 30 % de $20.000 = $6.000."
+              hint="Se redondea hacia arriba a los $100. Ej.: 50 % de $15.000 = $7.500."
               options={DEPOSIT_PERCENTS}
               value={form.percent}
               onChange={(percent) => set({ percent })}
@@ -666,6 +666,20 @@ function DepositCard() {
               onChange={(minutes) => set({ minutes })}
               format={(n) => (n < 60 ? `${n} min` : `${n / 60} h`)}
             />
+            <label className="flex items-center justify-between gap-4 cursor-pointer">
+              <span>
+                <span className="block text-white text-sm font-medium">Permitir pagar el 100 % por transferencia</span>
+                <span className="block text-zinc-500 text-xs">El cliente puede pagar todo el servicio con el QR.</span>
+              </span>
+              <input type="checkbox" checked={form.allowFull !== false} onChange={(e) => set({ allowFull: e.target.checked })} className="w-5 h-5 accent-yellow-500" />
+            </label>
+            <label className="flex items-center justify-between gap-4 cursor-pointer">
+              <span>
+                <span className="block text-white text-sm font-medium">Permitir anticipo en efectivo</span>
+                <span className="block text-zinc-500 text-xs">El cliente se compromete a ir al salón a pagar el anticipo antes de su cita; tú lo confirmas en Pagos.</span>
+              </span>
+              <input type="checkbox" checked={form.allowCash !== false} onChange={(e) => set({ allowCash: e.target.checked })} className="w-5 h-5 accent-yellow-500" />
+            </label>
             <div className="grid sm:grid-cols-2 gap-3">
               <label className="text-xs text-zinc-400">
                 Llave Bre-B / Nequi

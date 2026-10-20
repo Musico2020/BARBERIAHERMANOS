@@ -8,7 +8,7 @@ import BarberLogin from './BarberLogin';
 import { usePageMeta } from '../../hooks/usePageMeta';
 import { getBarberBookings, setBarberBookingStatus, changeBarberPin, BarberPortalError } from '../../services/barberPortal';
 import { formatCOP } from '../../data';
-import { todayKey, addDays, dayShort, dayOfMonth, monthShort, monthLong, formatDateLong, nowMinutes, timeToMinutes } from '../../lib/dates';
+import { todayKey, addDays, dayShort, dayOfMonth, monthShort, monthLong, formatDateLong, nowMinutes, timeToMinutes, time12, time12Parts } from '../../lib/dates';
 import { useAutoRefresh } from '../../hooks/useAutoRefresh';
 import type { Barber, Booking } from '../../types';
 import BarberAvatar from '../../components/common/BarberAvatar';
@@ -52,7 +52,8 @@ function AppointmentCard({ b, onStatus, busy }: { b: Booking; onStatus: (id: str
       isOpen(b) ? 'border-white/10 bg-white/[0.03]' : 'border-white/[0.05] bg-white/[0.015]'
     } ${b.status === 'cancelled' || b.status === 'no-show' ? 'opacity-55' : ''}`}>
       <div className="flex flex-col items-center w-14 shrink-0 pt-0.5">
-        <span className="font-mono text-lg font-bold text-gold leading-none">{b.time}</span>
+        <span className="font-mono text-lg font-bold text-gold leading-none">{time12Parts(b.time).hm}</span>
+        <span className="text-[10px] text-gold/80 mt-0.5">{time12Parts(b.time).suffix}</span>
         <span className="w-px flex-1 bg-gradient-to-b from-gold/40 to-transparent mt-2" />
       </div>
       <div className="flex-1 min-w-0">
@@ -142,7 +143,7 @@ function AgendaTab({ appts, barber, onStatus, busyId }: { appts: Booking[]; barb
                 <p className="text-zinc-300 text-sm truncate">{next.serviceName}</p>
               </div>
             </div>
-            <span className="font-mono text-3xl font-bold gold-text shrink-0">{next.time}</span>
+            <span className="font-mono text-3xl font-bold gold-text shrink-0 text-right">{time12Parts(next.time).hm}<span className="block font-sans text-xs text-gold/80">{time12Parts(next.time).suffix}</span></span>
           </div>
         </div>
       )}
@@ -219,7 +220,7 @@ function EarningsTab({ appts, barber }: { appts: Booking[]; barber: Barber }) {
           <ul className="divide-y divide-white/[0.06]">
             {doneToday.sort((a, b) => a.time.localeCompare(b.time)).map((b) => (
               <li key={b.id} className="flex items-center gap-3 px-2 py-3">
-                <span className="font-mono text-sm text-zinc-400 w-12">{b.time}</span>
+                <span className="font-mono text-sm text-zinc-400 w-[4.5rem] whitespace-nowrap">{time12(b.time)}</span>
                 <div className="flex-1 min-w-0">
                   <p className="text-white text-sm font-medium truncate">{b.clientName}</p>
                   <p className="text-zinc-500 text-xs truncate">{b.serviceName} · {formatCOP(b.price)}</p>
@@ -270,7 +271,7 @@ function HistoryTab({ appts }: { appts: Booking[] }) {
             <ul className="divide-y divide-white/[0.06]">
               {items.map((b) => (
                 <li key={b.id} className="flex items-center gap-3 px-2 py-3">
-                  <span className="font-mono text-sm text-gold w-12 shrink-0">{b.time}</span>
+                  <span className="font-mono text-sm text-gold w-[4.5rem] shrink-0 whitespace-nowrap">{time12(b.time)}</span>
                   <div className="flex-1 min-w-0">
                     <p className="text-white text-sm font-medium truncate">{b.clientName}</p>
                     <p className="text-zinc-500 text-xs truncate">{b.serviceName} · {formatCOP(b.price)}</p>
@@ -419,7 +420,7 @@ function BarberDashboard({ barber, pin, onLogout, onPinChanged }: { barber: Barb
         setAppts(fresh);
         const since = Date.now() - 2 * 60 * 1000;
         const moved = fresh.filter((b) => isShifted(b) && b.shiftedAt && new Date(b.shiftedAt).getTime() >= since);
-        if (moved.length) setShiftNotice(`Se ${moved.length === 1 ? 'adelantó 1 cita' : `adelantaron ${moved.length} citas`}: ${moved.map((b) => `${b.clientName.split(' ')[0]} ahora a las ${b.time}`).join(', ')}. Toca «Avisar al cliente» para escribirles.`);
+        if (moved.length) setShiftNotice(`Se ${moved.length === 1 ? 'adelantó 1 cita' : `adelantaron ${moved.length} citas`}: ${moved.map((b) => `${b.clientName.split(' ')[0]} ahora a las ${time12(b.time)}`).join(', ')}. Toca «Avisar al cliente» para escribirles.`);
       }
     } catch (err) {
       handlePortalError(err, 'No se pudo guardar el cambio. Intenta de nuevo.');

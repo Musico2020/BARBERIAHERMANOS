@@ -1,4 +1,5 @@
 import { loadLogo, downloadBlob, type ReportData } from './report';
+import { time12 } from './dates';
 
 // Excel del reporte (quincena, mes o año) con el logo y formato:
 //   Resumen  → cifras, liquidación por barbero, ingresos por servicio y mejores clientes
@@ -181,7 +182,7 @@ export async function exportReportExcel(data: ReportData): Promise<void> {
   banner(wsD, 8);
   const headers = ['Fecha', 'Hora', 'Cliente', 'Celular', 'Servicio', 'Barbero', 'Estado', 'Valor'];
   const next = writeTable(wsD, 7, headers,
-    data.detail.map((d) => [d.date.split('-').reverse().join('/'), d.time, d.client, d.phone, d.service, d.barber, d.status, d.price]),
+    data.detail.map((d) => [d.date.split('-').reverse().join('/'), time12(d.time), d.client, d.phone, d.service, d.barber, d.status, d.price]),
     [8],
   );
   if (data.detail.length) wsD.autoFilter = { from: { row: 7, column: 1 }, to: { row: 6 + data.detail.length, column: 8 } };

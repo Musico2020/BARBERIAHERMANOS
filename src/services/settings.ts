@@ -51,7 +51,8 @@ function validDayOverride(o: unknown): o is DayOverride {
 export function validDeposit(d: unknown): d is DepositConfig {
   const x = d as DepositConfig;
   return !!x && typeof x.enabled === 'boolean' && Number.isInteger(x.percent) && x.percent >= 1 && x.percent <= 100 &&
-    Number.isInteger(x.minutes) && x.minutes >= 5 && x.minutes <= 240 && typeof x.key === 'string' && typeof x.holder === 'string';
+    Number.isInteger(x.minutes) && x.minutes >= 5 && x.minutes <= 240 && typeof x.key === 'string' && typeof x.holder === 'string' &&
+    (x.allowFull === undefined || typeof x.allowFull === 'boolean') && (x.allowCash === undefined || typeof x.allowCash === 'boolean');
 }
 
 /** Copia en businessConfig solo los valores guardados que sean válidos. */

@@ -1,7 +1,7 @@
 import { useState, type ReactNode } from 'react';
 import { MapPin, PhoneCall, Clock3, Share2, ChevronDown, Navigation, Car, Copy, Check, Phone, Instagram, Facebook } from 'lucide-react';
 import { businessConfig } from '../../config/business';
-import { todayKey, formatDateLong } from '../../lib/dates';
+import { todayKey, formatDateLong, time12 } from '../../lib/dates';
 import { holidayName, upcomingHolidays } from '../../lib/holidays';
 import { WhatsAppIcon, TikTokIcon } from '../common/BrandIcons';
 import { socialUrl, socialHandle } from '../../lib/social';
@@ -120,7 +120,7 @@ export default function ContactInfo({ status, googleDirections, waze }: Props) {
               {h.closed ? (
                 <span className="text-xs px-2.5 py-1 rounded-full status-busy">Cerrado</span>
               ) : (
-                <span className="text-xs px-2.5 py-1 rounded-full status-available font-mono">{h.open} — {h.close}</span>
+                <span className="text-xs px-2.5 py-1 rounded-full status-available font-mono">{time12(h.open)} — {time12(h.close)}</span>
               )}
             </div>
           ))}

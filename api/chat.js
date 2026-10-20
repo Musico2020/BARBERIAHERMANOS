@@ -73,9 +73,9 @@ async function loadBusiness(db) {
 function depositRule(s) {
   const d = s.deposit;
   if (d && d.enabled === false) return 'No se pide anticipo; se paga en la barbería.';
-  const pct = d?.percent ?? 30;
+  const pct = d?.percent ?? 50;
   const mins = d?.minutes ?? 30;
-  return `Para separar la hora se paga un anticipo del ${pct} % con el QR de Nequi / Bre-B que aparece al terminar la reserva y se envía el comprobante (hay ${mins} minutos; si no, la hora se libera). El resto se paga en el salón. Si cancela con al menos 2 horas de anticipación se le devuelve el anticipo.`;
+  return `Para separar la hora se paga un anticipo del ${pct} % con el QR de Nequi / Bre-B que aparece al terminar la reserva y se envía el comprobante (hay ${mins} minutos; si no, la hora se libera). El resto se paga en el salón. También puede pagar el 100 % por transferencia, o elegir pagar el anticipo en efectivo comprometiéndose a ir al salón a pagarlo antes de la cita. Si paga por transferencia y no asiste a la cita, pierde el dinero pagado; si va a cancelar, debe avisar con al menos 2 horas de anticipación.`;
 }
 
 /** Datos del negocio para el modelo. Cambia poco: va en el prompt de sistema y se guarda en caché. */
@@ -122,6 +122,7 @@ const INSTRUCTIONS = `Eres el asistente virtual del chat de la página web de Sa
 Qué haces:
 - Respondes sobre servicios, precios, duración, horarios, ubicación, equipo, redes y cómo reservar, usando solo los DATOS DEL NEGOCIO de abajo.
 - Cuando preguntan por cupo u horas libres de un día, usa la herramienta consultar_disponibilidad (con la fecha exacta; resuelve "hoy", "mañana", "el sábado" con el calendario que te doy). No inventes horas.
+- Escribe siempre las horas en formato de 12 horas, como se dicen en Colombia (1:00 p. m., 9:30 a. m.), nunca en hora militar (13:00).
 - Cuando el cliente quiere reservar o ya encontró una hora que le sirve, usa mostrar_boton_reservar para que pueda reservar desde la web. Tú no creas reservas.
 - Si preguntan algo que no está en los datos (promociones, productos, precios especiales, citas a domicilio, quejas, cambiar o cancelar una cita, algo personal), o el cliente pide hablar con una persona: ofrece dejarle el mensaje a la barbería. Pide su nombre y celular si no los tienes, y usa dejar_mensaje_a_la_barberia con un resumen claro de lo que necesita. Luego dile que le responderán por WhatsApp.
 

@@ -6,7 +6,7 @@ import { getBusySlots, type BusySlot } from '../../services/bookings';
 import { generateSlots } from '../../lib/availability';
 import { hoursFor, specialDayOf } from '../../lib/businessHours';
 import { holidayName } from '../../lib/holidays';
-import { todayKey, addDays, dayShort, dayOfMonth, formatDateLong } from '../../lib/dates';
+import { todayKey, addDays, dayShort, dayOfMonth, formatDateLong, time12, time12Parts } from '../../lib/dates';
 import { formatCOP } from '../../data';
 import BarberAvatar from '../common/BarberAvatar';
 import { CategoryIcon } from '../common/BarberIcons';
@@ -197,7 +197,8 @@ export default function AppointmentStep({ value, onChange, onContinue }: Props) 
               : 'border-white/10 text-zinc-200 hover:border-gold/50 hover:text-gold bg-white/[0.03]'
       }`}
     >
-      {time}
+      <span className="block leading-tight">{time12Parts(time).hm}</span>
+      <span className="block text-[10px] font-sans opacity-75 leading-tight">{time12Parts(time).suffix}</span>
     </button>
   );
 
@@ -504,7 +505,7 @@ export default function AppointmentStep({ value, onChange, onContinue }: Props) 
             {!hasItems
               ? 'Elige uno o varios servicios'
               : ready
-                ? `Continuar · ${dayShort(date)} ${dayOfMonth(date)} a las ${value.time} · ${formatCOP(total)}`
+                ? `Continuar · ${dayShort(date)} ${dayOfMonth(date)} a las ${time12(value.time)} · ${formatCOP(total)}`
                 : (
                   <>
                     <span className="flex items-center gap-1.5">{nextStep.label} <ChevronDown size={18} className="animate-bounce" /></span>

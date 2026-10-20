@@ -8,7 +8,7 @@ import AppointmentStep, { type Appointment } from './AppointmentStep';
 import DetailsStep from './DetailsStep';
 import BookingTicket, { type TicketData } from './BookingTicket';
 import DepositStep from './DepositStep';
-import { timeToMinutes, minutesToTime } from '../../lib/dates';
+import { timeToMinutes, minutesToTime, time12 } from '../../lib/dates';
 import { cartSchedule, cartDuration, cartPrice } from '../../lib/bookingCart';
 
 interface BookingModalProps {
@@ -136,7 +136,7 @@ export default function BookingModal({ isOpen, onClose, preselectedService }: Bo
       if (created.length > 0) {
         // Alcanzaron a quedar algunos turnos: se avisa cuáles para que no reserve dos veces
         created.forEach((b) => notifyWhatsApp({ bookingId: b.bookingId }));
-        setError(`Se reservaron ${created.length} de ${schedule.length} servicios (desde las ${time}). El siguiente ya no estaba libre: escríbenos por WhatsApp y te ayudamos.`);
+        setError(`Se reservaron ${created.length} de ${schedule.length} servicios (desde las ${time12(time)}). El siguiente ya no estaba libre: escríbenos por WhatsApp y te ayudamos.`);
       } else {
         setError(ERROR_MESSAGES[code]);
         if (BACK_TO_APPOINTMENT.includes(code)) {
@@ -171,7 +171,10 @@ export default function BookingModal({ isOpen, onClose, preselectedService }: Bo
                 total={ticket.price}
                 expiresAt={deposit.expiresAt}
                 clientName={ticket.clientName}
-                onSubmitted={() => setDeposit(null)}
+                onDone={({ method, amount }) => {
+                  setTicket({ ...ticket, deposit: amount, depositMethod: method });
+                  setDeposit(null);
+                }}
               />
             ) : (
               <BookingTicket ticket={ticket} onClose={onClose} />

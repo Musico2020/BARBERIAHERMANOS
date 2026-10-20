@@ -3,7 +3,7 @@ import { CalendarX, CalendarCheck, RotateCcw, Save, Loader2, Lock, Unlock, Info 
 import { getBarbers } from '../../services/barbers';
 import { getBookingsInRange } from '../../services/bookings';
 import { currentSettings, saveSettings } from '../../services/settings';
-import { todayKey, addDays, dayShort, dayOfMonth, monthShort, formatDateLong, minutesToTime, timeToMinutes } from '../../lib/dates';
+import { todayKey, addDays, dayShort, dayOfMonth, monthShort, formatDateLong, minutesToTime, timeToMinutes, time12 } from '../../lib/dates';
 import { regularHoursFor } from '../../lib/businessHours';
 import { holidayName } from '../../lib/holidays';
 import { newOverride, slotStarts, slotState, toggleSlot, setAllSlots, normalizeOverride } from '../../lib/dayShifts';
@@ -280,7 +280,7 @@ export default function AdminShifts() {
                       }`}
                     >
                       <span className={`block font-mono text-sm font-bold ${state === 'open' ? 'text-emerald-300' : state === 'closed' ? 'text-rose-300' : 'text-zinc-500'}`}>
-                        {minutesToTime(s)}
+                        {time12(minutesToTime(s))}
                       </span>
                       <span className="block text-[10px] text-zinc-400 mt-0.5">
                         {state === 'open' ? 'Abierta' : state === 'closed' ? 'Cerrada' : 'Cerrada (salón)'}

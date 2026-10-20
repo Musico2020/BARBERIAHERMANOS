@@ -1,7 +1,7 @@
 import { ChevronLeft, Loader2, User, CalendarDays, Clock } from 'lucide-react';
 import { ClipperIcon } from '../common/BarberIcons';
 import { formatCOP } from '../../data';
-import { formatDateLong, timeToMinutes, minutesToTime } from '../../lib/dates';
+import { formatDateLong, timeToMinutes, minutesToTime, time12 } from '../../lib/dates';
 import { isValidName, isValidPhone, type ClientContact } from '../../lib/clientContact';
 import { cartUnits, cartDuration, cartPrice } from '../../lib/bookingCart';
 import type { Appointment } from './AppointmentStep';
@@ -25,7 +25,7 @@ export default function DetailsStep({ appointment, contact, loading, onChange, o
   const rows = [
     { icon: User, label: 'Barbero', value: barber?.name ?? 'El que esté libre' },
     { icon: CalendarDays, label: 'Fecha', value: formatDateLong(date) },
-    { icon: Clock, label: 'Hora', value: units > 1 ? `${time} a ${endTime} (seguidos)` : time },
+    { icon: Clock, label: 'Hora', value: units > 1 ? `${time12(time)} a ${time12(endTime)} (seguidos)` : time12(time) },
   ];
 
   return (

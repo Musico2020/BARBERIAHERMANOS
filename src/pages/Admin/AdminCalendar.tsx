@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { getBookingsInRange } from '../../services/bookings';
 import { getBarbers } from '../../services/barbers';
-import { todayKey, addDays, startOfWeek, dayOfMonth } from '../../lib/dates';
+import { todayKey, addDays, startOfWeek, dayOfMonth, time12, time12Parts } from '../../lib/dates';
 import { useAutoRefresh } from '../../hooks/useAutoRefresh';
 import { businessConfig } from '../../config/business';
 import { lunchFor } from '../../lib/businessHours';
@@ -171,7 +171,7 @@ export default function AdminCalendar() {
                   style={{ gridTemplateColumns: `64px repeat(${Math.max(columns.length, 1)}, 1fr)`, minHeight: '60px' }}
                 >
                   <div className="p-3 text-zinc-600 text-xs font-mono">
-                    {hour}
+                    {time12Parts(hour).hm}<span className="block font-sans text-[10px]">{time12Parts(hour).suffix}</span>
                     {isLunchHour(currentDate, hour) && <span className="block font-sans text-[10px] text-gold/70 mt-0.5">Almuerzo</span>}
                   </div>
                   {columns.map((c) => {
@@ -181,7 +181,7 @@ export default function AdminCalendar() {
                       <div key={c.id} className="border-l border-white/5 p-1.5 space-y-1">
                         {slots.map((slot) => (
                           <div key={slot.id} className={`rounded-lg border px-2.5 py-2 text-xs ${statusColors[slot.status] || 'border-white/20 text-zinc-300'}`}>
-                            <p className="font-semibold truncate"><span className="font-mono opacity-70">{slot.time}</span> {slot.clientName}</p>
+                            <p className="font-semibold truncate"><span className="font-mono opacity-70">{time12(slot.time)}</span> {slot.clientName}</p>
                             <p className="opacity-70 truncate">{slot.serviceName}</p>
                           </div>
                         ))}
@@ -216,7 +216,7 @@ export default function AdminCalendar() {
             <div className="overflow-y-auto max-h-[480px]">
               {HOURS.map((hour) => (
                 <div key={hour} className="grid grid-cols-8 border-b border-white/5" style={{ minHeight: '56px' }}>
-                  <div className="p-3 text-zinc-600 text-xs font-mono">{hour}</div>
+                  <div className="p-3 text-zinc-600 text-xs font-mono">{time12Parts(hour).hm}<span className="block font-sans text-[10px]">{time12Parts(hour).suffix}</span></div>
                   {weekDates.map((d) => {
                     const isToday = d === today;
                     const daySlots = sortForDisplay(bookings.filter((b) => b.date === d && inHour(b, hour)));
@@ -225,7 +225,7 @@ export default function AdminCalendar() {
                         {isLunchHour(d, hour) && daySlots.length === 0 && <p className="text-[10px] text-gold/50 text-center pt-1">Almuerzo</p>}
                         {daySlots.map((slot) => (
                           <div key={slot.id} className={`rounded border px-1.5 py-1 text-[10px] ${statusColors[slot.status] || 'border-white/20 text-zinc-300'}`}>
-                            <p className="font-semibold truncate leading-tight">{slot.time} {slot.clientName}</p>
+                            <p className="font-semibold truncate leading-tight">{time12(slot.time)} {slot.clientName}</p>
                             <p className="opacity-60 truncate leading-tight">{slot.barberName}</p>
                           </div>
                         ))}

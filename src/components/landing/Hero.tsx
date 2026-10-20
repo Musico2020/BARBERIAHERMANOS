@@ -62,7 +62,7 @@ export default function Hero({ onBooking }: HeroProps) {
           <li className="flex sm:flex-col items-center gap-3 sm:gap-1.5 px-4 py-4 border-t sm:border-t-0 border-gold/20">
             <Wallet size={18} className="text-gold shrink-0" />
             <span className="text-sm text-ivory">{businessConfig.deposit.enabled
-              ? <>Separas con el <strong className="font-semibold">{businessConfig.deposit.percent} %</strong> por Nequi</>
+              ? <>Separas con el <strong className="font-semibold">{businessConfig.deposit.percent} %</strong></>
               : <>Pagas en el salón, <strong className="font-semibold">sin anticipo</strong></>}</span>
           </li>
           <li className="flex sm:flex-col items-center gap-3 sm:gap-1.5 px-4 py-4 border-t sm:border-t-0 border-gold/20">

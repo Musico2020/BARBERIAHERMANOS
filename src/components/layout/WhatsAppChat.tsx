@@ -35,7 +35,7 @@ interface ChatItem extends ChatTurn {
   time?: string;
 }
 
-const clock = () => new Date().toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit' });
+const clock = () => new Date().toLocaleTimeString('es-CO', { hour: 'numeric', minute: '2-digit', hour12: true });
 
 function loadConversation(): ChatItem[] {
   try {

@@ -1,4 +1,5 @@
 import { formatCOP } from '../data';
+import { time12 } from './dates';
 import { loadLogo, type ReportData } from './report';
 
 // PDF del reporte (quincena, mes o año): encabezado negro con el logo, cifras principales,
@@ -236,7 +237,7 @@ export async function exportReportPdf(data: ReportData): Promise<void> {
   table(
     ['Fecha', 'Hora', 'Cliente', 'Servicio', 'Barbero', 'Estado', 'Valor'],
     detail.length
-      ? detail.map((d) => [d.date.split('-').reverse().join('/'), d.time, d.client, d.service, d.barber, d.status, formatCOP(d.price)])
+      ? detail.map((d) => [d.date.split('-').reverse().join('/'), time12(d.time), d.client, d.service, d.barber, d.status, formatCOP(d.price)])
       : [['Sin servicios en este período', '', '', '', '', '', '']],
     [1.05, 0.65, 1.9, 1.9, 1.1, 1.05, 1],
     ['left', 'left', 'left', 'left', 'left', 'left', 'right'],

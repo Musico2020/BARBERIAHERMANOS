@@ -5,7 +5,7 @@ import { getBarbers } from '../../services/barbers';
 import { getClientsCount } from '../../services/clients';
 import { getAllServices } from '../../services/services';
 import { formatCOP } from '../../data';
-import { todayKey, addDays, dayOfMonth, monthShort, monthLong, formatDateLong, nowMinutes } from '../../lib/dates';
+import { todayKey, addDays, dayOfMonth, monthShort, monthLong, formatDateLong, nowMinutes, time12 } from '../../lib/dates';
 import { lunchFor, openStatus } from '../../lib/businessHours';
 import {
   inRange, revenueOf, dailySeries, statusBreakdown, popularServices, percentChange, isCompleted,
@@ -51,7 +51,7 @@ const recentColumns: Column<Booking>[] = [
     ),
   },
   { key: 'barber', header: 'Barbero', render: (b) => <span className="text-zinc-300 text-xs">{b.barberName}</span> },
-  { key: 'date', header: 'Cita', render: (b) => <span className="text-zinc-300 text-xs font-mono whitespace-nowrap">{shortDate(b.date)} · {b.time}</span> },
+  { key: 'date', header: 'Cita', render: (b) => <span className="text-zinc-300 text-xs font-mono whitespace-nowrap">{shortDate(b.date)} · {time12(b.time)}</span> },
   { key: 'status', header: 'Estado', aside: true, render: (b) => <StatusBadge status={b.status} /> },
   { key: 'price', header: 'Total', align: 'right', render: (b) => <span className="text-gold font-mono font-semibold whitespace-nowrap">{formatCOP(b.price)}</span> },
 ];

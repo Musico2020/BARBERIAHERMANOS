@@ -9,7 +9,7 @@ import type { Booking } from '../types';
 const BUCKET = 'receipts';
 const MAX_SIDE = 1600;
 
-export type SubmitDepositResult = 'OK' | 'NOT_FOUND' | 'EXPIRED';
+export type SubmitDepositResult = 'OK' | 'NOT_FOUND' | 'EXPIRED' | 'TERMS_REQUIRED' | 'CASH_DISABLED';
 
 /** Reduce la foto del comprobante (también HEIC de iPhone) a JPEG de máximo 1600 px. */
 async function toJpeg(file: File): Promise<Blob> {
@@ -34,9 +34,18 @@ export async function uploadReceipt(bookingId: string, file: File): Promise<stri
   return path;
 }
 
-/** El cliente avisa que pagó: las citas de su reserva quedan «comprobante enviado». */
-export async function submitDeposit(bookingIds: string[], payer: string, receiptPath: string): Promise<SubmitDepositResult> {
-  const { data, error } = await supabase.rpc('submit_deposit', { p_booking_ids: bookingIds, p_payer: payer, p_receipt_path: receiptPath });
+/** El cliente avisa que pagó (anticipo o, con full, el 100 %): las citas quedan «comprobante enviado». */
+export async function submitDeposit(bookingIds: string[], payer: string, receiptPath: string, full: boolean, acceptTerms: boolean): Promise<SubmitDepositResult> {
+  const { data, error } = await supabase.rpc('submit_deposit', {
+    p_booking_ids: bookingIds, p_payer: payer, p_receipt_path: receiptPath, p_full: full, p_accept_terms: acceptTerms,
+  });
+  if (error) throw error;
+  return data as SubmitDepositResult;
+}
+
+/** El cliente elige pagar el anticipo en efectivo en el salón y se compromete a cumplir la reserva. */
+export async function chooseCashDeposit(bookingIds: string[], acceptTerms: boolean): Promise<SubmitDepositResult> {
+  const { data, error } = await supabase.rpc('choose_cash_deposit', { p_booking_ids: bookingIds, p_accept_terms: acceptTerms });
   if (error) throw error;
   return data as SubmitDepositResult;
 }
@@ -74,7 +83,7 @@ export async function receiptUrl(path: string): Promise<string> {
   return data.signedUrl;
 }
 
-/** «Pago recibido» confirma las citas; «No llegó» las cancela y libera la hora. */
+/** «Pago recibido» (o «Recibí el efectivo») confirma las citas; «No llegó» las cancela y libera la hora. */
 export async function reviewDeposit(bookingIds: string[], received: boolean): Promise<void> {
   const { error } = await supabase
     .from('bookings')

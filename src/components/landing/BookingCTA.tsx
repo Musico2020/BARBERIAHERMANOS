@@ -52,7 +52,7 @@ export default function BookingCTA({ onBooking }: BookingCTAProps) {
 
           <p className="text-zinc-600 text-sm mt-6">
             {businessConfig.deposit.enabled
-              ? `Anticipo del ${businessConfig.deposit.percent} % por Nequi · El resto en el salón · Cambios o cancelaciones con 2 horas de anticipación`
+              ? `Anticipo del ${businessConfig.deposit.percent} % por Nequi o en efectivo · El resto en el salón · Cambios o cancelaciones con 2 horas de anticipación`
               : 'Pago al llegar · Sin anticipo · Cambios o cancelaciones con 2 horas de anticipación'}
           </p>
         </div>

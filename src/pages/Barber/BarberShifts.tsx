@@ -3,7 +3,7 @@ import { Save, Loader2, Lock, Unlock, Info } from 'lucide-react';
 import { setBarberDayClosures, type DayClosuresResult } from '../../services/barberPortal';
 import { loadSettings } from '../../services/settings';
 import { businessConfig } from '../../config/business';
-import { todayKey, addDays, dayShort, dayOfMonth, monthShort, formatDateLong, minutesToTime, timeToMinutes } from '../../lib/dates';
+import { todayKey, addDays, dayShort, dayOfMonth, monthShort, formatDateLong, minutesToTime, timeToMinutes, time12 } from '../../lib/dates';
 import { bookingHoursFor } from '../../lib/businessHours';
 import { newOverride, slotStarts, slotState, toggleSlot, setAllSlots } from '../../lib/dayShifts';
 import { Panel } from '../../components/admin/ui';
@@ -105,7 +105,7 @@ export default function BarberShifts({ barber, pin, appts }: { barber: Barber; p
 
       <Panel
         title={formatDateLong(date)}
-        subtitle={view ? `De ${view.open} a ${view.close} · ${slots.length - mineClosed} horas abiertas, ${mineClosed} cerradas por ti` : 'El salón no recibe reservas este día'}
+        subtitle={view ? `De ${time12(view.open)} a ${time12(view.close)} · ${slots.length - mineClosed} horas abiertas, ${mineClosed} cerradas por ti` : 'El salón no recibe reservas este día'}
         action={view && (
           <div className="flex gap-2">
             <button onClick={() => change(setAllSlots(view, barber.id, true))} className="btn-dark-glass px-3.5 py-2 rounded-xl text-xs font-semibold min-h-[38px]">
@@ -141,7 +141,7 @@ export default function BarberShifts({ barber, pin, appts }: { barber: Barber; p
                     }`}
                   >
                     <span className={`block font-mono text-sm font-bold ${state === 'open' ? 'text-emerald-300' : state === 'closed' ? 'text-rose-300' : 'text-zinc-500'}`}>
-                      {minutesToTime(s)}
+                      {time12(minutesToTime(s))}
                     </span>
                     <span className="block text-[10px] text-zinc-400 mt-0.5">
                       {state === 'open' ? 'Abierta' : state === 'closed' ? 'Cerrada' : 'Salón cerrado'}

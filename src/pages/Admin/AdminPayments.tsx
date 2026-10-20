@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { CheckCircle2, XCircle, Clock, Loader2, Image as ImageIcon, MessageCircle, X, Banknote } from 'lucide-react';
 import { getDepositBookings, receiptUrl, reviewDeposit } from '../../services/deposits';
 import { formatCOP } from '../../data';
-import { formatDateLong } from '../../lib/dates';
+import { formatDateLong, time12 } from '../../lib/dates';
 import { useAutoRefresh } from '../../hooks/useAutoRefresh';
 import { waNumber } from '../../lib/whatsapp';
 import { Panel, EmptyState } from '../../components/admin/ui';
@@ -52,6 +52,7 @@ const STATUS_TEXT: Record<string, { text: string; tone: string }> = {
   expired: { text: 'Venció sin pago', tone: 'text-zinc-400 bg-white/5 border-white/10' },
   submitted: { text: 'Por verificar', tone: 'text-amber-300 bg-amber-500/10 border-amber-500/30' },
   awaiting: { text: 'Esperando pago', tone: 'text-sky-300 bg-sky-500/10 border-sky-500/30' },
+  cash_pending: { text: 'Efectivo por recibir', tone: 'text-amber-300 bg-amber-500/10 border-amber-500/30' },
 };
 
 function GroupCard({ g, busy, onReview, onReceipt }: {
@@ -61,6 +62,8 @@ function GroupCard({ g, busy, onReview, onReceipt }: {
   onReceipt: (path: string) => void;
 }) {
   const s = STATUS_TEXT[g.first.depositStatus];
+  const cash = g.first.depositMethod === 'cash';
+  const method = cash ? 'Efectivo en el salón' : g.first.depositMethod === 'transfer' ? (g.deposit >= g.total ? 'Transferencia · pago total' : 'Transferencia · anticipo') : '';
   return (
     <li className="rounded-2xl border border-white/10 bg-white/[0.02] p-4 space-y-3">
       <div className="flex flex-wrap items-start justify-between gap-3">
@@ -79,7 +82,7 @@ function GroupCard({ g, busy, onReview, onReceipt }: {
       </div>
 
       <div className="text-sm text-zinc-300">
-        <p>{formatDateLong(g.first.date)} · {g.first.time} · con {g.first.barberName}</p>
+        <p>{formatDateLong(g.first.date)} · {time12(g.first.time)} · con {g.first.barberName}</p>
         <p className="text-zinc-500 text-xs">{g.bookings.map((b) => b.serviceName).join(' + ')}</p>
       </div>
 
@@ -89,7 +92,7 @@ function GroupCard({ g, busy, onReview, onReceipt }: {
           <p className="font-mono text-sm font-bold text-white">{formatCOP(g.total)}</p>
         </div>
         <div className="rounded-xl bg-gold/10 border border-gold/25 p-2">
-          <p className="text-[10px] uppercase text-zinc-400">Anticipo</p>
+          <p className="text-[10px] uppercase text-zinc-400">{g.deposit >= g.total ? 'Pagó todo' : 'Anticipo'}</p>
           <p className="font-mono text-sm font-bold text-gold">{formatCOP(g.deposit)}</p>
         </div>
         <div className="rounded-xl bg-white/[0.03] border border-white/[0.06] p-2">
@@ -100,6 +103,12 @@ function GroupCard({ g, busy, onReview, onReceipt }: {
 
       {g.first.depositStatus === 'awaiting' && (
         <p className="inline-flex items-center gap-1.5 text-xs text-sky-300"><Clock size={12} /> {timeLeft(g.first.depositExpiresAt)}</p>
+      )}
+      {method && (
+        <p className="text-xs text-zinc-400">
+          Forma de pago: <span className="text-white">{method}</span>
+          {g.first.depositTermsAt && <> · aceptó condiciones {when(g.first.depositTermsAt)}</>}
+        </p>
       )}
       {g.first.depositPayer && (
         <p className="text-xs text-zinc-400">Pagó: <span className="text-white">{g.first.depositPayer}</span> · {when(g.first.depositSubmittedAt)}</p>
@@ -114,10 +123,10 @@ function GroupCard({ g, busy, onReview, onReceipt }: {
         {onReview && (
           <>
             <button disabled={busy} onClick={() => onReview(g, true)} className="btn-success-glass px-3.5 py-2 rounded-xl text-xs font-semibold min-h-[38px] disabled:opacity-50">
-              {busy ? <Loader2 size={14} className="animate-spin" /> : <CheckCircle2 size={14} />} Pago recibido
+              {busy ? <Loader2 size={14} className="animate-spin" /> : <CheckCircle2 size={14} />} {cash ? 'Recibí el efectivo' : 'Pago recibido'}
             </button>
             <button disabled={busy} onClick={() => onReview(g, false)} className="btn-danger-glass px-3.5 py-2 rounded-xl text-xs font-semibold min-h-[38px] disabled:opacity-50">
-              <XCircle size={14} /> No llegó
+              <XCircle size={14} /> {cash ? 'No vino a pagar' : 'No llegó'}
             </button>
           </>
         )}
@@ -147,11 +156,15 @@ export default function AdminPayments() {
   const groups = groupBookings(list);
   const toReview = groups.filter((g) => g.first.depositStatus === 'submitted');
   const waiting = groups.filter((g) => g.first.depositStatus === 'awaiting');
+  const cashPending = groups.filter((g) => g.first.depositStatus === 'cash_pending');
   const history = groups.filter((g) => ['verified', 'rejected', 'expired'].includes(g.first.depositStatus));
   const verifiedTotal = history.filter((g) => g.first.depositStatus === 'verified').reduce((s, g) => s + g.deposit, 0);
 
   const review = async (g: Group, received: boolean) => {
-    if (!received && !window.confirm(`¿Seguro que el pago de ${g.first.clientName} no llegó? La cita se cancela y la hora queda libre.`)) return;
+    const question = g.first.depositMethod === 'cash'
+      ? `¿Cancelar la reserva de ${g.first.clientName} porque no vino a pagar el anticipo? La hora queda libre.`
+      : `¿Seguro que el pago de ${g.first.clientName} no llegó? La cita se cancela y la hora queda libre.`;
+    if (!received && !window.confirm(question)) return;
     setBusyKey(g.key);
     try {
       await reviewDeposit(g.bookings.map((b) => b.id), received);
@@ -180,7 +193,8 @@ export default function AdminPayments() {
         <h2 className="font-serif text-2xl sm:text-3xl font-bold text-white mt-1">Anticipos de las reservas</h2>
         <p className="text-zinc-400 text-sm mt-1 max-w-2xl">
           Revisa en tu app de Nequi Negocios que el pago haya entrado (mismo valor y nombre) y luego toca
-          «Pago recibido». Si no aparece, toca «No llegó» y la hora se libera.
+          «Pago recibido». Si no aparece, toca «No llegó» y la hora se libera. Cuando un cliente te pague el
+          anticipo en efectivo en el salón, búscalo en «Efectivo por recibir» y toca «Recibí el efectivo».
         </p>
       </div>
 
@@ -192,6 +206,14 @@ export default function AdminPayments() {
         ) : (
           <ul className="grid grid-cols-1 lg:grid-cols-2 gap-3">
             {toReview.map((g) => <GroupCard key={g.key} g={g} busy={busyKey === g.key} onReview={review} onReceipt={openReceipt} />)}
+          </ul>
+        )}
+      </Panel>
+
+      <Panel title="Efectivo por recibir en el salón" subtitle="Eligieron pagar el anticipo en efectivo y se comprometieron a ir al salón antes de su cita">
+        {cashPending.length === 0 ? <EmptyState icon={Banknote}>Nadie tiene anticipo en efectivo pendiente.</EmptyState> : (
+          <ul className="grid grid-cols-1 lg:grid-cols-2 gap-3">
+            {cashPending.map((g) => <GroupCard key={g.key} g={g} busy={busyKey === g.key} onReview={review} onReceipt={openReceipt} />)}
           </ul>
         )}
       </Panel>

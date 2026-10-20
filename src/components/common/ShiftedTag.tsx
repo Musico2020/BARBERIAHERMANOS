@@ -1,4 +1,5 @@
 import { FastForward, MessageCircle } from 'lucide-react';
+import { time12 } from '../../lib/dates';
 import type { Booking } from '../../types';
 import { isShifted, shiftWhatsappLink } from '../../lib/shifted';
 
@@ -10,7 +11,7 @@ export default function ShiftedTag({ b }: { b: Booking }) {
   return (
     <span className="inline-flex flex-wrap items-center gap-x-2 gap-y-1 text-[11px]">
       <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-amber-500/15 border border-amber-500/30 text-amber-300 font-semibold">
-        <FastForward size={11} /> Adelantada · antes {b.originalTime}
+        <FastForward size={11} /> Adelantada · antes {time12(b.originalTime ?? '')}
       </span>
       <a
         href={shiftWhatsappLink(b)}

@@ -63,9 +63,13 @@ export interface Booking {
   depositPayer?: string;
   depositReceiptPath?: string;
   depositSubmittedAt?: string;
+  /** transfer: Nequi / Bre-B · cash: efectivo en el salón */
+  depositMethod?: 'transfer' | 'cash';
+  /** Cuándo aceptó el cliente las condiciones del anticipo */
+  depositTermsAt?: string;
 }
 
-export type DepositStatus = 'none' | 'awaiting' | 'submitted' | 'verified' | 'rejected' | 'expired';
+export type DepositStatus = 'none' | 'awaiting' | 'submitted' | 'cash_pending' | 'verified' | 'rejected' | 'expired';
 
 /** Anticipo al reservar por la web (Panel → Configuración → Reglas) */
 export interface DepositConfig {
@@ -78,6 +82,10 @@ export interface DepositConfig {
   key: string;
   /** Titular de la cuenta */
   holder: string;
+  /** El cliente puede pagar el 100 % por transferencia */
+  allowFull?: boolean;
+  /** El cliente puede elegir pagar el anticipo en efectivo en el salón */
+  allowCash?: boolean;
 }
 
 export interface Testimonial {

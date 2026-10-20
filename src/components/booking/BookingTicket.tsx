@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { Download, Loader2, MapPin, CheckCircle2 } from 'lucide-react';
 import { businessConfig } from '../../config/business';
 import { formatCOP } from '../../data';
-import { formatDateLong } from '../../lib/dates';
+import { formatDateLong, time12 } from '../../lib/dates';
 import { ticketCode } from '../../lib/ticket';
 
 export interface TicketData {
@@ -17,8 +17,10 @@ export interface TicketData {
   price: number;
   /** Hora en que termina el último servicio */
   endTime: string;
-  /** Anticipo enviado (comprobante por verificar), si la reserva lo pidió */
+  /** Anticipo enviado (comprobante por verificar) o por pagar en efectivo, si la reserva lo pidió */
   deposit?: number;
+  /** transfer: comprobante enviado · cash: lo paga en efectivo en el salón antes de la cita */
+  depositMethod?: 'transfer' | 'cash';
 }
 
 interface Props {
@@ -41,17 +43,22 @@ export default function BookingTicket({ ticket, onClose }: Props) {
   const code = ticketCode(ticket.bookingId);
   const dateText = formatDateLong(ticket.date);
   const several = ticket.items.reduce((n, i) => n + i.qty, 0) > 1;
-  const hourText = several ? `${ticket.time} a ${ticket.endTime}` : ticket.time;
+  const hourText = several ? `${time12(ticket.time)} a ${time12(ticket.endTime)}` : time12(ticket.time);
+  const cash = !!ticket.deposit && ticket.depositMethod === 'cash';
+  const paidAll = !!ticket.deposit && !cash && ticket.deposit >= ticket.price;
+  const status = !ticket.deposit ? 'Reserva confirmada' : cash ? 'Anticipo en efectivo pendiente' : paidAll ? 'Pago total por verificar' : 'Anticipo por verificar';
 
   const summary = [
-    `✂️ *${businessConfig.name}* — ${ticket.deposit ? 'Reserva (anticipo por verificar)' : 'Reserva confirmada'}`,
+    `✂️ *${businessConfig.name}* — ${status}`,
     `Código: ${code}`,
     `Servicios: ${ticket.items.map((i) => `${i.qty} × ${i.name}`).join(', ')}`,
     `Barbero: ${ticket.barberName}`,
     `Fecha: ${dateText}`,
     `Hora: ${hourText}`,
-    ticket.deposit
-      ? `Total: ${formatCOP(ticket.price)} · Anticipo enviado: ${formatCOP(ticket.deposit)} · En el salón: ${formatCOP(ticket.price - ticket.deposit)}`
+    cash
+      ? `Total: ${formatCOP(ticket.price)} · Anticipo en efectivo (pagar en el salón antes de la cita): ${formatCOP(ticket.deposit!)} · Resto: ${formatCOP(ticket.price - ticket.deposit!)}`
+      : ticket.deposit
+      ? `Total: ${formatCOP(ticket.price)} · Pagado por transferencia: ${formatCOP(ticket.deposit)} · En el salón: ${formatCOP(ticket.price - ticket.deposit)}`
       : `Total: ${formatCOP(ticket.price)} (pago en el salón)`,
     `📍 ${businessConfig.address.trim()}`,
   ].join('\n');
@@ -156,14 +163,14 @@ export default function BookingTicket({ ticket, onClose }: Props) {
     <div className="flex flex-col items-center px-5 py-6 sm:px-8 overflow-y-auto max-h-[92vh]">
       <div className="flex items-center gap-2 text-green-400 mb-4">
         <CheckCircle2 size={20} />
-        <span className="font-semibold">{ticket.deposit ? '¡Recibimos tu comprobante!' : '¡Tu cita quedó reservada!'}</span>
+        <span className="font-semibold">{ticket.deposit && !cash ? '¡Recibimos tu comprobante!' : '¡Tu cita quedó reservada!'}</span>
       </div>
 
       {/* Lo que está dentro de ticketRef es lo que se descarga como imagen: solo colores sólidos */}
       <div ref={ticketRef} className="keep-dark w-full max-w-sm rounded-3xl overflow-hidden" style={{ background: '#121212', border: '1px solid #6B501F' }}>
         <div className="px-6 pt-6 pb-5 text-center" style={{ background: 'linear-gradient(160deg, #2a1f0c 0%, #121212 75%)' }}>
           <img src="/logo-salon-hermanos.png" alt={businessConfig.name} className="w-48 h-auto mx-auto object-contain" />
-          <p className="text-[11px] uppercase tracking-[0.2em] mt-3" style={{ color: '#a1a1aa' }}>{ticket.deposit ? 'Anticipo por verificar' : 'Reserva confirmada'}</p>
+          <p className="text-[11px] uppercase tracking-[0.2em] mt-3" style={{ color: '#a1a1aa' }}>{status}</p>
           <p className="font-mono text-2xl font-bold tracking-widest mt-1" style={{ color: '#D9AD50' }}>{code}</p>
         </div>
 
@@ -187,14 +194,18 @@ export default function BookingTicket({ ticket, onClose }: Props) {
           {ticket.deposit ? (
             <>
               <div className="flex justify-between gap-4 text-sm">
-                <span style={{ color: '#71717a' }}>Anticipo enviado</span>
+                <span style={{ color: '#71717a' }}>{cash ? 'Anticipo en efectivo' : paidAll ? 'Pagado por transferencia' : 'Anticipo enviado'}</span>
                 <span className="font-mono font-semibold" style={{ color: '#E6C27A' }}>{formatCOP(ticket.deposit)}</span>
               </div>
               <div className="flex justify-between gap-4 text-sm">
-                <span style={{ color: '#71717a' }}>Pagas en el salón</span>
+                <span style={{ color: '#71717a' }}>{cash ? 'Resto el día de la cita' : 'Pagas en el salón'}</span>
                 <span className="font-mono font-semibold text-white">{formatCOP(ticket.price - ticket.deposit)}</span>
               </div>
-              <p className="text-[11px] text-right" style={{ color: '#71717a' }}>Te confirmamos cuando verifiquemos el pago</p>
+              <p className="text-[11px] text-right" style={{ color: cash ? '#fbbf24' : '#71717a' }}>
+                {cash
+                  ? 'Ve al salón a pagar el anticipo antes de tu cita. Si no lo pagas, la reserva puede cancelarse.'
+                  : 'Te confirmamos al verificar el pago. Si no asistes, pierdes lo pagado.'}
+              </p>
             </>
           ) : (
             <p className="text-[11px] text-right" style={{ color: '#71717a' }}>Pago en el salón</p>

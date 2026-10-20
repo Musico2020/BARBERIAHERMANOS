@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { Search, Download, ChevronDown, Loader2, MessageCircle, UserPlus, CheckCircle2, Trash2, CalendarCheck, X } from 'lucide-react';
 import { getBookings, updateBookingStatus, deleteBooking } from '../../services/bookings';
 import { formatCOP } from '../../data';
-import { dayOfMonth, monthShort, dayShort, todayKey, formatDateLong } from '../../lib/dates';
+import { dayOfMonth, monthShort, dayShort, todayKey, formatDateLong, time12 } from '../../lib/dates';
 import { STATUS_LABEL, type BookingStatus } from '../../lib/stats';
 import { useAutoRefresh } from '../../hooks/useAutoRefresh';
 import type { Booking } from '../../types';
@@ -77,7 +77,7 @@ export default function AdminBookings() {
         const since = Date.now() - 2 * 60 * 1000;
         const moved = fresh.filter((b) => isShifted(b) && b.shiftedAt && new Date(b.shiftedAt).getTime() >= since);
         if (moved.length) {
-          setNotice(`Se ${moved.length === 1 ? 'adelantó 1 cita' : `adelantaron ${moved.length} citas`} de hoy: ${moved.map((b) => `${b.clientName} (${b.originalTime} → ${b.time})`).join(', ')}. Usa «Avisar al cliente» en cada una.`);
+          setNotice(`Se ${moved.length === 1 ? 'adelantó 1 cita' : `adelantaron ${moved.length} citas`} de hoy: ${moved.map((b) => `${b.clientName} (${time12(b.originalTime ?? '')} → ${time12(b.time)})`).join(', ')}. Usa «Avisar al cliente» en cada una.`);
         }
       }
     } catch (err) {
@@ -94,7 +94,7 @@ export default function AdminBookings() {
       setList((prev) => prev.filter((x) => x.id !== b.id));
       setConfirmId(null);
       setError('');
-      setNotice(`Reserva de ${b.clientName} (${b.serviceName}, ${b.date} ${b.time}) eliminada.`);
+      setNotice(`Reserva de ${b.clientName} (${b.serviceName}, ${b.date} ${time12(b.time)}) eliminada.`);
     } catch (err) {
       console.error('No se pudo eliminar la reserva', err);
       setError('No se pudo eliminar la reserva. Intenta de nuevo.');
@@ -105,7 +105,7 @@ export default function AdminBookings() {
 
   const exportCSV = () => {
     const header = ['ID', 'Cliente', 'Teléfono', 'Servicio', 'Barbero', 'Fecha', 'Hora', 'Total', 'Estado'];
-    const rows = filtered.map((b) => [b.id, b.clientName, b.clientPhone, b.serviceName, b.barberName, b.date, b.time, b.price, STATUS_LABEL[b.status]]);
+    const rows = filtered.map((b) => [b.id, b.clientName, b.clientPhone, b.serviceName, b.barberName, b.date, time12(b.time), b.price, STATUS_LABEL[b.status]]);
     const url = URL.createObjectURL(new Blob([toCSV([header, ...rows])], { type: 'text/csv;charset=utf-8' }));
     const a = document.createElement('a');
     a.href = url;
@@ -143,7 +143,7 @@ export default function AdminBookings() {
         <span className="flex flex-col gap-1">
           <span className="whitespace-nowrap">
             <span className="text-zinc-200 text-sm">{dayShort(b.date)} {dayOfMonth(b.date)} {monthShort(b.date)}</span>
-            <span className="text-gold font-mono text-sm font-semibold ml-2">{b.time}</span>
+            <span className="text-gold font-mono text-sm font-semibold ml-2">{time12(b.time)}</span>
           </span>
           <ShiftedTag b={b} />
         </span>

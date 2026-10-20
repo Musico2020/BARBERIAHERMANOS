@@ -13,6 +13,14 @@ const MAX_AGE_MS = 15 * 60 * 1000;
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const MONTHS = ['enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio', 'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre'];
 
+/** 13:00 -> 1:00 p. m. */
+const hour12 = (time) => {
+  const m = /^(\d{1,2}):(\d{2})$/.exec(String(time ?? ''));
+  if (!m) return String(time ?? '');
+  const h = Number(m[1]);
+  return `${h % 12 === 0 ? 12 : h % 12}:${m[2]} ${h >= 12 ? 'p. m.' : 'a. m.'}`;
+};
+
 export default async function handler(req, res) {
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Method not allowed' });
@@ -84,7 +92,7 @@ export default async function handler(req, res) {
       3: booking.service_name,
       4: booking.barber_name,
       5: dateFormatted,
-      6: booking.time,
+      6: hour12(booking.time),
       7: priceFormatted,
     });
   } catch (error) {
@@ -95,7 +103,7 @@ export default async function handler(req, res) {
     results.client = await sendTemplate(clientTo, CLIENT_TEMPLATE_SID, {
       1: booking.client_name,
       2: dateFormatted,
-      3: booking.time,
+      3: hour12(booking.time),
       4: booking.service_name,
       5: booking.barber_name,
       6: priceFormatted,

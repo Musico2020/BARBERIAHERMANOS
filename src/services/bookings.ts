@@ -23,6 +23,8 @@ interface BookingRow {
   deposit_payer?: string | null;
   deposit_receipt_path?: string | null;
   deposit_submitted_at?: string | null;
+  deposit_method?: string | null;
+  deposit_terms_at?: string | null;
 }
 
 export function rowToBooking(row: BookingRow): Booking {
@@ -48,6 +50,8 @@ export function rowToBooking(row: BookingRow): Booking {
     depositPayer: row.deposit_payer ?? undefined,
     depositReceiptPath: row.deposit_receipt_path ?? undefined,
     depositSubmittedAt: row.deposit_submitted_at ?? undefined,
+    depositMethod: (row.deposit_method ?? undefined) as Booking['depositMethod'],
+    depositTermsAt: row.deposit_terms_at ?? undefined,
   };
 }
 

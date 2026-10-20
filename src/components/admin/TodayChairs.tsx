@@ -1,6 +1,6 @@
 import { Coffee, Scissors, CheckCircle2, Clock } from 'lucide-react';
 import { formatCOP } from '../../data';
-import { timeToMinutes, minutesToTime } from '../../lib/dates';
+import { timeToMinutes, minutesToTime, time12 } from '../../lib/dates';
 import { revenueOf } from '../../lib/stats';
 import type { Barber, Booking } from '../../types';
 import BarberAvatar from '../common/BarberAvatar';
@@ -65,7 +65,7 @@ export default function TodayChairs({ barbers, bookings, now, durations, lunch }
 
             {next && state.kind !== 'away' && (
               <p className="mx-4 mb-3 text-xs rounded-lg px-3 py-2 bg-gold/10 border border-gold/25 text-zinc-300 truncate">
-                <span className="text-gold font-semibold">Siguiente {next.time}</span> · {next.clientName}
+                <span className="text-gold font-semibold">Siguiente {time12(next.time)}</span> · {next.clientName}
               </p>
             )}
 
@@ -83,7 +83,7 @@ export default function TodayChairs({ barbers, bookings, now, durations, lunch }
                       b.status === 'cancelled' || b.status === 'no-show' || (past && !isNow && b.status !== 'completed') ? 'opacity-50' : ''
                     }`}
                   >
-                    <span className="font-mono text-sm font-bold text-gold w-11 shrink-0">{b.time}</span>
+                    <span className="font-mono text-sm font-bold text-gold w-[4.5rem] shrink-0 whitespace-nowrap">{time12(b.time)}</span>
                     <div className="min-w-0 flex-1">
                       <p className="text-white text-sm font-medium truncate">{b.clientName}</p>
                       <p className="text-zinc-500 text-xs truncate">{b.serviceName}</p>

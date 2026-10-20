@@ -84,6 +84,20 @@ export function timeToMinutes(time: string): number {
   return h * 60 + m;
 }
 
+/** 'HH:MM' -> partes en 12 horas: { hm: '1:15', suffix: 'p. m.' } */
+export function time12Parts(time: string): { hm: string; suffix: string } {
+  const match = /^(\d{1,2}):(\d{2})$/.exec(time ?? '');
+  if (!match) return { hm: time ?? '', suffix: '' };
+  const h = Number(match[1]);
+  return { hm: `${h % 12 === 0 ? 12 : h % 12}:${match[2]}`, suffix: h >= 12 ? 'p. m.' : 'a. m.' };
+}
+
+/** 'HH:MM' -> '1:15 p. m.' (la hora como la lee la gente, sin hora militar) */
+export function time12(time: string): string {
+  const { hm, suffix } = time12Parts(time);
+  return suffix ? `${hm} ${suffix}` : hm;
+}
+
 export function minutesToTime(minutes: number): string {
   return `${String(Math.floor(minutes / 60)).padStart(2, '0')}:${String(minutes % 60).padStart(2, '0')}`;
 }

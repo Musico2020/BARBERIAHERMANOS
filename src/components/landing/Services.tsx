@@ -87,7 +87,7 @@ export default function Services({ onBooking }: ServicesProps) {
           <p className="text-zinc-400 text-base sm:text-lg max-w-2xl mx-auto">
             Toca cualquier servicio para reservarlo.{' '}
             {businessConfig.deposit.enabled
-              ? `Separas tu turno con el ${businessConfig.deposit.percent} % por Nequi y el resto lo pagas en el salón.`
+              ? `Separas tu turno con el ${businessConfig.deposit.percent} % (por Nequi o en efectivo en el salón) o pagas el 100 % por adelantado.`
               : 'Pagas en el salón, sin anticipo.'}
           </p>
         </div>
