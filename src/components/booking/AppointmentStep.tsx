@@ -2,7 +2,7 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import { Clock, Loader2, Users, Sun, Sunset, CalendarX, Minus, Plus, X, ChevronDown, Sparkles } from 'lucide-react';
 import { getServices } from '../../services/services';
 import { getBarbers } from '../../services/barbers';
-import { getBusySlots, type BusySlot } from '../../services/bookings';
+import { getBusySlots, getBusySlotsRange, type BusySlot } from '../../services/bookings';
 import { generateSlots } from '../../lib/availability';
 import { hoursFor, specialDayOf } from '../../lib/businessHours';
 import { holidayName } from '../../lib/holidays';
@@ -77,7 +77,11 @@ export default function AppointmentStep({ value, onChange, onContinue }: Props) 
   }, []);
 
   const loadBusy = useCallback((days: string[]) => {
-    return Promise.all(days.map((d) => getBusySlots(d).then((list) => [d, list] as const)))
+    // Un día: consulta directa. Varios (al abrir, hasta 90): una sola consulta con todo el rango
+    const request: Promise<(readonly [string, BusySlot[]])[]> = days.length === 1
+      ? getBusySlots(days[0]).then((list) => [[days[0], list] as const])
+      : getBusySlotsRange(days[0], days[days.length - 1]).then((byDay) => days.map((d) => [d, byDay[d] ?? []] as const));
+    return request
       .then((entries) => {
         setBusyByDate((prev) => ({ ...prev, ...Object.fromEntries(entries) }));
         setLoadError('');

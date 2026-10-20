@@ -12,11 +12,11 @@ import type { Barber, Booking, DayOverride } from '../../types';
 // Portal del barbero → Mis turnos: el barbero cierra o abre SUS medias horas de un día.
 // Lo que el administrador cerró para todo el salón se ve bloqueado y no se puede abrir desde aquí.
 
-const DAYS_SHOWN = 30;
+const DAYS_SHOWN = 90;
 const ERRORS: Record<Exclude<DayClosuresResult, 'OK'>, string> = {
   INVALID_PIN: 'Tu PIN cambió o no es válido. Sal y vuelve a entrar.',
   PIN_LOCKED: 'Tu acceso está bloqueado unos minutos por intentos fallidos.',
-  INVALID_DATE: 'Solo puedes cambiar los turnos de hoy en adelante (hasta 60 días).',
+  INVALID_DATE: 'Solo puedes cambiar los turnos de hoy en adelante (hasta 90 días).',
   DAY_CLOSED: 'Ese día el salón no recibe reservas. Habla con el administrador.',
   INVALID_RANGES: 'Alguna hora está fuera del horario del día. Recarga e intenta de nuevo.',
 };

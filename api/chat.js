@@ -176,7 +176,7 @@ async function availability(db, biz, input) {
   if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) return { error: 'Fecha inválida. Usa AAAA-MM-DD.' };
   const daysAhead = Number(biz.settings.daysAhead ?? 14);
   if (date < today.date) return { error: 'Esa fecha ya pasó.' };
-  if (date > addDays(today.date, Math.min(daysAhead, 30) - 1)) return { aviso: `Solo se puede reservar hasta ${daysAhead} días adelante.` };
+  if (date > addDays(today.date, Math.min(daysAhead, 90) - 1)) return { aviso: `Solo se puede reservar hasta ${daysAhead} días adelante.` };
 
   const [[hours], [lunch], busy, windows] = await Promise.all([
     db.rpc('business_hours_for', { p_date: date }).then((r) => (Array.isArray(r) ? r : [r])),

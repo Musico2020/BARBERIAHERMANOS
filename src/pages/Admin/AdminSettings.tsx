@@ -601,7 +601,7 @@ function BookingRulesCard() {
         />
         <ChoiceRow
           label="Se puede reservar con anticipación de hasta"
-          hint="Cuántos días hacia adelante ve el cliente para elegir (máximo 30)."
+          hint="Cuántos días hacia adelante ve el cliente para elegir (máximo 90)."
           options={DAYS_AHEAD_OPTIONS}
           value={form.daysAhead}
           onChange={(daysAhead) => { setForm({ ...form, daysAhead }); setStatus(null); }}

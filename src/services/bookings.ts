@@ -142,6 +142,22 @@ export interface BusySlot {
 }
 
 /** Horas ocupadas de un día (sin datos de clientes). Sin barberId devuelve las de todos. */
+/** Horas ocupadas de todos los días entre start y end (incluidos), en una sola consulta. */
+export async function getBusySlotsRange(start: string, end: string): Promise<Record<string, BusySlot[]>> {
+  const { data, error } = await supabase.rpc('get_busy_slots_range', { p_start: start, p_end: end });
+  if (error) throw error;
+  const byDay: Record<string, BusySlot[]> = {};
+  for (const row of data as { day: string; barber_id: string; start_time: string; duration: number; kind?: string }[]) {
+    (byDay[row.day] ??= []).push({
+      barberId: row.barber_id,
+      startTime: row.start_time,
+      duration: row.duration,
+      kind: row.kind === 'closed' ? 'closed' : 'booking',
+    });
+  }
+  return byDay;
+}
+
 export async function getBusySlots(date: string, barberId?: string): Promise<BusySlot[]> {
   const { data, error } = await supabase.rpc('get_busy_slots', {
     p_date: date,

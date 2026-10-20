@@ -14,10 +14,10 @@ export type EditableSettings = Pick<
 /** Opciones de «las citas empiezan cada…» (minutos) */
 export const SLOT_STEP_OPTIONS = [5, 10, 15, 20, 30, 60] as const;
 /** Opciones de anticipación (días). El servidor no acepta reservas a más de 30 días. */
-export const DAYS_AHEAD_OPTIONS = [3, 7, 14, 21, 30] as const;
+export const DAYS_AHEAD_OPTIONS = [3, 7, 14, 21, 30, 60, 90] as const;
 
 const validSlotStep = (n: unknown): n is number => (SLOT_STEP_OPTIONS as readonly unknown[]).includes(n);
-const validDaysAhead = (n: unknown): n is number => Number.isInteger(n) && (n as number) >= 1 && (n as number) <= 30;
+const validDaysAhead = (n: unknown): n is number => Number.isInteger(n) && (n as number) >= 1 && (n as number) <= 90;
 
 const TEXT_KEYS = ['tagline', 'address', 'phone', 'whatsapp', 'email', 'instagram', 'tiktok', 'facebook'] as const;
 const TIME_RE = /^\d{2}:\d{2}$/;

@@ -14,7 +14,7 @@ import type { Barber, Booking, DayOverride, SpecialDay } from '../../types';
 // Panel → Turnos: abrir o cerrar medias horas de cualquier día, para todo el salón o para un barbero.
 // También abre días que normalmente están cerrados (domingos, festivos) o cierra un día completo.
 
-const DAYS_SHOWN = 60;
+const DAYS_SHOWN = 90;
 const TIME_OPTIONS = Array.from({ length: (23 - 5) * 2 + 1 }, (_, i) => minutesToTime(5 * 60 + i * 30));
 const isActive = (b: Booking) => b.status === 'pending' || b.status === 'confirmed';
 const hour12 = (min: number) => {

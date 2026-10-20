@@ -1,8 +1,8 @@
 import { useState } from 'react';
-import { Search, Download, ChevronDown, Loader2, MessageCircle, UserPlus, CheckCircle2, Trash2, CalendarCheck, X } from 'lucide-react';
+import { Search, Download, ChevronDown, Loader2, MessageCircle, UserPlus, CheckCircle2, Trash2, CalendarCheck, CalendarDays, ChevronLeft, ChevronRight, X } from 'lucide-react';
 import { getBookings, updateBookingStatus, deleteBooking } from '../../services/bookings';
 import { formatCOP } from '../../data';
-import { dayOfMonth, monthShort, dayShort, todayKey, formatDateLong, time12 } from '../../lib/dates';
+import { dayOfMonth, monthShort, dayShort, todayKey, formatDateLong, time12, addDays } from '../../lib/dates';
 import { STATUS_LABEL, type BookingStatus } from '../../lib/stats';
 import { useAutoRefresh } from '../../hooks/useAutoRefresh';
 import type { Booking } from '../../types';
@@ -25,8 +25,8 @@ function toCSV(rows: (string | number)[][]): string {
 export default function AdminBookings() {
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState<BookingStatus | 'todos'>('todos');
-  // «Hoy»: solo las citas del día de hoy (hora de Colombia)
-  const [onlyToday, setOnlyToday] = useState(false);
+  // Día que se está viendo ('YYYY-MM-DD'): «Hoy» u otro día escogido; null = todas las fechas
+  const [day, setDay] = useState<string | null>(null);
   const [list, setList] = useState<Booking[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -57,10 +57,13 @@ export default function AdminBookings() {
     (digits.length >= 3 && b.clientPhone.replace(/\D/g, '').includes(digits));
   const today = todayKey();
   const todayCount = list.filter((b) => b.date === today && b.status !== 'cancelled').length;
-  // De la última reserva (fecha y hora más tardía) a la primera; con «Hoy», solo las de hoy
+  const dayCount = day ? list.filter((b) => b.date === day && b.status !== 'cancelled').length : 0;
+  // Todas: de la última reserva a la primera. Un día: solo las de ese día, en orden de hora (como una agenda)
   const searched = list
-    .filter((b) => matchesSearch(b) && (!onlyToday || b.date === today))
-    .sort((a, b) => b.date.localeCompare(a.date) || b.time.localeCompare(a.time) || b.createdAt.localeCompare(a.createdAt));
+    .filter((b) => matchesSearch(b) && (!day || b.date === day))
+    .sort((a, b) => day
+      ? a.time.localeCompare(b.time) || a.createdAt.localeCompare(b.createdAt)
+      : b.date.localeCompare(a.date) || b.time.localeCompare(a.time) || b.createdAt.localeCompare(a.createdAt));
   const filtered = searched.filter((b) => statusFilter === 'todos' || b.status === statusFilter);
   const counts = new Map<string, number>(STATUSES.map((s) => [s, searched.filter((b) => b.status === s).length]));
 
@@ -260,26 +263,56 @@ export default function AdminBookings() {
       <div className="flex gap-2 overflow-x-auto pb-1 -mx-1 px-1" style={{ scrollbarWidth: 'none' }}>
         <button
           type="button"
-          onClick={() => setOnlyToday(!onlyToday)}
-          aria-pressed={onlyToday}
+          onClick={() => setDay(day === today ? null : today)}
+          aria-pressed={day === today}
           title="Ver solo las reservas de hoy"
           className={`shrink-0 inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full text-xs font-bold border transition-all ${
-            onlyToday ? 'bg-emerald-500 text-white border-emerald-500' : 'border-emerald-500/50 text-emerald-400 hover:bg-emerald-500/10'
+            day === today ? 'bg-emerald-500 text-white border-emerald-500' : 'border-emerald-500/50 text-emerald-400 hover:bg-emerald-500/10'
           }`}
         >
           <CalendarCheck size={14} />
           Hoy
-          <span className={`font-mono text-[10px] px-1.5 rounded-full ${onlyToday ? 'bg-black/15' : 'bg-emerald-500/15'}`}>{todayCount}</span>
-          {onlyToday && <X size={12} aria-label="Quitar filtro de hoy" />}
+          <span className={`font-mono text-[10px] px-1.5 rounded-full ${day === today ? 'bg-black/15' : 'bg-emerald-500/15'}`}>{todayCount}</span>
+          {day === today && <X size={12} aria-label="Quitar filtro de hoy" />}
         </button>
+        <label
+          title="Escoger un día para ver solo sus reservas"
+          className={`relative shrink-0 inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full text-xs font-bold border cursor-pointer transition-all ${
+            day && day !== today ? 'bg-gold text-dark border-gold' : 'border-gold/50 text-gold hover:bg-gold/10'
+          }`}
+        >
+          <CalendarDays size={14} />
+          {day && day !== today ? `${dayShort(day)} ${dayOfMonth(day)} ${monthShort(day)}` : 'Escoger día'}
+          <input
+            type="date"
+            value={day ?? ''}
+            onChange={(e) => setDay(e.target.value || null)}
+            onClick={(e) => { try { e.currentTarget.showPicker(); } catch { /* el navegador abre su propio calendario */ } }}
+            className="absolute inset-0 w-full h-full opacity-0 cursor-pointer [color-scheme:dark]"
+            aria-label="Escoger día"
+          />
+        </label>
+        {day && (
+          <>
+            <button type="button" onClick={() => setDay(addDays(day, -1))} title="Día anterior" aria-label="Día anterior" className="shrink-0 w-8 h-8 rounded-full border border-white/10 text-zinc-300 hover:border-gold/50 hover:text-gold inline-flex items-center justify-center">
+              <ChevronLeft size={15} />
+            </button>
+            <button type="button" onClick={() => setDay(addDays(day, 1))} title="Día siguiente" aria-label="Día siguiente" className="shrink-0 w-8 h-8 rounded-full border border-white/10 text-zinc-300 hover:border-gold/50 hover:text-gold inline-flex items-center justify-center">
+              <ChevronRight size={15} />
+            </button>
+            <button type="button" onClick={() => setDay(null)} className="shrink-0 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold border border-white/10 text-zinc-300 hover:text-white">
+              <X size={12} /> Todas las fechas
+            </button>
+          </>
+        )}
         <span className="shrink-0 w-px bg-white/10 my-1" aria-hidden="true" />
         {chip('todos', 'Todas', searched.length)}
         {STATUSES.map((s) => chip(s, STATUS_LABEL[s], counts.get(s) ?? 0))}
       </div>
 
       <Panel
-        title={onlyToday ? 'Reservas de hoy' : 'Registro de citas'}
-        subtitle={onlyToday ? formatDateLong(today) : 'Cambia el estado de cada cita a medida que avanza el día'}
+        title={!day ? 'Registro de citas' : day === today ? 'Reservas de hoy' : 'Reservas del día'}
+        subtitle={day ? `${formatDateLong(day)} · ${dayCount} ${dayCount === 1 ? 'cita activa' : 'citas activas'}` : 'Cambia el estado de cada cita a medida que avanza el día'}
         action={<span className="text-[11px] font-mono text-zinc-400 bg-white/[0.04] border border-white/10 px-3 py-1 rounded-full">{filtered.length} {filtered.length === 1 ? 'reserva' : 'reservas'}</span>}
         bodyClassName="pt-4"
       >
@@ -294,8 +327,8 @@ export default function AdminBookings() {
             columns={columns}
             rowKey={(b) => b.id}
             pageSize={25}
-            resetKey={`${search}|${statusFilter}|${onlyToday}`}
-            empty={onlyToday ? 'Hoy no hay reservas con estos filtros.' : 'No se encontraron reservas con estos filtros.'}
+            resetKey={`${search}|${statusFilter}|${day}`}
+            empty={!day ? 'No se encontraron reservas con estos filtros.' : day === today ? 'Hoy no hay reservas con estos filtros.' : 'Ese día no hay reservas con estos filtros.'}
             rowClassName={(b) => (b.status === 'cancelled' ? 'opacity-60' : '')}
           />
         )}
