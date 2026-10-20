@@ -19,6 +19,7 @@ import { RevenueTrendChart, GoldBarChart, DonutChart, Sparkline } from '../../co
 import DataTable, { type Column } from '../../components/admin/DataTable';
 import TodayChairs from '../../components/admin/TodayChairs';
 import NewClientModal from '../../components/admin/NewClientModal';
+import PushCard from '../../components/admin/PushCard';
 
 /** Del 1 del mes a hoy, y el mismo tramo del mes anterior, para comparar en igualdad de días. */
 function monthToDate(today: string) {
@@ -147,6 +148,7 @@ export default function AdminDashboard({ onNavigate }: { onNavigate?: (tab: Admi
 
   return (
     <div className="space-y-6 sm:space-y-8">
+      <PushCard compact />
       {/* Encabezado del día */}
       <section className="frame-gold rounded-3xl overflow-hidden">
         <div className="barber-stripe" />

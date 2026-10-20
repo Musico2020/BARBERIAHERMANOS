@@ -10,6 +10,7 @@ import BookingTicket, { type TicketData } from './BookingTicket';
 import DepositStep from './DepositStep';
 import { timeToMinutes, minutesToTime, time12 } from '../../lib/dates';
 import { cartSchedule, cartDuration, cartPrice } from '../../lib/bookingCart';
+import { notifyPush } from '../../services/push';
 
 interface BookingModalProps {
   isOpen: boolean;
@@ -130,12 +131,14 @@ export default function BookingModal({ isOpen, onClose, preselectedService }: Bo
         deposit: depositTotal > 0 ? depositTotal : undefined,
       });
       created.forEach((b) => notifyWhatsApp({ bookingId: b.bookingId }));
+      notifyPush('booking', created.map((b) => b.bookingId));
     } catch (err) {
       console.error('Error al crear la reserva', err);
       const code: BookingErrorCode = err instanceof BookingError ? err.code : 'UNKNOWN';
       if (created.length > 0) {
         // Alcanzaron a quedar algunos turnos: se avisa cuáles para que no reserve dos veces
         created.forEach((b) => notifyWhatsApp({ bookingId: b.bookingId }));
+        notifyPush('booking', created.map((b) => b.bookingId));
         setError(`Se reservaron ${created.length} de ${schedule.length} servicios (desde las ${time12(time)}). El siguiente ya no estaba libre: escríbenos por WhatsApp y te ayudamos.`);
       } else {
         setError(ERROR_MESSAGES[code]);

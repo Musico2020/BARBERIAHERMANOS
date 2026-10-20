@@ -4,6 +4,7 @@ import { businessConfig } from '../../config/business';
 import { formatCOP } from '../../data';
 import { IMAGE_ACCEPT } from '../../lib/imageFile';
 import { uploadReceipt, submitDeposit, chooseCashDeposit, type SubmitDepositResult } from '../../services/deposits';
+import { notifyPush } from '../../services/push';
 
 // Paso de pago al terminar la reserva. El cliente elige:
 //   · anticipo por transferencia (QR de Nequi / Bre-B),
@@ -91,7 +92,10 @@ export default function DepositStep({ bookingIds, amount, total, expiresAt, clie
     try {
       const path = await uploadReceipt(bookingIds[0], file);
       const result = await submitDeposit(bookingIds, payer.trim(), path, choice === 'full', accepted);
-      if (result === 'OK') onDone({ method: 'transfer', amount: toPay });
+      if (result === 'OK') {
+        notifyPush('deposit', bookingIds);
+        onDone({ method: 'transfer', amount: toPay });
+      }
       else setError(ERRORS[result] ?? ERRORS.NOT_FOUND!);
     } catch (err) {
       console.error('No se pudo enviar el comprobante', err);

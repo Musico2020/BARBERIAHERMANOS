@@ -11,6 +11,7 @@ import { upcomingHolidays } from '../../lib/holidays';
 import { todayKey, addDays, formatDateLong } from '../../lib/dates';
 import { Panel, Segmented } from '../../components/admin/ui';
 import type { Barber, BusinessHours, SpecialDay } from '../../types';
+import PushCard from '../../components/admin/PushCard';
 
 // Configuración editable del negocio. Se guarda en la base de datos (tabla business_settings)
 // y la web la usa apenas se recarga: horarios, días especiales, contacto y redes.
@@ -702,6 +703,7 @@ function DepositCard() {
 function RulesTab() {
   return (
     <div className="grid lg:grid-cols-2 gap-5">
+      <div className="lg:col-span-2"><PushCard /></div>
       <BookingRulesCard />
       <DepositCard />
       <AnyBarberCard />
