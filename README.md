@@ -9,9 +9,9 @@ React 18 + Vite + TypeScript + Tailwind CSS, con base de datos en Supabase.
 
 | Qué | Dónde |
 |---|---|
-| Web pública | https://salon-hermanos.vercel.app |
-| Panel | https://salon-hermanos.vercel.app/admin |
-| Portal del barbero | https://salon-hermanos.vercel.app/barber |
+| Web pública | https://barberia-hermanos.vercel.app |
+| Panel | https://barberia-hermanos.vercel.app/admin |
+| Portal del barbero | https://barberia-hermanos.vercel.app/barber |
 | Hosting | Vercel, cuenta musico2020, proyecto `salon-hermanos` |
 | Base de datos | Supabase, organización «Salón Hermanos», proyecto `salon-hermanos` (us-east-1) |
 
