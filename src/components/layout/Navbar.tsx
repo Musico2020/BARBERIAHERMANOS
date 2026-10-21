@@ -17,6 +17,7 @@ const navLinks = [
   { label: 'Galería', href: '/galeria' },
   { label: 'Shop', href: '/shop' },
   { label: 'Contacto', href: '/#contacto' },
+  { label: 'Mis citas', href: '/mis-citas' },
 ];
 
 const accessLinks = [

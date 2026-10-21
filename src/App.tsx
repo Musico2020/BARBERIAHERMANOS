@@ -2,6 +2,7 @@ import { useState, useEffect, lazy, Suspense } from 'react';
 import LandingPage from './pages/Landing';
 import GalleryPage from './pages/GalleryPage';
 import ShopPage from './pages/ShopPage';
+import MyBookingsPage from './pages/MyBookingsPage';
 
 // El panel y el portal del barbero (con gráficas y PDF) se descargan solo al abrirlos,
 // así la página pública carga rápido para los clientes.
@@ -10,7 +11,7 @@ const BarberPage = lazy(() => import('./pages/Barber/index'));
 
 const loadingScreen = <div className="min-h-screen bg-dark" />;
 
-type Route = 'landing' | 'admin' | 'barber' | 'galeria' | 'shop';
+type Route = 'landing' | 'admin' | 'barber' | 'galeria' | 'shop' | 'citas';
 
 const ROUTE_PATHS: Record<Route, string> = {
   landing: '/',
@@ -18,6 +19,7 @@ const ROUTE_PATHS: Record<Route, string> = {
   barber: '/barber',
   galeria: '/galeria',
   shop: '/shop',
+  citas: '/mis-citas',
 };
 
 function getRoute(): Route {
@@ -26,6 +28,7 @@ function getRoute(): Route {
   if (path.startsWith('/barber')) return 'barber';
   if (path.startsWith('/galeria')) return 'galeria';
   if (path.startsWith('/shop')) return 'shop';
+  if (path.startsWith('/mis-citas')) return 'citas';
   return 'landing';
 }
 
@@ -49,5 +52,6 @@ export default function App() {
   if (route === 'barber') return <Suspense fallback={loadingScreen}><BarberPage /></Suspense>;
   if (route === 'galeria') return <GalleryPage />;
   if (route === 'shop') return <ShopPage />;
+  if (route === 'citas') return <MyBookingsPage />;
   return <LandingPage />;
 }

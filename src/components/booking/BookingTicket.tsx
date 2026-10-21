@@ -4,6 +4,7 @@ import { businessConfig } from '../../config/business';
 import { formatCOP } from '../../data';
 import { formatDateLong, time12 } from '../../lib/dates';
 import { ticketCode } from '../../lib/ticket';
+import { siteUrl } from '../../lib/whatsapp';
 
 export interface TicketData {
   bookingId: string;
@@ -61,6 +62,7 @@ export default function BookingTicket({ ticket, onClose }: Props) {
       ? `Total: ${formatCOP(ticket.price)} · Pagado por transferencia: ${formatCOP(ticket.deposit)} · En el salón: ${formatCOP(ticket.price - ticket.deposit)}`
       : `Total: ${formatCOP(ticket.price)} (pago en el salón)`,
     `📍 ${businessConfig.address.trim()}`,
+    `Consulta tus citas: ${siteUrl()}/mis-citas`,
   ].join('\n');
 
   const renderImage = async (): Promise<Blob> => {
