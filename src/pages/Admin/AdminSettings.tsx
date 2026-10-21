@@ -3,7 +3,7 @@ import {
   Store, Clock, CalendarX, ShieldCheck, ListChecks, Save, Loader2, CheckCircle2, AlertCircle, Trash2, Plus,
   Eye, EyeOff, KeyRound, Users, Megaphone, MessageCircle,
 } from 'lucide-react';
-import { currentSettings, saveSettings, DAYS_AHEAD_OPTIONS, SLOT_STEP_OPTIONS, type EditableSettings } from '../../services/settings';
+import { currentSettings, saveSettings, DAYS_AHEAD_OPTIONS, type EditableSettings } from '../../services/settings';
 import { changeAdminPassword, currentAdminEmail, AdminAuthError } from '../../services/adminAuth';
 import { getBarbers, updateBarber } from '../../services/barbers';
 import { noticeStart } from '../../lib/businessHours';
@@ -592,14 +592,14 @@ function BookingRulesCard() {
             como «recomendadas» porque no dejan huecos.
           </p>
         </div>
-        <ChoiceRow
-          label="Las citas pueden empezar cada"
-          hint="Con 15 minutos se ofrece 2:00, 2:15, 2:30… Con 5 minutos casi cualquier hora."
-          options={SLOT_STEP_OPTIONS}
-          value={form.slotStep}
-          onChange={(slotStep) => { setForm({ ...form, slotStep }); setStatus(null); }}
-          format={(n) => `${n} minutos`}
-        />
+        <div>
+          <p className="text-white text-sm font-medium">Turnos según la duración del servicio</p>
+          <p className="text-zinc-500 text-xs mt-1">
+            Los turnos se ofrecen uno detrás de otro según lo que dura el servicio: uno de 45 min ofrece 2:00, 2:45, 3:30…;
+            uno de 30 min, 2:00, 2:30, 3:00… Si ya hay una cita, el siguiente turno empieza justo cuando ella termina.
+            Cambia la duración de cada servicio en Panel → Servicios.
+          </p>
+        </div>
         <ChoiceRow
           label="Se puede reservar con anticipación de hasta"
           hint="Cuántos días hacia adelante ve el cliente para elegir (máximo 90)."

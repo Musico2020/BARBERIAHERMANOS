@@ -112,7 +112,7 @@ ${team}
 
 Reglas de reserva:
 - Se reserva desde el botón "Reservar" de la web: el cliente elige uno o varios servicios, el día, con quién y la hora. ${depositRule(s)}
-- Se puede reservar hasta ${s.daysAhead ?? 14} días adelante. Las citas pueden empezar cada ${s.slotStep ?? 15} minutos; el cliente elige la hora que quiera entre las libres.
+- Se puede reservar hasta ${s.daysAhead ?? 14} días adelante. Los turnos se ofrecen según la duración del servicio (uno de 45 minutos: 2:00, 2:45, 3:30…); el cliente elige el que quiera entre los libres.
 - La manicura se reserva aparte de los servicios de barbería (la hace otra persona).
 - Para cambiar o cancelar una cita, escribir por WhatsApp con al menos 2 horas de anticipación.`;
 }
@@ -200,15 +200,16 @@ async function availability(db, biz, input) {
     if (wanted && !wanted.available) return { ...base, estado: `${wanted.name} no está disponible por ahora para reservas.` };
     if (wanted) staff = staff.filter((b) => b.id === wanted.id);
   }
-  // Igual que src/lib/availability.ts: cualquier hora cada «step» minutos en la que el servicio completo
-  // quepa en un hueco libre, más la hora justo al terminar otra cita
-  const step = Number(biz.settings.slotStep) > 0 ? Number(biz.settings.slotStep) : 15;
+  // Igual que src/lib/availability.ts: en cada hueco libre, los turnos van uno detrás de otro según la
+  // duración del servicio (45 min → 2:00, 2:45, 3:30…), más el que termina justo cuando empieza otra cita
   const result = staff.map((b) => {
     const w = (Array.isArray(windows) ? windows : []).find((x) => x.barber_id === b.id);
     if (w && w.o_open === null) return { nombre: b.name, horas_libres: [], total_libres: 0, nota: 'No trabaja ese día' };
     const open = w ? w.o_open : hours.o_open;
     const close = w ? w.o_close : hours.o_close;
-    const from = date === today.date ? Math.max(open, Math.ceil((today.minutes + 1) / 5) * 5) : open;
+    // Hoy solo se ofrecen los que no han pasado; los huecos se cuentan desde la apertura
+    const nowFrom = date === today.date ? Math.ceil((today.minutes + 1) / 5) * 5 : 0;
+    const from = open;
     const blocks = busy
       .filter((x) => x.barber_id === b.id)
       .map((x) => ({ start: toMin(x.start_time), end: toMin(x.start_time) + x.duration }));
@@ -227,9 +228,10 @@ async function availability(db, biz, input) {
       const last = g.end - duration;
       if (last < g.start) continue;
       const starts = new Set();
-      if (g.start !== from) starts.add(g.start);
-      for (let t = Math.ceil(g.start / step) * step; t <= last; t += step) starts.add(t);
-      times.push(...[...starts].sort((x, y) => x - y).map(toTime));
+      for (let t = g.start; t <= last; t += duration) starts.add(t);
+      // El que termina justo cuando empieza otra cita (no al cierre ni al almuerzo)
+      if (blocks.some((x) => x.start === g.end && !(lunch.o_start !== null && x.start === lunch.o_start))) starts.add(last);
+      times.push(...[...starts].filter((t) => t >= nowFrom).sort((x, y) => x - y).map(toTime));
     }
     return { nombre: b.name, horario: `${toTime(open)} a ${toTime(close)}`, horas_libres: times.slice(0, 24), total_libres: times.length };
   });
