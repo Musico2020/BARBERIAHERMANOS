@@ -2,7 +2,8 @@ import { useState, useEffect } from 'react';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { getBookingsInRange } from '../../services/bookings';
 import { getBarbers } from '../../services/barbers';
-import { todayKey, addDays, startOfWeek, dayOfMonth, time12, time12Parts } from '../../lib/dates';
+import { todayKey, addDays, startOfWeek, dayOfMonth, dayShort, monthShort, time12, time12Parts } from '../../lib/dates';
+import CalendarAgenda from '../../components/admin/CalendarAgenda';
 import { useAutoRefresh } from '../../hooks/useAutoRefresh';
 import { businessConfig } from '../../config/business';
 import { lunchFor } from '../../lib/businessHours';
@@ -68,6 +69,8 @@ export default function AdminCalendar() {
   const [bookings, setBookings] = useState<Booking[]>([]);
   const [barbers, setBarbers] = useState<Barber[]>([]);
   const [error, setError] = useState('');
+  // Filtro por barbero de la agenda del teléfono ('' = todos)
+  const [agendaBarber, setAgendaBarber] = useState('');
 
   useEffect(() => {
     getBarbers()
@@ -103,8 +106,9 @@ export default function AdminCalendar() {
   ];
 
   const formatDateLabel = () => {
-    if (view === 'day') return currentDate;
-    return `${weekDates[0]} — ${weekDates[6]}`;
+    const short = (d: string) => `${dayShort(d)} ${dayOfMonth(d)} ${monthShort(d)}`;
+    if (view === 'day') return short(currentDate);
+    return `${dayOfMonth(weekDates[0])} ${monthShort(weekDates[0])} — ${dayOfMonth(weekDates[6])} ${monthShort(weekDates[6])}`;
   };
 
   return (
@@ -143,8 +147,25 @@ export default function AdminCalendar() {
         </button>
       </div>
 
+      {/* Teléfono: agenda en lista, con el número de cada cliente */}
+      <div className="sm:hidden space-y-4">
+        <div className="flex gap-2 overflow-x-auto pb-1 -mx-1 px-1" style={{ scrollbarWidth: 'none' }}>
+          {[{ id: '', label: 'Todos' }, ...barbers.map((b) => ({ id: b.id, label: b.shortName }))].map((o) => (
+            <button
+              key={o.id || 'todos'}
+              onClick={() => setAgendaBarber(o.id)}
+              aria-pressed={agendaBarber === o.id}
+              className={`shrink-0 px-3.5 py-1.5 rounded-full text-xs font-semibold border ${agendaBarber === o.id ? 'bg-gold text-dark border-gold' : 'border-white/10 text-zinc-300'}`}
+            >
+              {o.label}
+            </button>
+          ))}
+        </div>
+        <CalendarAgenda dates={view === 'day' ? [currentDate] : weekDates} bookings={bookings} barberId={agendaBarber} />
+      </div>
+
       {view === 'day' ? (
-        <div className="table-card overflow-hidden overflow-x-auto">
+        <div className="hidden sm:block table-card overflow-hidden overflow-x-auto">
           <div style={{ minWidth: `${64 + Math.max(columns.length, 1) * 140}px` }}>
             <div
               className="grid border-b border-white/8"
@@ -183,6 +204,9 @@ export default function AdminCalendar() {
                           <div key={slot.id} className={`rounded-lg border px-2.5 py-2 text-xs ${statusColors[slot.status] || 'border-white/20 text-zinc-300'}`}>
                             <p className="font-semibold truncate"><span className="font-mono opacity-70">{time12(slot.time)}</span> {slot.clientName}</p>
                             <p className="opacity-70 truncate">{slot.serviceName}</p>
+                            {slot.clientPhone && (
+                              <a href={`tel:${slot.clientPhone.replace(/[^\d+]/g, '')}`} className="block font-mono opacity-90 truncate hover:underline">📞 {slot.clientPhone}</a>
+                            )}
                           </div>
                         ))}
                       </div>
@@ -194,7 +218,7 @@ export default function AdminCalendar() {
           </div>
         </div>
       ) : (
-        <div className="table-card overflow-hidden overflow-x-auto">
+        <div className="hidden sm:block table-card overflow-hidden overflow-x-auto">
           <div className="min-w-[600px]">
             <div className="grid grid-cols-8 border-b border-white/8">
               <div className="p-3" />
@@ -227,6 +251,7 @@ export default function AdminCalendar() {
                           <div key={slot.id} className={`rounded border px-1.5 py-1 text-[10px] ${statusColors[slot.status] || 'border-white/20 text-zinc-300'}`}>
                             <p className="font-semibold truncate leading-tight">{time12(slot.time)} {slot.clientName}</p>
                             <p className="opacity-60 truncate leading-tight">{slot.barberName}</p>
+                            {slot.clientPhone && <p className="opacity-80 truncate leading-tight font-mono">{slot.clientPhone}</p>}
                           </div>
                         ))}
                       </div>
