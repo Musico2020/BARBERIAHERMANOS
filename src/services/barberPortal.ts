@@ -1,4 +1,5 @@
 import { supabase } from '../lib/supabase';
+import type { WorkHours } from '../types';
 import { rowToBooking } from './bookings';
 import type { Booking } from '../types';
 
@@ -63,6 +64,15 @@ export type DayClosuresResult = BarberAuthResult | 'INVALID_DATE' | 'DAY_CLOSED'
  * El barbero cierra sus propias horas de un día (reemplaza las que tenía cerradas ese día).
  * No toca lo cerrado para todo el salón ni a los demás barberos. `ranges` vacío = abre todas sus horas.
  */
+export type WorkHoursResult = 'OK' | 'INVALID_PIN' | 'PIN_LOCKED' | 'INVALID_HOURS';
+
+/** El barbero cambia su propio horario de trabajo (mismo formato que en Panel → Barberos). */
+export async function setBarberWorkHours(barberId: string, pin: string, hours: WorkHours): Promise<WorkHoursResult> {
+  const { data, error } = await supabase.rpc('barber_set_work_hours', { p_barber_id: barberId, p_pin: pin, p_hours: hours });
+  if (error) throw error;
+  return data as WorkHoursResult;
+}
+
 export async function setBarberDayClosures(
   barberId: string,
   pin: string,

@@ -161,9 +161,9 @@ export default function AdminBarbers() {
 
   const validate = (): boolean => {
     const e: Partial<BarberForm> = {};
+    // Teléfono y descripción son opcionales: solo el nombre (y el PIN al crear) son obligatorios
     if (!form.name.trim()) e.name = 'Nombre requerido';
-    if (!form.phone.trim()) e.phone = 'Teléfono requerido';
-    if (!form.bio.trim()) e.bio = 'Descripción requerida';
+    if (form.phone.trim() && form.phone.replace(/\D/g, '').length < 7) e.phone = 'Revisa el teléfono o déjalo vacío';
     if (!editTarget && !form.pin.trim()) e.pin = 'PIN requerido';
     // El portal del barbero usa un teclado de 4 dígitos
     if (form.pin && !/^\d{4}$/.test(form.pin)) e.pin = 'El PIN debe tener exactamente 4 números';
@@ -172,7 +172,15 @@ export default function AdminBarbers() {
       setSaveError('Revisa el horario: la hora de salida debe ser después de la de entrada.');
       return false;
     }
-    return Object.keys(e).length === 0;
+    const missing = Object.values(e);
+    if (missing.length) {
+      // El aviso sale junto al botón y el formulario sube hasta el primer campo con problema
+      setSaveError(`No se guardó: ${missing.join(' · ')}.`);
+      const first = Object.keys(e)[0];
+      window.setTimeout(() => document.getElementById(`barber-${first}`)?.scrollIntoView({ behavior: 'smooth', block: 'center' }), 50);
+      return false;
+    }
+    return true;
   };
 
   const handleSubmit = async () => {
@@ -466,6 +474,7 @@ export default function AdminBarbers() {
               <div>
                 <label className="text-zinc-400 text-xs mb-1.5 block">Nombre completo</label>
                 <input
+                  id="barber-name"
                   className={inputClass('name')}
                   placeholder="Ej: Juan Pérez"
                   value={form.name}
@@ -493,8 +502,9 @@ export default function AdminBarbers() {
               </div>
 
               <div>
-                <label className="text-zinc-400 text-xs mb-1.5 block">Teléfono</label>
+                <label htmlFor="barber-phone" className="text-zinc-400 text-xs mb-1.5 block">Teléfono <span className="text-zinc-600">(opcional)</span></label>
                 <input
+                  id="barber-phone"
                   className={inputClass('phone')}
                   placeholder="Ej: +57 300 000 0000"
                   value={form.phone}
@@ -504,7 +514,7 @@ export default function AdminBarbers() {
               </div>
 
               <div>
-                <label className="text-zinc-400 text-xs mb-1.5 block">Descripción / Bio</label>
+                <label className="text-zinc-400 text-xs mb-1.5 block">Descripción / Bio <span className="text-zinc-600">(opcional)</span></label>
                 <textarea
                   className={`${inputClass('bio')} resize-none`}
                   rows={3}
@@ -568,6 +578,7 @@ export default function AdminBarbers() {
                   {editTarget && <span className="text-zinc-600">(dejar vacío para no cambiar)</span>}
                 </label>
                 <input
+                  id="barber-pin"
                   className={inputClass('pin')}
                   type="password"
                   inputMode="numeric"

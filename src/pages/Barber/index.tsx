@@ -6,11 +6,12 @@ import {
 import BarberShifts from './BarberShifts';
 import BarberLogin from './BarberLogin';
 import { usePageMeta } from '../../hooks/usePageMeta';
-import { getBarberBookings, setBarberBookingStatus, changeBarberPin, BarberPortalError } from '../../services/barberPortal';
+import { getBarberBookings, setBarberBookingStatus, changeBarberPin, setBarberWorkHours, BarberPortalError } from '../../services/barberPortal';
+import WorkHoursEditor, { validWorkHours } from '../../components/admin/WorkHoursEditor';
 import { formatCOP } from '../../data';
 import { todayKey, addDays, dayShort, dayOfMonth, monthShort, monthLong, formatDateLong, nowMinutes, timeToMinutes, time12, time12Parts } from '../../lib/dates';
 import { useAutoRefresh } from '../../hooks/useAutoRefresh';
-import type { Barber, Booking } from '../../types';
+import type { Barber, Booking, WorkHours } from '../../types';
 import BarberAvatar from '../../components/common/BarberAvatar';
 import ShiftedTag from '../../components/common/ShiftedTag';
 import { isShifted } from '../../lib/shifted';
@@ -289,7 +290,51 @@ function HistoryTab({ appts }: { appts: Booking[] }) {
 
 // ---------------------------------------------------------------------------
 
-function ProfileTab({ barber, appts, pin, onPinChanged }: { barber: Barber; appts: Booking[]; pin: string; onPinChanged: (pin: string) => void }) {
+/** Mi horario de trabajo: el barbero escoge día por día como el salón, su horario propio o descanso. */
+function WorkHoursPanel({ barber, pin, onSaved }: { barber: Barber; pin: string; onSaved: (hours: WorkHours) => void }) {
+  const [hours, setHours] = useState<WorkHours>(barber.workHours ?? {});
+  const [saving, setSaving] = useState(false);
+  const [status, setStatus] = useState<{ ok: boolean; text: string } | null>(null);
+  const dirty = JSON.stringify(hours) !== JSON.stringify(barber.workHours ?? {});
+
+  const save = async () => {
+    if (!validWorkHours(hours)) return setStatus({ ok: false, text: 'La hora de salida debe ser después de la de entrada.' });
+    setSaving(true);
+    setStatus(null);
+    try {
+      const result = await setBarberWorkHours(barber.id, pin, hours);
+      if (result === 'OK') {
+        onSaved(hours);
+        setStatus({ ok: true, text: 'Horario guardado. Los clientes ya ven tus turnos con este horario.' });
+      } else {
+        setStatus({ ok: false, text: result === 'PIN_LOCKED' ? 'Demasiados intentos. Espera 15 minutos.' : result === 'INVALID_PIN' ? 'Tu PIN cambió. Sal y vuelve a entrar.' : 'Revisa las horas del horario.' });
+      }
+    } catch (err) {
+      console.error('No se pudo guardar el horario', err);
+      setStatus({ ok: false, text: 'Error de conexión. Intenta de nuevo.' });
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <Panel title="Mi horario de trabajo" subtitle="Hasta qué hora trabajas cada día. Fuera de tu horario no te reservan turnos">
+      <WorkHoursEditor value={hours} onChange={(next) => { setHours(next); setStatus(null); }} />
+      <div className="flex flex-col sm:flex-row sm:items-center gap-3 mt-4">
+        {status && (
+          <p className={`flex items-center gap-1.5 text-sm ${status.ok ? 'text-emerald-300' : 'text-rose-300'}`}>
+            {status.ok ? <CheckCircle2 size={15} /> : <AlertCircle size={15} />} {status.text}
+          </p>
+        )}
+        <button onClick={save} disabled={saving || !dirty} className="btn-gold px-5 py-2.5 rounded-xl text-sm font-semibold flex items-center justify-center gap-2 disabled:opacity-50 sm:ml-auto">
+          {saving ? <Loader2 size={15} className="animate-spin" /> : <Clock size={15} />} Guardar mi horario
+        </button>
+      </div>
+    </Panel>
+  );
+}
+
+function ProfileTab({ barber, appts, pin, onPinChanged, onWorkHoursChanged }: { barber: Barber; appts: Booking[]; pin: string; onPinChanged: (pin: string) => void; onWorkHoursChanged: (hours: WorkHours) => void }) {
   const month = todayKey().slice(0, 7);
   const doneMonth = appts.filter((b) => b.status === 'completed' && b.date.startsWith(month));
   const revenue = doneMonth.reduce((s, b) => s + b.price, 0);
@@ -379,13 +424,17 @@ function ProfileTab({ barber, appts, pin, onPinChanged }: { barber: Barber; appt
           </button>
         </div>
       </Panel>
+
+      <div className="lg:col-span-2">
+        <WorkHoursPanel barber={barber} pin={pin} onSaved={onWorkHoursChanged} />
+      </div>
     </div>
   );
 }
 
 // ---------------------------------------------------------------------------
 
-function BarberDashboard({ barber, pin, onLogout, onPinChanged }: { barber: Barber; pin: string; onLogout: () => void; onPinChanged: (pin: string) => void }) {
+function BarberDashboard({ barber, pin, onLogout, onPinChanged, onWorkHoursChanged }: { barber: Barber; pin: string; onLogout: () => void; onPinChanged: (pin: string) => void; onWorkHoursChanged: (hours: WorkHours) => void }) {
   const [tab, setTab] = useState<BarberTab>('agenda');
   const [appts, setAppts] = useState<Booking[]>([]);
   const [loaded, setLoaded] = useState(false);
@@ -489,7 +538,7 @@ function BarberDashboard({ barber, pin, onLogout, onPinChanged }: { barber: Barb
             {tab === 'turnos' && <BarberShifts barber={barber} pin={pin} appts={appts} />}
             {tab === 'ganancias' && <EarningsTab appts={appts} barber={barber} />}
             {tab === 'historial' && <HistoryTab appts={appts} />}
-            {tab === 'perfil' && <ProfileTab barber={barber} appts={appts} pin={pin} onPinChanged={onPinChanged} />}
+            {tab === 'perfil' && <ProfileTab barber={barber} appts={appts} pin={pin} onPinChanged={onPinChanged} onWorkHoursChanged={onWorkHoursChanged} />}
           </>
         )}
       </main>
@@ -526,6 +575,7 @@ export default function BarberPage() {
       pin={session.pin}
       onLogout={() => setSession(null)}
       onPinChanged={(pin) => setSession({ ...session, pin })}
+      onWorkHoursChanged={(workHours) => setSession({ ...session, barber: { ...session.barber, workHours } })}
     />
   );
 }
