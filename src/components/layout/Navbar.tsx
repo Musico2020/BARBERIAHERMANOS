@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { Menu, X, MessageCircle, KeyRound, ChevronDown, ShieldCheck } from 'lucide-react';
+import { Menu, X, MessageCircle, KeyRound, ChevronDown, ShieldCheck, CalendarCheck } from 'lucide-react';
 import { ClipperIcon } from '../common/BarberIcons';
 import { businessConfig } from '../../config/business';
 import ThemeToggle from '../common/ThemeToggle';
@@ -17,10 +17,10 @@ const navLinks = [
   { label: 'Galería', href: '/galeria' },
   { label: 'Shop', href: '/shop' },
   { label: 'Contacto', href: '/#contacto' },
-  { label: 'Mis citas', href: '/mis-citas' },
 ];
 
 const accessLinks = [
+  { label: 'Mis citas', description: 'Consulta y califica tus citas', href: '/mis-citas', icon: CalendarCheck },
   { label: 'Barbero', description: 'Portal del barbero', href: '/barber', icon: ClipperIcon },
   { label: 'Administrador', description: 'Panel de administración', href: '/admin', icon: ShieldCheck },
 ];
