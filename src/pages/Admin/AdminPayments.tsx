@@ -6,6 +6,7 @@ import { formatDateLong, time12 } from '../../lib/dates';
 import { useAutoRefresh } from '../../hooks/useAutoRefresh';
 import { waNumber } from '../../lib/whatsapp';
 import { Panel, EmptyState } from '../../components/admin/ui';
+import { businessConfig } from '../../config/business';
 import type { Booking } from '../../types';
 
 // Panel → Pagos: anticipos de las reservas hechas en la web. El administrador revisa en su Nequi que el
@@ -157,6 +158,7 @@ export default function AdminPayments() {
   const toReview = groups.filter((g) => g.first.depositStatus === 'submitted');
   const waiting = groups.filter((g) => g.first.depositStatus === 'awaiting');
   const cashPending = groups.filter((g) => g.first.depositStatus === 'cash_pending');
+  const cashOn = businessConfig.deposit.allowCash === true;
   const history = groups.filter((g) => ['verified', 'rejected', 'expired'].includes(g.first.depositStatus));
   const verifiedTotal = history.filter((g) => g.first.depositStatus === 'verified').reduce((s, g) => s + g.deposit, 0);
 
@@ -193,8 +195,8 @@ export default function AdminPayments() {
         <h2 className="font-serif text-2xl sm:text-3xl font-bold text-white mt-1">Anticipos de las reservas</h2>
         <p className="text-zinc-400 text-sm mt-1 max-w-2xl">
           Revisa en tu app de Nequi Negocios que el pago haya entrado (mismo valor y nombre) y luego toca
-          «Pago recibido». Si no aparece, toca «No llegó» y la hora se libera. Cuando un cliente te pague el
-          anticipo en efectivo en el salón, búscalo en «Efectivo por recibir» y toca «Recibí el efectivo».
+          «Pago recibido». Si no aparece, toca «No llegó» y la hora se libera.
+          {cashOn && ' Cuando un cliente te pague el anticipo en efectivo en el salón, búscalo en «Efectivo por recibir» y toca «Recibí el efectivo».'}
         </p>
       </div>
 
@@ -210,13 +212,16 @@ export default function AdminPayments() {
         )}
       </Panel>
 
-      <Panel title="Efectivo por recibir en el salón" subtitle="Eligieron pagar el anticipo en efectivo y se comprometieron a ir al salón antes de su cita">
-        {cashPending.length === 0 ? <EmptyState icon={Banknote}>Nadie tiene anticipo en efectivo pendiente.</EmptyState> : (
-          <ul className="grid grid-cols-1 lg:grid-cols-2 gap-3">
-            {cashPending.map((g) => <GroupCard key={g.key} g={g} busy={busyKey === g.key} onReview={review} onReceipt={openReceipt} />)}
-          </ul>
-        )}
-      </Panel>
+      {/* Solo si el anticipo en efectivo está activado (Configuración → Reglas) o quedó alguno pendiente de antes */}
+      {(cashOn || cashPending.length > 0) && (
+        <Panel title="Efectivo por recibir en el salón" subtitle="Eligieron pagar el anticipo en efectivo y se comprometieron a ir al salón antes de su cita">
+          {cashPending.length === 0 ? <EmptyState icon={Banknote}>Nadie tiene anticipo en efectivo pendiente.</EmptyState> : (
+            <ul className="grid grid-cols-1 lg:grid-cols-2 gap-3">
+              {cashPending.map((g) => <GroupCard key={g.key} g={g} busy={busyKey === g.key} onReview={review} onReceipt={openReceipt} />)}
+            </ul>
+          )}
+        </Panel>
+      )}
 
       <Panel title="Esperando pago" subtitle="Reservaron pero todavía no envían el comprobante; si se vence el tiempo, la cita se cancela sola">
         {waiting.length === 0 ? <EmptyState icon={Clock}>Nadie está pendiente de pagar.</EmptyState> : (
