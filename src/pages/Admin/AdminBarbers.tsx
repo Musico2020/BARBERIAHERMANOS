@@ -1,9 +1,10 @@
 import { useState, useEffect, useRef } from 'react';
 import { Star, Phone, Edit2, ToggleLeft, ToggleRight, X, Plus, User, Loader2, Camera, Trash2, Clock } from 'lucide-react';
 import { getBarbers, updateBarberAvailability, createBarber, updateBarber, uploadBarberPhoto, deleteBarberWithPhoto } from '../../services/barbers';
-import { getBookingsByMonth } from '../../services/bookings';
+import { getBookingsByMonth, getBookingsInRange, getBusySlots, type BusySlot } from '../../services/bookings';
+import BarberAgenda from '../../components/admin/BarberAgenda';
 import { formatCOP } from '../../data';
-import { todayKey } from '../../lib/dates';
+import { todayKey, addDays } from '../../lib/dates';
 import { barberMonthStats } from '../../lib/stats';
 import type { Barber, Booking, StaffRole, WorkHours } from '../../types';
 import { IMAGE_ACCEPT } from '../../lib/imageFile';
@@ -41,6 +42,8 @@ export default function AdminBarbers() {
   const [errors, setErrors] = useState<Partial<BarberForm>>({});
   const [saving, setSaving] = useState(false);
   const [monthBookings, setMonthBookings] = useState<Booking[]>([]);
+  const [upcoming, setUpcoming] = useState<Booking[]>([]);
+  const [busyToday, setBusyToday] = useState<BusySlot[] | null>(null);
   const [pageError, setPageError] = useState('');
   const [saveError, setSaveError] = useState('');
   const [uploadingId, setUploadingId] = useState<string | null>(null);
@@ -90,10 +93,17 @@ export default function AdminBarbers() {
 
   useEffect(() => {
     const [year, month] = todayKey().split('-').map(Number);
-    Promise.all([getBarbers(), getBookingsByMonth(year, month)])
-      .then(([barbers, bookings]) => {
+    const today = todayKey();
+    Promise.all([getBarbers(), getBookingsByMonth(year, month), getBookingsInRange(today, addDays(today, 90)), getBusySlots(today)])
+      .then(([barbers, bookings, ahead, busy]) => {
         setList(barbers);
         setMonthBookings(bookings);
+        // Reservas activas de hoy en adelante (sin las que vencieron esperando el anticipo)
+        const now = Date.now();
+        setUpcoming(ahead.filter((b) =>
+          (b.status === 'pending' || b.status === 'confirmed') &&
+          !(b.depositStatus === 'awaiting' && b.depositExpiresAt && new Date(b.depositExpiresAt).getTime() < now)));
+        setBusyToday(busy);
       })
       .catch((err) => {
         console.error('No se pudieron cargar los barberos', err);
@@ -332,6 +342,8 @@ export default function AdminBarbers() {
                   <p className="text-zinc-500 text-[10px] uppercase font-medium mt-0.5">Entrega al salón</p>
                 </div>
               </div>
+
+              <BarberAgenda barber={barber} upcoming={upcoming.filter((b) => b.barberId === barber.id)} busyToday={busyToday} />
 
               <div className="flex items-center gap-2 pt-2 border-t border-white/[0.06]">
                 <button
