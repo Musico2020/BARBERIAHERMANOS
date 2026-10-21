@@ -1,11 +1,12 @@
-import { useEffect, useState } from 'react';
-import { X, UserPlus, Loader2, Minus, Plus, Clock, Check, CalendarDays, Zap } from 'lucide-react';
+import { useEffect, useRef, useState } from 'react';
+import { X, UserPlus, Loader2, Minus, Plus, Clock, Check, CalendarDays, Zap, ChevronDown } from 'lucide-react';
 import { getServices } from '../../services/services';
 import { getBarbers } from '../../services/barbers';
 import { createManualBookings, getBusySlots, type BusySlot } from '../../services/bookings';
 import { businessConfig } from '../../config/business';
+import { generateSlots } from '../../lib/availability';
 import { formatCOP } from '../../data';
-import { todayKey, nowMinutes, minutesToTime, timeToMinutes, formatDateLong, addDays, time12 } from '../../lib/dates';
+import { todayKey, nowMinutes, minutesToTime, timeToMinutes, formatDateLong, addDays, time12, dayShort, dayOfMonth, monthShort } from '../../lib/dates';
 import { isValidName, isValidPhone } from '../../lib/clientContact';
 import { MAX_CART_UNITS, roleFor, cartRole, cartUnits, changeQty, type CartItem } from '../../lib/bookingCart';
 import BarberAvatar from '../common/BarberAvatar';
@@ -24,11 +25,6 @@ interface Props {
 
 type When = 'now' | 'later';
 
-/** Horas que se pueden escoger al agendar: de 5:00 a. m. a 10:45 p. m., cada «slotStep» minutos */
-const timeOptions = () => {
-  const step = businessConfig.slotStep > 0 ? businessConfig.slotStep : 15;
-  return Array.from({ length: Math.floor((23 * 60 - 5 * 60) / step) }, (_, i) => minutesToTime(5 * 60 + i * step));
-};
 
 const inputClass = 'w-full px-4 py-3 rounded-xl bg-white/[0.04] border border-white/10 text-white placeholder-zinc-600 text-sm focus:outline-none focus:border-gold/60 transition-colors';
 
@@ -91,30 +87,33 @@ export default function NewClientModal({ onClose, onSaved }: Props) {
   const units = cartUnits(items);
   const minutes = items.reduce((sum, i) => sum + i.qty * i.service.duration, 0);
 
-  // Citas que ya tiene ese barbero ese día, para no cruzar la nueva con otra
+  // Citas y horas cerradas de ese barbero ese día
   const barberKey = barber?.id ?? '';
   useEffect(() => {
     if (when !== 'later' || !barberKey || !date) { setBusy([]); return; }
     let alive = true;
     setLoadingBusy(true);
     getBusySlots(date, barberKey)
-      .then((list) => { if (alive) setBusy(list.filter((b) => b.kind !== 'closed')); })
+      .then((list) => { if (alive) setBusy(list); })
       .catch((err) => { console.error('No se pudieron cargar las citas del barbero', err); if (alive) setBusy([]); })
       .finally(() => { if (alive) setLoadingBusy(false); });
     return () => { alive = false; };
   }, [when, barberKey, date]);
 
-  const length = Math.max(minutes, 5);
-  const taken = (t: string) => {
-    const start = timeToMinutes(t);
-    return busy.some((b) => {
-      const s = timeToMinutes(b.startTime);
-      return s < start + length && s + b.duration > start;
-    });
-  };
-  const past = (t: string) => date === todayKey() && timeToMinutes(t) <= nowMinutes();
-  const times = timeOptions();
-  const timeOk = when === 'now' || (!!time && !taken(time));
+  // Las mismas horas que ofrece la reserva de la web: horario del salón (o el propio del barbero),
+  // sin almuerzo, sin horas cerradas ni citas, y donde quepan todos los servicios elegidos
+  const slots = when === 'later' && barber && !loadingBusy
+    ? generateSlots(date, busy, [barber.id], Math.max(minutes, 5), businessConfig.slotStep, () => barber.workHours)
+    : [];
+  const timeOk = when === 'now' || (!!time && slots.some((s) => s.time === time));
+
+  // Cada elección baja sola a la siguiente pregunta
+  const barberRef = useRef<HTMLElement>(null);
+  const whenRef = useRef<HTMLElement>(null);
+  const timeRef = useRef<HTMLDivElement>(null);
+  const clientRef = useRef<HTMLElement>(null);
+  const scrollTo = (ref: React.RefObject<HTMLElement>) =>
+    window.setTimeout(() => ref.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 90);
 
   const change = (service: Service, delta: number) => {
     const next = changeQty(items, service, delta);
@@ -126,6 +125,20 @@ export default function NewClientModal({ onClose, onSaved }: Props) {
   const nameOk = isValidName(name);
   const phoneOk = phone.trim() === '' || isValidPhone(phone);
   const ready = hasItems && !!barber && nameOk && phoneOk && timeOk && !saving;
+
+  // El botón de abajo: con todo listo guarda; si falta algo, lleva a ese paso
+  const nextStep = (): { label: string; go: () => void } | null => {
+    if (!barber) return { label: role === 'manicurista' ? 'Elige la manicurista' : 'Elige quién lo atiende', go: () => scrollTo(barberRef) };
+    if (when === 'later' && !timeOk) return { label: 'Escoge la hora de la cita', go: () => scrollTo(timeRef) };
+    if (!nameOk || !phoneOk) {
+      return {
+        label: !nameOk ? 'Escribe el nombre del cliente' : 'Revisa el celular',
+        go: () => { scrollTo(clientRef); window.setTimeout(() => document.getElementById(!nameOk ? 'manual-name' : 'manual-phone')?.focus(), 400); },
+      };
+    }
+    return null;
+  };
+  const pending = hasItems ? nextStep() : null;
 
   const save = async () => {
     if (!ready || !barber) return;
@@ -271,7 +284,7 @@ export default function NewClientModal({ onClose, onSaved }: Props) {
                 </div>
               </section>
 
-              <section>
+              <section ref={barberRef} className="scroll-mt-4">
                 <SectionTitle number={3}>{role === 'manicurista' ? '¿Qué manicurista lo atiende?' : '¿Quién lo atiende?'}</SectionTitle>
                 <div className="grid sm:grid-cols-2 gap-2">
                   {staff.map((b) => {
@@ -280,7 +293,7 @@ export default function NewClientModal({ onClose, onSaved }: Props) {
                       <button
                         key={b.id}
                         type="button"
-                        onClick={() => setBarberId(b.id)}
+                        onClick={() => { setBarberId(b.id); setTime(''); scrollTo(whenRef); }}
                         aria-pressed={selected}
                         className={`flex items-center gap-3 p-3 rounded-xl border text-left transition-all ${selected ? 'border-gold bg-gold/10' : 'border-white/10 bg-white/[0.03] hover:border-gold/40'}`}
                       >
@@ -296,14 +309,14 @@ export default function NewClientModal({ onClose, onSaved }: Props) {
                 </div>
               </section>
 
-              <section>
+              <section ref={whenRef} className="scroll-mt-4">
                 <SectionTitle number={4} hint={when === 'later' ? 'No pide anticipo' : undefined}>¿Cuándo?</SectionTitle>
                 <div className="grid grid-cols-2 gap-2">
                   {([['now', 'Atendido ahora', 'Queda hoy como completado', Zap], ['later', 'Agendar cita', 'Escoge el día y la hora', CalendarDays]] as const).map(([value, label, hint, Icon]) => (
                     <button
                       key={value}
                       type="button"
-                      onClick={() => { setWhen(value); setError(''); }}
+                      onClick={() => { setWhen(value); setError(''); scrollTo(value === 'later' ? timeRef : clientRef); }}
                       aria-pressed={when === value}
                       className={`flex items-start gap-2.5 p-3 rounded-xl border text-left transition-all ${when === value ? 'border-gold bg-gold/10' : 'border-white/10 bg-white/[0.03] hover:border-gold/40'}`}
                     >
@@ -317,7 +330,7 @@ export default function NewClientModal({ onClose, onSaved }: Props) {
                 </div>
 
                 {when === 'later' && (
-                  <div className="mt-3 space-y-3">
+                  <div ref={timeRef} className="mt-3 space-y-3 scroll-mt-4">
                     <label className="block">
                       <span className="text-xs text-zinc-400 uppercase tracking-wider block mb-2">Día</span>
                       <input
@@ -336,21 +349,25 @@ export default function NewClientModal({ onClose, onSaved }: Props) {
                       </span>
                       {!barber ? (
                         <p className="text-zinc-500 text-sm">Primero elige quién lo atiende.</p>
+                      ) : loadingBusy ? (
+                        <div className="h-16" />
+                      ) : slots.length === 0 ? (
+                        <p className="text-amber-300 text-sm">
+                          {barber.shortName} no tiene horas libres ese día para {minutes} min de servicio. Escoge otro día.
+                        </p>
                       ) : (
                         <div className="grid grid-cols-4 sm:grid-cols-6 gap-1.5 max-h-56 overflow-y-auto pr-1">
-                          {times.filter((t) => !past(t)).map((t) => {
-                            const busyNow = taken(t);
+                          {slots.map(({ time: t, recommended }) => {
                             const selected = time === t;
                             return (
                               <button
                                 key={t}
                                 type="button"
-                                disabled={busyNow}
-                                onClick={() => setTime(t)}
-                                title={busyNow ? 'Se cruza con otra cita' : undefined}
+                                onClick={() => { setTime(t); scrollTo(clientRef); }}
+                                aria-pressed={selected}
                                 className={`py-2 rounded-lg text-xs font-mono border transition-all ${
                                   selected ? 'border-gold bg-gold text-dark font-bold'
-                                    : busyNow ? 'border-white/[0.04] text-zinc-700 line-through cursor-not-allowed'
+                                    : recommended ? 'border-gold/50 text-gold bg-black/30 hover:bg-gold/15'
                                       : 'border-white/10 text-zinc-200 hover:border-gold/50 hover:text-gold bg-white/[0.03]'}`}
                               >
                                 {time12(t)}
@@ -360,15 +377,15 @@ export default function NewClientModal({ onClose, onSaved }: Props) {
                         </div>
                       )}
                       <p className="text-zinc-500 text-[11px] mt-2">
-                        Las horas tachadas se cruzan con otra cita de {barber?.shortName ?? 'ese barbero'} ({minutes} min de servicio).
-                        Puedes agendar también fuera del horario del salón.
+                        Son las mismas horas libres que ve el cliente en la reserva de la web para {barber?.shortName ?? 'ese barbero'} ({minutes} min de servicio).
+                        En dorado, las que quedan pegadas a otra cita.
                       </p>
                     </div>
                   </div>
                 )}
               </section>
 
-              <section className="space-y-3">
+              <section ref={clientRef} className="space-y-3 scroll-mt-4">
                 <SectionTitle number={5}>Datos del cliente</SectionTitle>
                 <div className="grid sm:grid-cols-2 gap-3">
                   <label className="block">
@@ -390,13 +407,20 @@ export default function NewClientModal({ onClose, onSaved }: Props) {
         <div className="border-t border-white/10 px-5 sm:px-6 py-4 bg-[#0d0d0d]">
           <button
             type="button"
-            onClick={save}
-            disabled={!ready}
+            onClick={() => (pending ? pending.go() : save())}
+            disabled={!hasItems || saving}
             className="w-full btn-gold py-3.5 rounded-full font-semibold disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center gap-2"
           >
-            {saving ? <><Loader2 size={17} className="animate-spin" /><span>Guardando...</span></> : (
+            {saving ? <><Loader2 size={17} className="animate-spin" /><span>Guardando...</span></> : !hasItems ? (
+              <span>Elige uno o varios servicios</span>
+            ) : pending ? (
+              <span className="flex flex-col items-center leading-tight">
+                <span className="flex items-center gap-1.5">{pending.label} <ChevronDown size={18} className="animate-bounce" /></span>
+                <span className="text-xs font-normal opacity-80 mt-0.5">{units} {units === 1 ? 'servicio' : 'servicios'} · {formatCOP(total)}</span>
+              </span>
+            ) : (
               <span>
-                {!hasItems ? 'Elige uno o varios servicios' : !barber ? 'Elige quién lo atiende' : !timeOk ? 'Escoge la hora de la cita' : !nameOk ? 'Escribe el nombre del cliente' : when === 'later' ? `Agendar · ${formatDateLong(date).split(' ').slice(0, 3).join(' ')}, ${time12(time)} · ${formatCOP(total)}` : `Registrar servicio · ${formatCOP(total)}`}
+                {when === 'later' ? `Agendar · ${dayShort(date)} ${dayOfMonth(date)} ${monthShort(date)}, ${time12(time)} · ${formatCOP(total)}` : `Registrar servicio · ${formatCOP(total)}`}
               </span>
             )}
           </button>
