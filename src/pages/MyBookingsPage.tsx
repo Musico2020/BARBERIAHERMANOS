@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Search, Loader2, CalendarClock, Clock, Scissors, User, History, CalendarDays, MessageCircle, ShieldCheck } from 'lucide-react';
+import { Search, Loader2, CalendarClock, Clock, Scissors, User, History, CalendarDays, MessageCircle, ShieldCheck, Star } from 'lucide-react';
 import PublicLayout from '../components/layout/PublicLayout';
 import { usePageMeta } from '../hooks/usePageMeta';
 import { businessConfig } from '../config/business';
@@ -7,6 +7,7 @@ import { formatCOP } from '../data';
 import { todayKey, nowMinutes, timeToMinutes, formatDateLong, time12, addDays } from '../lib/dates';
 import { loadClientContact } from '../lib/clientContact';
 import { findClientBookings, type ClientBooking } from '../services/clientLookup';
+import RateBooking from '../components/booking/RateBooking';
 
 // «Mis citas»: el cliente escribe su celular y su primer nombre y ve su próxima cita, las pendientes
 // y el historial. Solo consulta: para cambiar o cancelar se escribe por WhatsApp.
@@ -30,7 +31,7 @@ function whenLabel(date: string): string {
   return `En ${days} días`;
 }
 
-function Row({ b }: { b: ClientBooking }) {
+function Row({ b, rate }: { b: ClientBooking; rate?: { phone: string; name: string; onRated: (rating: number, comment: string) => void } }) {
   const s = STATUS[b.status];
   return (
     <li className="rounded-xl border border-white/10 bg-white/[0.03] p-3.5">
@@ -46,6 +47,7 @@ function Row({ b }: { b: ClientBooking }) {
         <span className="inline-flex items-center gap-1.5"><User size={13} className="text-gold/70" />{b.barber}</span>
         <span className="font-mono text-zinc-400">{formatCOP(b.price)}</span>
       </p>
+      {rate && b.status === 'completed' && <RateBooking booking={b} phone={rate.phone} name={rate.name} onRated={rate.onRated} />}
     </li>
   );
 }
@@ -62,6 +64,8 @@ export default function MyBookingsPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [result, setResult] = useState<{ name: string; bookings: ClientBooking[] } | null>(null);
+  // Celular y nombre con que se encontraron las citas (para calificar)
+  const [query, setQuery] = useState({ phone: '', name: '' });
 
   const search = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -72,7 +76,7 @@ export default function MyBookingsPage() {
     setResult(null);
     try {
       const r = await findClientBookings(phone, name);
-      if (r.status === 'OK') setResult({ name: r.name, bookings: r.bookings });
+      if (r.status === 'OK') { setResult({ name: r.name, bookings: r.bookings }); setQuery({ phone, name }); }
       else if (r.status === 'TOO_MANY') setError('Hiciste muchas consultas con este número. Intenta de nuevo en una hora.');
       else setError('No encontramos citas con ese celular y ese nombre. Revisa que sea el mismo número y el primer nombre con que reservaste.');
     } catch (err) {
@@ -91,6 +95,13 @@ export default function MyBookingsPage() {
   const history = (result?.bookings ?? []).filter((b) => !isUpcoming(b));
   const next = upcoming[0];
   const visits = history.filter((b) => b.status === 'completed').length;
+  const toRate = history.filter((b) => b.status === 'completed' && b.rating === null).length;
+  const rateProps = (id: string) => ({
+    phone: query.phone,
+    name: query.name,
+    onRated: (rating: number, comment: string) =>
+      setResult((r) => (r ? { ...r, bookings: r.bookings.map((x) => (x.id === id ? { ...x, rating, comment } : x)) } : r)),
+  });
   const waText = encodeURIComponent(`Hola, soy ${result?.name ?? name}. Quiero cambiar o cancelar mi cita${next ? ` del ${formatDateLong(next.date)} a las ${time12(next.time)}` : ''}.`);
 
   return (
@@ -130,6 +141,12 @@ export default function MyBookingsPage() {
                   Hola, <span className="font-semibold text-gold">{result.name}</span>
                   {visits > 0 && <span className="text-zinc-400 text-sm"> · nos has visitado {visits} {visits === 1 ? 'vez' : 'veces'}</span>}
                 </p>
+                {toRate > 0 && (
+                  <p className="flex items-center gap-2 rounded-xl border border-gold/30 bg-gold/[0.06] px-4 py-3 text-sm text-zinc-200">
+                    <Star size={16} className="text-gold fill-gold shrink-0" />
+                    Tienes {toRate} {toRate === 1 ? 'servicio' : 'servicios'} por calificar. Abajo, en tu historial, toca las estrellas.
+                  </p>
+                )}
 
                 {next ? (
                   <section className="frame-gold rounded-3xl p-5 sm:p-6">
@@ -180,7 +197,7 @@ export default function MyBookingsPage() {
                   {history.length === 0 ? (
                     <p className="text-zinc-500 text-sm">Todavía no tienes citas anteriores.</p>
                   ) : (
-                    <ul className="space-y-2">{history.map((b) => <Row key={b.id} b={b} />)}</ul>
+                    <ul className="space-y-2">{history.map((b) => <Row key={b.id} b={b} rate={rateProps(b.id)} />)}</ul>
                   )}
                 </section>
               </div>

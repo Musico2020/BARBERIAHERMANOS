@@ -12,6 +12,18 @@ export interface ClientBooking {
   price: number;
   deposit: number;
   depositStatus: string;
+  /** Estrellas que le dio el cliente (1 a 5), si ya la calificó */
+  rating: number | null;
+  comment: string | null;
+}
+
+export type RateResult = 'OK' | 'INVALID' | 'TOO_MANY' | 'NOT_FOUND' | 'NOT_COMPLETED';
+
+/** Califica con estrellas una cita atendida (se puede cambiar después). */
+export async function rateBooking(phone: string, name: string, bookingId: string, rating: number, comment: string): Promise<RateResult> {
+  const { data, error } = await supabase.rpc('rate_booking', { p_phone: phone, p_name: name, p_booking_id: bookingId, p_rating: rating, p_comment: comment });
+  if (error) throw error;
+  return data as RateResult;
 }
 
 export type ClientLookup =
