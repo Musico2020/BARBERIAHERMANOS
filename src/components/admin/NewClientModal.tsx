@@ -1,24 +1,34 @@
 import { useEffect, useState } from 'react';
-import { X, UserPlus, Loader2, Minus, Plus, Clock, Check } from 'lucide-react';
+import { X, UserPlus, Loader2, Minus, Plus, Clock, Check, CalendarDays, Zap } from 'lucide-react';
 import { getServices } from '../../services/services';
 import { getBarbers } from '../../services/barbers';
-import { createManualBookings } from '../../services/bookings';
+import { createManualBookings, getBusySlots, type BusySlot } from '../../services/bookings';
+import { businessConfig } from '../../config/business';
 import { formatCOP } from '../../data';
-import { todayKey, nowMinutes, minutesToTime, formatDateLong } from '../../lib/dates';
+import { todayKey, nowMinutes, minutesToTime, timeToMinutes, formatDateLong, addDays, time12 } from '../../lib/dates';
 import { isValidName, isValidPhone } from '../../lib/clientContact';
 import { MAX_CART_UNITS, roleFor, cartRole, cartUnits, changeQty, type CartItem } from '../../lib/bookingCart';
 import BarberAvatar from '../common/BarberAvatar';
 import { CategoryIcon } from '../common/BarberIcons';
 import type { Service, Barber } from '../../types';
 
-// Cliente atendido en el momento, por fuera de las reservas (llegó sin cita o fuera del horario).
-// Es el mismo menú de la reserva pero sin fecha ni hora: queda registrado hoy, a la hora actual,
-// como servicio completado, y así entra a la contabilidad, los reportes y la lista de clientes.
+// Cliente registrado por el administrador, por fuera de la reserva web (no pide anticipo).
+//   · «Atendido ahora»: queda hoy, a la hora actual, como servicio completado (entra a la contabilidad).
+//   · «Agendar cita»: se escoge el día y la hora; queda como cita confirmada en la agenda del barbero.
+//     No deja escoger una hora que se cruce con otra cita de ese barbero.
 
 interface Props {
   onClose: () => void;
-  onSaved: (count: number, clientName: string) => void;
+  onSaved: (count: number, clientName: string, scheduled: { date: string; time: string } | null) => void;
 }
+
+type When = 'now' | 'later';
+
+/** Horas que se pueden escoger al agendar: de 5:00 a. m. a 10:45 p. m., cada «slotStep» minutos */
+const timeOptions = () => {
+  const step = businessConfig.slotStep > 0 ? businessConfig.slotStep : 15;
+  return Array.from({ length: Math.floor((23 * 60 - 5 * 60) / step) }, (_, i) => minutesToTime(5 * 60 + i * step));
+};
 
 const inputClass = 'w-full px-4 py-3 rounded-xl bg-white/[0.04] border border-white/10 text-white placeholder-zinc-600 text-sm focus:outline-none focus:border-gold/60 transition-colors';
 
@@ -46,6 +56,11 @@ export default function NewClientModal({ onClose, onSaved }: Props) {
   const [phone, setPhone] = useState('');
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
+  const [when, setWhen] = useState<When>('now');
+  const [date, setDate] = useState(todayKey());
+  const [time, setTime] = useState('');
+  const [busy, setBusy] = useState<BusySlot[]>([]);
+  const [loadingBusy, setLoadingBusy] = useState(false);
 
   useEffect(() => {
     Promise.all([getServices(), getBarbers()])
@@ -76,6 +91,31 @@ export default function NewClientModal({ onClose, onSaved }: Props) {
   const units = cartUnits(items);
   const minutes = items.reduce((sum, i) => sum + i.qty * i.service.duration, 0);
 
+  // Citas que ya tiene ese barbero ese día, para no cruzar la nueva con otra
+  const barberKey = barber?.id ?? '';
+  useEffect(() => {
+    if (when !== 'later' || !barberKey || !date) { setBusy([]); return; }
+    let alive = true;
+    setLoadingBusy(true);
+    getBusySlots(date, barberKey)
+      .then((list) => { if (alive) setBusy(list.filter((b) => b.kind !== 'closed')); })
+      .catch((err) => { console.error('No se pudieron cargar las citas del barbero', err); if (alive) setBusy([]); })
+      .finally(() => { if (alive) setLoadingBusy(false); });
+    return () => { alive = false; };
+  }, [when, barberKey, date]);
+
+  const length = Math.max(minutes, 5);
+  const taken = (t: string) => {
+    const start = timeToMinutes(t);
+    return busy.some((b) => {
+      const s = timeToMinutes(b.startTime);
+      return s < start + length && s + b.duration > start;
+    });
+  };
+  const past = (t: string) => date === todayKey() && timeToMinutes(t) <= nowMinutes();
+  const times = timeOptions();
+  const timeOk = when === 'now' || (!!time && !taken(time));
+
   const change = (service: Service, delta: number) => {
     const next = changeQty(items, service, delta);
     setItems(next);
@@ -85,15 +125,16 @@ export default function NewClientModal({ onClose, onSaved }: Props) {
 
   const nameOk = isValidName(name);
   const phoneOk = phone.trim() === '' || isValidPhone(phone);
-  const ready = hasItems && !!barber && nameOk && phoneOk && !saving;
+  const ready = hasItems && !!barber && nameOk && phoneOk && timeOk && !saving;
 
   const save = async () => {
     if (!ready || !barber) return;
     setSaving(true);
     setError('');
     try {
-      // Se atiende ahora: hoy, desde la hora actual, un servicio detrás de otro
-      let start = Math.floor(nowMinutes() / 5) * 5;
+      // Ahora: hoy, desde la hora actual. Agendada: el día y la hora escogidos. Un servicio detrás de otro.
+      const scheduled = when === 'later' ? { date, time } : null;
+      let start = scheduled ? timeToMinutes(scheduled.time) : Math.floor(nowMinutes() / 5) * 5;
       const lines = items.flatMap(({ service, qty }) =>
         Array.from({ length: qty }, () => {
           const line = { serviceId: service.id, serviceName: service.name, time: minutesToTime(start % (24 * 60)), price: unitPrice(service) };
@@ -106,11 +147,11 @@ export default function NewClientModal({ onClose, onSaved }: Props) {
         clientPhone: phone,
         barberId: barber.id,
         barberName: barber.shortName,
-        date: todayKey(),
-        status: 'completed',
+        date: scheduled ? scheduled.date : todayKey(),
+        status: scheduled ? 'confirmed' : 'completed',
         lines,
       });
-      onSaved(lines.length, name.trim());
+      onSaved(lines.length, name.trim(), scheduled);
     } catch (err) {
       console.error('No se pudo registrar el cliente', err);
       setError('No se pudo guardar. Revisa tu conexión e intenta de nuevo.');
@@ -129,7 +170,7 @@ export default function NewClientModal({ onClose, onSaved }: Props) {
               <UserPlus size={16} className="text-gold" />
             </div>
             <div>
-              <p className="text-[11px] uppercase tracking-[0.2em] text-gold">Atendido ahora · {formatDateLong(todayKey())}</p>
+              <p className="text-[11px] uppercase tracking-[0.2em] text-gold">{when === 'now' ? `Atendido ahora · ${formatDateLong(todayKey())}` : 'Cita agendada desde el panel · sin anticipo'}</p>
               <h2 className="font-serif text-xl font-bold text-white">Cliente nuevo</h2>
             </div>
           </div>
@@ -231,7 +272,7 @@ export default function NewClientModal({ onClose, onSaved }: Props) {
               </section>
 
               <section>
-                <SectionTitle number={3}>{role === 'manicurista' ? '¿Qué manicurista atendió?' : '¿Quién lo atendió?'}</SectionTitle>
+                <SectionTitle number={3}>{role === 'manicurista' ? '¿Qué manicurista lo atiende?' : '¿Quién lo atiende?'}</SectionTitle>
                 <div className="grid sm:grid-cols-2 gap-2">
                   {staff.map((b) => {
                     const selected = barber?.id === b.id;
@@ -255,8 +296,80 @@ export default function NewClientModal({ onClose, onSaved }: Props) {
                 </div>
               </section>
 
+              <section>
+                <SectionTitle number={4} hint={when === 'later' ? 'No pide anticipo' : undefined}>¿Cuándo?</SectionTitle>
+                <div className="grid grid-cols-2 gap-2">
+                  {([['now', 'Atendido ahora', 'Queda hoy como completado', Zap], ['later', 'Agendar cita', 'Escoge el día y la hora', CalendarDays]] as const).map(([value, label, hint, Icon]) => (
+                    <button
+                      key={value}
+                      type="button"
+                      onClick={() => { setWhen(value); setError(''); }}
+                      aria-pressed={when === value}
+                      className={`flex items-start gap-2.5 p-3 rounded-xl border text-left transition-all ${when === value ? 'border-gold bg-gold/10' : 'border-white/10 bg-white/[0.03] hover:border-gold/40'}`}
+                    >
+                      <Icon size={17} className={`shrink-0 mt-0.5 ${when === value ? 'text-gold' : 'text-zinc-500'}`} />
+                      <span>
+                        <span className={`block text-sm font-semibold ${when === value ? 'text-gold' : 'text-white'}`}>{label}</span>
+                        <span className="block text-[11px] text-zinc-500">{hint}</span>
+                      </span>
+                    </button>
+                  ))}
+                </div>
+
+                {when === 'later' && (
+                  <div className="mt-3 space-y-3">
+                    <label className="block">
+                      <span className="text-xs text-zinc-400 uppercase tracking-wider block mb-2">Día</span>
+                      <input
+                        type="date"
+                        className={`${inputClass} [color-scheme:dark]`}
+                        value={date}
+                        min={todayKey()}
+                        max={addDays(todayKey(), 90)}
+                        onChange={(e) => { setDate(e.target.value); setTime(''); }}
+                      />
+                      {date && <span className="text-[11px] text-zinc-500 mt-1 block capitalize">{formatDateLong(date)}</span>}
+                    </label>
+                    <div>
+                      <span className="text-xs text-zinc-400 uppercase tracking-wider flex items-center gap-2 mb-2">
+                        Hora {loadingBusy && <Loader2 size={12} className="animate-spin text-gold" />}
+                      </span>
+                      {!barber ? (
+                        <p className="text-zinc-500 text-sm">Primero elige quién lo atiende.</p>
+                      ) : (
+                        <div className="grid grid-cols-4 sm:grid-cols-6 gap-1.5 max-h-56 overflow-y-auto pr-1">
+                          {times.filter((t) => !past(t)).map((t) => {
+                            const busyNow = taken(t);
+                            const selected = time === t;
+                            return (
+                              <button
+                                key={t}
+                                type="button"
+                                disabled={busyNow}
+                                onClick={() => setTime(t)}
+                                title={busyNow ? 'Se cruza con otra cita' : undefined}
+                                className={`py-2 rounded-lg text-xs font-mono border transition-all ${
+                                  selected ? 'border-gold bg-gold text-dark font-bold'
+                                    : busyNow ? 'border-white/[0.04] text-zinc-700 line-through cursor-not-allowed'
+                                      : 'border-white/10 text-zinc-200 hover:border-gold/50 hover:text-gold bg-white/[0.03]'}`}
+                              >
+                                {time12(t)}
+                              </button>
+                            );
+                          })}
+                        </div>
+                      )}
+                      <p className="text-zinc-500 text-[11px] mt-2">
+                        Las horas tachadas se cruzan con otra cita de {barber?.shortName ?? 'ese barbero'} ({minutes} min de servicio).
+                        Puedes agendar también fuera del horario del salón.
+                      </p>
+                    </div>
+                  </div>
+                )}
+              </section>
+
               <section className="space-y-3">
-                <SectionTitle number={4}>Datos del cliente</SectionTitle>
+                <SectionTitle number={5}>Datos del cliente</SectionTitle>
                 <div className="grid sm:grid-cols-2 gap-3">
                   <label className="block">
                     <span className="text-xs text-zinc-400 uppercase tracking-wider block mb-2">Nombre</span>
@@ -283,7 +396,7 @@ export default function NewClientModal({ onClose, onSaved }: Props) {
           >
             {saving ? <><Loader2 size={17} className="animate-spin" /><span>Guardando...</span></> : (
               <span>
-                {!hasItems ? 'Elige uno o varios servicios' : !barber ? 'Elige quién lo atendió' : !nameOk ? 'Escribe el nombre del cliente' : `Registrar servicio · ${formatCOP(total)}`}
+                {!hasItems ? 'Elige uno o varios servicios' : !barber ? 'Elige quién lo atiende' : !timeOk ? 'Escoge la hora de la cita' : !nameOk ? 'Escribe el nombre del cliente' : when === 'later' ? `Agendar · ${formatDateLong(date).split(' ').slice(0, 3).join(' ')}, ${time12(time)} · ${formatCOP(total)}` : `Registrar servicio · ${formatCOP(total)}`}
               </span>
             )}
           </button>

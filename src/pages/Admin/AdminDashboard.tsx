@@ -316,9 +316,11 @@ export default function AdminDashboard({ onNavigate }: { onNavigate?: (tab: Admi
       {showNewClient && (
         <NewClientModal
           onClose={() => setShowNewClient(false)}
-          onSaved={(count, clientName) => {
+          onSaved={(count, clientName, scheduled) => {
             setShowNewClient(false);
-            setNotice(`Se registró ${clientName} con ${count} ${count === 1 ? 'servicio' : 'servicios'}.`);
+            setNotice(scheduled
+              ? `Cita agendada para ${clientName}: ${formatDateLong(scheduled.date)} a las ${time12(scheduled.time)}.`
+              : `Se registró ${clientName} con ${count} ${count === 1 ? 'servicio' : 'servicios'}.`);
             load();
           }}
         />

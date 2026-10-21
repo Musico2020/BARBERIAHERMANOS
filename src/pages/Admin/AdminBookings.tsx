@@ -337,9 +337,12 @@ export default function AdminBookings() {
       {showNewClient && (
         <NewClientModal
           onClose={() => setShowNewClient(false)}
-          onSaved={(count, clientName) => {
+          onSaved={(count, clientName, scheduled) => {
             setShowNewClient(false);
-            setNotice(count === 1 ? 'Cliente registrado: el servicio quedó como completado y ya cuenta en los reportes.' : `Cliente registrado: sus ${count} servicios quedaron como completados y ya cuentan en los reportes.`);
+            setNotice(scheduled
+              ? `Cita agendada para ${clientName}: ${formatDateLong(scheduled.date)} a las ${time12(scheduled.time)} (${count} ${count === 1 ? 'servicio' : 'servicios'}), confirmada y sin anticipo.`
+              : count === 1 ? 'Cliente registrado: el servicio quedó como completado y ya cuenta en los reportes.' : `Cliente registrado: sus ${count} servicios quedaron como completados y ya cuentan en los reportes.`);
+            setDay(scheduled ? scheduled.date : null);
             setReloadKey((k) => k + 1);
             // Se muestra lo recién registrado (la tabla va de la fecha más lejana a la más cercana)
             setSearch(clientName);
