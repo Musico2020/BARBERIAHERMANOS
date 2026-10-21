@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Search, Download, ChevronDown, Loader2, MessageCircle, UserPlus, CheckCircle2, Trash2, CalendarCheck, CalendarDays, ChevronLeft, ChevronRight, X } from 'lucide-react';
+import { Search, Download, ChevronDown, Loader2, MessageCircle, UserPlus, CheckCircle2, Trash2, CalendarCheck, CalendarDays, ChevronLeft, ChevronRight, X, Pencil } from 'lucide-react';
 import { getBookings, updateBookingStatus, deleteBooking } from '../../services/bookings';
 import { formatCOP } from '../../data';
 import { dayOfMonth, monthShort, dayShort, todayKey, formatDateLong, time12, addDays } from '../../lib/dates';
@@ -9,6 +9,7 @@ import type { Booking } from '../../types';
 import { Panel, StatusBadge, Initials } from '../../components/admin/ui';
 import DataTable, { type Column } from '../../components/admin/DataTable';
 import NewClientModal from '../../components/admin/NewClientModal';
+import EditBookingModal from '../../components/admin/EditBookingModal';
 import ShiftedTag from '../../components/common/ShiftedTag';
 import { isShifted } from '../../lib/shifted';
 
@@ -36,6 +37,7 @@ export default function AdminBookings() {
   // Reserva que pide confirmación antes de eliminarse, y la que se está eliminando
   const [confirmId, setConfirmId] = useState<string | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [editing, setEditing] = useState<Booking | null>(null);
 
   useAutoRefresh(() => {
     getBookings()
@@ -155,7 +157,7 @@ export default function AdminBookings() {
     { key: 'price', header: 'Total', align: 'right', render: (b) => <span className="text-gold font-mono font-bold whitespace-nowrap">{formatCOP(b.price)}</span> },
     { key: 'status', header: 'Estado', aside: true, render: (b) => <StatusBadge status={b.status} /> },
     {
-      key: 'change', header: 'Estado / eliminar',
+      key: 'change', header: 'Estado / editar / eliminar',
       render: (b) =>
         confirmId === b.id ? (
           // Confirmación en el mismo lugar, para que la tabla no crezca
@@ -193,6 +195,15 @@ export default function AdminBookings() {
               </select>
               <ChevronDown size={12} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-zinc-400 pointer-events-none" />
             </div>
+            <button
+              type="button"
+              onClick={() => { setEditing(b); setNotice(''); }}
+              aria-label={`Editar la reserva de ${b.clientName}`}
+              title="Editar reserva"
+              className="shrink-0 p-2 rounded-lg border border-white/10 text-zinc-400 hover:text-gold hover:border-gold/40 hover:bg-gold/10 transition-colors"
+            >
+              <Pencil size={14} />
+            </button>
             <button
               type="button"
               onClick={() => { setConfirmId(b.id); setNotice(''); }}
@@ -333,6 +344,14 @@ export default function AdminBookings() {
           />
         )}
       </Panel>
+
+      {editing && (
+        <EditBookingModal
+          booking={editing}
+          onClose={() => setEditing(null)}
+          onSaved={(updated) => setList((prev) => prev.map((x) => (x.id === updated.id ? updated : x)))}
+        />
+      )}
 
       {showNewClient && (
         <NewClientModal

@@ -110,6 +110,38 @@ export async function updateBookingStatus(id: string, status: Booking['status'])
   if (error) throw error;
 }
 
+/** Edita una reserva desde el panel (solo administradores). Al cambiarla se quita la marca de «adelantada». */
+export async function updateBookingDetails(id: string, patch: {
+  clientName: string;
+  clientPhone: string;
+  serviceId: string;
+  serviceName: string;
+  barberId: string;
+  barberName: string;
+  date: string;
+  time: string;
+  price: number;
+}): Promise<void> {
+  const { error } = await supabase
+    .from('bookings')
+    .update({
+      client_name: patch.clientName.trim(),
+      client_phone: patch.clientPhone.trim(),
+      service_id: patch.serviceId,
+      service_name: patch.serviceName,
+      barber_id: patch.barberId,
+      barber_name: patch.barberName,
+      date: patch.date,
+      time: patch.time,
+      price: patch.price,
+      original_time: null,
+      shifted_at: null,
+      updated_at: new Date().toISOString(),
+    })
+    .eq('id', id);
+  if (error) throw error;
+}
+
 /** Corrige el valor cobrado de una cita (solo administradores). */
 export async function updateBookingPrice(id: string, price: number): Promise<void> {
   const { error } = await supabase
