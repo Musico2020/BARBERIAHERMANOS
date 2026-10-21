@@ -3,6 +3,7 @@ import { Star, Phone, Edit2, ToggleLeft, ToggleRight, X, Plus, User, Loader2, Ca
 import { getBarbers, updateBarberAvailability, createBarber, updateBarber, uploadBarberPhoto, deleteBarberWithPhoto } from '../../services/barbers';
 import { getBookingsByMonth, getBookingsInRange, getBusySlots, type BusySlot } from '../../services/bookings';
 import BarberAgenda from '../../components/admin/BarberAgenda';
+import BarberServicesModal from '../../components/admin/BarberServicesModal';
 import { formatCOP } from '../../data';
 import { todayKey, addDays } from '../../lib/dates';
 import { barberMonthStats } from '../../lib/stats';
@@ -43,6 +44,12 @@ export default function AdminBarbers() {
   const [saving, setSaving] = useState(false);
   const [monthBookings, setMonthBookings] = useState<Booking[]>([]);
   const [upcoming, setUpcoming] = useState<Booking[]>([]);
+  const [servicesTarget, setServicesTarget] = useState<Barber | null>(null);
+  // Recalcula «Servicios» e «Ingresos» después de cambiar algo en la lista de servicios
+  const reloadMonth = () => {
+    const [year, month] = todayKey().split('-').map(Number);
+    getBookingsByMonth(year, month).then(setMonthBookings).catch((err) => console.error('No se pudieron recargar los servicios', err));
+  };
   const [busyToday, setBusyToday] = useState<BusySlot[] | null>(null);
   const [pageError, setPageError] = useState('');
   const [saveError, setSaveError] = useState('');
@@ -329,14 +336,24 @@ export default function AdminBarbers() {
               </div>
 
               <div className="grid grid-cols-3 gap-2 mb-5">
-                <div className="bg-white/[0.03] border border-white/[0.06] rounded-xl p-2.5 text-center">
+                <button
+                  type="button"
+                  onClick={() => setServicesTarget(barber)}
+                  title="Ver y administrar sus servicios del mes"
+                  className="bg-white/[0.03] border border-white/[0.06] rounded-xl p-2.5 text-center hover:border-gold/50 hover:bg-gold/5 transition-colors"
+                >
                   <p className="font-mono text-base font-bold text-white">{barberMonthStats(monthBookings, barber.id).services}</p>
-                  <p className="text-zinc-500 text-[10px] uppercase font-medium mt-0.5">Servicios</p>
-                </div>
-                <div className="bg-white/[0.03] border border-white/[0.06] rounded-xl p-2.5 text-center">
+                  <p className="text-gold text-[10px] uppercase font-semibold mt-0.5 underline decoration-dotted underline-offset-2">Servicios</p>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setServicesTarget(barber)}
+                  title="Ver y administrar sus servicios del mes"
+                  className="bg-white/[0.03] border border-white/[0.06] rounded-xl p-2.5 text-center hover:border-gold/50 hover:bg-gold/5 transition-colors"
+                >
                   <p className="font-mono text-xs font-bold text-gold">{formatCOP(barberMonthStats(monthBookings, barber.id).revenue)}</p>
-                  <p className="text-zinc-500 text-[10px] uppercase font-medium mt-0.5">Ingresos</p>
-                </div>
+                  <p className="text-gold text-[10px] uppercase font-semibold mt-0.5 underline decoration-dotted underline-offset-2">Ingresos</p>
+                </button>
                 <div className="bg-white/[0.03] border border-white/[0.06] rounded-xl p-2.5 text-center">
                   <p className="font-mono text-base font-bold text-gold">{100 - barber.commission}%</p>
                   <p className="text-zinc-500 text-[10px] uppercase font-medium mt-0.5">Entrega al salón</p>
@@ -386,6 +403,10 @@ export default function AdminBarbers() {
         className="hidden"
         onChange={handlePhotoSelected}
       />
+
+      {servicesTarget && (
+        <BarberServicesModal barber={servicesTarget} onClose={() => setServicesTarget(null)} onChanged={reloadMonth} />
+      )}
 
       {deleteTarget && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">

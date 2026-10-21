@@ -110,6 +110,15 @@ export async function updateBookingStatus(id: string, status: Booking['status'])
   if (error) throw error;
 }
 
+/** Corrige el valor cobrado de una cita (solo administradores). */
+export async function updateBookingPrice(id: string, price: number): Promise<void> {
+  const { error } = await supabase
+    .from('bookings')
+    .update({ price, updated_at: new Date().toISOString() })
+    .eq('id', id);
+  if (error) throw error;
+}
+
 export async function deleteBooking(id: string): Promise<void> {
   const { error } = await supabase
     .from('bookings')
