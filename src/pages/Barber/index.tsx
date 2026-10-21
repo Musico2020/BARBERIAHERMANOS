@@ -130,7 +130,7 @@ function AgendaTab({ appts, barber, onStatus, busyId }: { appts: Booking[]; barb
         <KpiCard label="Citas" value={active.length} sub={day === today ? 'hoy' : formatDateLong(day)} icon={CalendarDays} accent="blue" />
         <KpiCard label="Por atender" value={pendingCount} sub="pendientes o confirmadas" icon={Clock} accent="violet" />
         <KpiCard label="Completadas" value={done.length} sub={`de ${active.length}`} icon={CheckCircle2} accent="emerald" />
-        <KpiCard label="Tu ganancia" value={formatCOP(earned)} sub={`te quedas el ${barber.commission}% de lo completado`} icon={Wallet} />
+        <KpiCard label="Tu ganancia" value={formatCOP(earned)} sub="de los servicios completados" icon={Wallet} />
       </div>
 
       {next && (
@@ -170,18 +170,18 @@ function MonthSettlement({ done, commission, monthName }: { done: Booking[]; com
   const mine = Math.round((billed * commission) / 100);
   const toSalon = billed - mine;
   return (
-    <Panel title={`Cuentas de ${monthName}`} subtitle={`Entregas el ${100 - commission}% al salón y te quedas con el ${commission}%`}>
+    <Panel title={`Cuentas de ${monthName}`} subtitle="Lo que te corresponde a ti y lo que le corresponde al administrador">
       <dl className="grid grid-cols-1 sm:grid-cols-3 gap-4">
         <div className="rounded-xl border border-white/10 bg-white/[0.03] p-4">
           <dt className="text-zinc-400 text-xs uppercase tracking-wider">Facturado</dt>
           <dd className="font-serif text-2xl font-extrabold text-white mt-1">{formatCOP(billed)}</dd>
         </div>
         <div className="rounded-xl border border-gold/30 bg-gold/[0.06] p-4">
-          <dt className="text-zinc-400 text-xs uppercase tracking-wider">Entregas al salón · {100 - commission}%</dt>
+          <dt className="text-zinc-400 text-xs uppercase tracking-wider">Para el administrador</dt>
           <dd className="font-serif text-2xl font-extrabold text-gold mt-1">{formatCOP(toSalon)}</dd>
         </div>
         <div className="rounded-xl border border-emerald-500/30 bg-emerald-500/[0.06] p-4">
-          <dt className="text-zinc-400 text-xs uppercase tracking-wider">Te quedas · {commission}%</dt>
+          <dt className="text-zinc-400 text-xs uppercase tracking-wider">Te corresponde</dt>
           <dd className="font-serif text-2xl font-extrabold text-emerald-400 mt-1">{formatCOP(mine)}</dd>
         </div>
       </dl>
@@ -208,7 +208,7 @@ function EarningsTab({ appts, barber }: { appts: Booking[]; barber: Barber }) {
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
         <KpiCard label="Hoy" value={formatCOP(commission(doneToday))} sub={`${doneToday.length} servicios`} icon={Wallet} />
         <KpiCard label="Últimos 7 días" value={formatCOP(commission(doneWeek))} sub={`${doneWeek.length} servicios`} icon={Wallet} accent="emerald" />
-        <KpiCard label={`En ${monthLong(today)}`} value={formatCOP(commission(doneMonth))} sub={`${doneMonth.length} servicios · te quedas el ${barber.commission}%`} icon={Wallet} accent="violet" />
+        <KpiCard label={`En ${monthLong(today)}`} value={formatCOP(commission(doneMonth))} sub={`${doneMonth.length} servicios`} icon={Wallet} accent="violet" />
       </div>
       <MonthSettlement done={doneMonth} commission={barber.commission} monthName={monthLong(today)} />
       <Panel title="Lo que has ganado" subtitle={`Lo que te queda por día · últimos 14 días`}>
@@ -338,6 +338,7 @@ function ProfileTab({ barber, appts, pin, onPinChanged, onWorkHoursChanged }: { 
   const month = todayKey().slice(0, 7);
   const doneMonth = appts.filter((b) => b.status === 'completed' && b.date.startsWith(month));
   const revenue = doneMonth.reduce((s, b) => s + b.price, 0);
+  const mine = Math.round((revenue * barber.commission) / 100);
   const [form, setForm] = useState({ current: '', next: '', confirm: '' });
   const [saving, setSaving] = useState(false);
   const [status, setStatus] = useState<{ ok: boolean; text: string } | null>(null);
@@ -400,10 +401,11 @@ function ProfileTab({ barber, appts, pin, onPinChanged, onWorkHoursChanged }: { 
             ))}
           </div>
         </div>
-        <div className="grid grid-cols-3 gap-3">
+        <div className="grid grid-cols-2 gap-3">
           <KpiCard label="Servicios" value={doneMonth.length} sub="este mes" icon={Scissors} />
-          <KpiCard label="Facturado" value={formatCOP(revenue)} sub="este mes" icon={Wallet} accent="emerald" />
-          <KpiCard label="Entregas al salón" value={`${100 - barber.commission}%`} sub={`te quedas el ${barber.commission}%`} icon={Star} accent="violet" />
+          <KpiCard label="Facturado" value={formatCOP(revenue)} sub="este mes" icon={Wallet} />
+          <KpiCard label="Te corresponde" value={formatCOP(mine)} sub="este mes" icon={Wallet} accent="emerald" />
+          <KpiCard label="Para el administrador" value={formatCOP(revenue - mine)} sub="este mes" icon={Star} accent="violet" />
         </div>
       </div>
 
