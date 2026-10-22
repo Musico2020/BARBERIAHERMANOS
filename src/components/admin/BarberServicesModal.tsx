@@ -2,9 +2,11 @@ import { useEffect, useState } from 'react';
 import { X, ChevronLeft, ChevronRight, Loader2, Trash2, Check, Scissors } from 'lucide-react';
 import { getBookingsByMonth, updateBookingStatus, updateBookingPrice, deleteBooking } from '../../services/bookings';
 import { formatCOP } from '../../data';
+import { getAllServices } from '../../services/services';
 import { todayKey, formatDateLong, time12, monthLong } from '../../lib/dates';
 import { STATUS_LABEL, type BookingStatus } from '../../lib/stats';
 import type { Barber, Booking } from '../../types';
+import { barberEarnings } from '../../lib/earnings';
 
 // Panel → Barberos → «Servicios»: los servicios de un barbero en el mes, para revisarlos y
 // administrarlos (cambiar el estado, corregir el valor cobrado o eliminar). Solo los completados
@@ -46,8 +48,9 @@ export default function BarberServicesModal({ barber, onClose, onChanged }: Prop
     let alive = true;
     setLoading(true);
     const [y, m] = month.split('-').map(Number);
-    getBookingsByMonth(y, m)
-      .then((all) => { if (alive) { setList(all.filter((b) => b.barberId === barber.id)); setError(''); } })
+    // Los servicios se cargan para saber el porcentaje del barbero en cada uno
+    Promise.all([getBookingsByMonth(y, m), getAllServices()])
+      .then(([all]) => { if (alive) { setList(all.filter((b) => b.barberId === barber.id)); setError(''); } })
       .catch((err) => { console.error('No se pudieron cargar los servicios', err); if (alive) setError('No se pudieron cargar los servicios. Intenta de nuevo.'); })
       .finally(() => { if (alive) setLoading(false); });
     return () => { alive = false; };
@@ -62,7 +65,7 @@ export default function BarberServicesModal({ barber, onClose, onChanged }: Prop
 
   const done = list.filter((b) => b.status === 'completed');
   const revenue = done.reduce((s, b) => s + b.price, 0);
-  const keeps = Math.round(revenue * barber.commission / 100);
+  const keeps = barberEarnings(done, barber);
   const shown = list
     .filter((b) => filter === 'todos' || b.status === filter)
     .sort((a, b) => b.date.localeCompare(a.date) || b.time.localeCompare(a.time));
@@ -136,7 +139,7 @@ export default function BarberServicesModal({ barber, onClose, onChanged }: Prop
             </div>
             <div className="rounded-xl bg-white/[0.03] border border-white/[0.06] p-2">
               <p className="font-mono text-sm font-bold text-emerald-300">{formatCOP(keeps)}</p>
-              <p className="text-[10px] uppercase text-zinc-500">Se queda ({barber.commission}%)</p>
+              <p className="text-[10px] uppercase text-zinc-500">Se queda</p>
             </div>
           </div>
           <div className="flex gap-1.5 overflow-x-auto pb-1 -mx-1 px-1" style={{ scrollbarWidth: 'none' }}>

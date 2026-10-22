@@ -19,6 +19,7 @@ import { isShifted } from '../../lib/shifted';
 import ThemeToggle from '../../components/common/ThemeToggle';
 import NewClientModal from '../../components/admin/NewClientModal';
 import BarberHome from './BarberHome';
+import { barberEarnings, barberShare } from '../../lib/earnings';
 import { Timeline } from '../../components/admin/MobileAgenda';
 import { getAllServices } from '../../services/services';
 import { Panel, KpiCard, StatusBadge, Initials, EmptyState } from '../../components/admin/ui';
@@ -133,7 +134,7 @@ function AgendaTab({ appts, barber, onStatus, busyId, onNewClient, onEdit, onDel
   const active = list.filter((b) => b.status !== 'cancelled');
   const done = list.filter((b) => b.status === 'completed');
   const pendingCount = list.filter(isOpen).length;
-  const earned = Math.round((done.reduce((s, b) => s + b.price, 0) * barber.commission) / 100);
+  const earned = barberEarnings(done, barber);
   const next = day === today ? list.find((b) => isOpen(b) && timeToMinutes(b.time) + 30 >= nowMinutes()) : undefined;
 
   return (
@@ -236,9 +237,9 @@ function AgendaTab({ appts, barber, onStatus, busyId, onNewClient, onEdit, onDel
 // ---------------------------------------------------------------------------
 
 /** Cuentas del mes: lo facturado, lo que se entrega al salón y lo que le queda al barbero */
-function MonthSettlement({ done, commission, monthName }: { done: Booking[]; commission: number; monthName: string }) {
+function MonthSettlement({ done, barber, monthName }: { done: Booking[]; barber: Barber; monthName: string }) {
   const billed = done.reduce((s, b) => s + b.price, 0);
-  const mine = Math.round((billed * commission) / 100);
+  const mine = barberEarnings(done, barber);
   const toSalon = billed - mine;
   return (
     <Panel title={`Cuentas de ${monthName}`} subtitle="Lo que te corresponde a ti y lo que le corresponde al administrador">
@@ -262,7 +263,7 @@ function MonthSettlement({ done, commission, monthName }: { done: Booking[]; com
 
 function EarningsTab({ appts, barber }: { appts: Booking[]; barber: Barber }) {
   const today = todayKey();
-  const commission = (list: Booking[]) => Math.round((list.reduce((s, b) => s + b.price, 0) * barber.commission) / 100);
+  const commission = (list: Booking[]) => barberEarnings(list, barber);
   const done = appts.filter((b) => b.status === 'completed');
   const weekStart = addDays(today, -6);
   const month = today.slice(0, 7);
@@ -281,7 +282,7 @@ function EarningsTab({ appts, barber }: { appts: Booking[]; barber: Barber }) {
         <KpiCard label="Últimos 7 días" value={formatCOP(commission(doneWeek))} sub={`${doneWeek.length} servicios`} icon={Wallet} accent="emerald" />
         <KpiCard label={`En ${monthLong(today)}`} value={formatCOP(commission(doneMonth))} sub={`${doneMonth.length} servicios`} icon={Wallet} accent="violet" />
       </div>
-      <MonthSettlement done={doneMonth} commission={barber.commission} monthName={monthLong(today)} />
+      <MonthSettlement done={doneMonth} barber={barber} monthName={monthLong(today)} />
       <Panel title="Lo que has ganado" subtitle={`Lo que te queda por día · últimos 14 días`}>
         <GoldBarChart data={series} dataKey="revenue" nameKey="name" height={230} emptyText="Todavía no tienes servicios completados en estos días." />
       </Panel>
@@ -297,7 +298,7 @@ function EarningsTab({ appts, barber }: { appts: Booking[]; barber: Barber }) {
                   <p className="text-white text-sm font-medium truncate">{b.clientName}</p>
                   <p className="text-zinc-500 text-xs truncate">{b.serviceName} · {formatCOP(b.price)}</p>
                 </div>
-                <span className="font-mono text-emerald-400 text-sm font-semibold">+{formatCOP(Math.round((b.price * barber.commission) / 100))}</span>
+                <span className="font-mono text-emerald-400 text-sm font-semibold">+{formatCOP(barberShare(b, barber))}</span>
               </li>
             ))}
           </ul>
@@ -409,7 +410,7 @@ function ProfileTab({ barber, appts, pin, onPinChanged, onWorkHoursChanged }: { 
   const month = todayKey().slice(0, 7);
   const doneMonth = appts.filter((b) => b.status === 'completed' && b.date.startsWith(month));
   const revenue = doneMonth.reduce((s, b) => s + b.price, 0);
-  const mine = Math.round((revenue * barber.commission) / 100);
+  const mine = barberEarnings(doneMonth, barber);
   const [form, setForm] = useState({ current: '', next: '', confirm: '' });
   const [saving, setSaving] = useState(false);
   const [status, setStatus] = useState<{ ok: boolean; text: string } | null>(null);
@@ -516,6 +517,9 @@ function BarberDashboard({ barber, pin, onLogout, onPinChanged, onWorkHoursChang
   const [shiftNotice, setShiftNotice] = useState('');
   const [showNewClient, setShowNewClient] = useState(false);
   const [editing, setEditing] = useState<Booking | null>(null);
+  // Porcentajes por servicio (para lo que gana en cada uno): al cargarlos se vuelve a dibujar
+  const [, setRatesLoaded] = useState(false);
+  useEffect(() => { getAllServices().then(() => setRatesLoaded(true)).catch(() => undefined); }, []);
   const removeBooking = async (b: Booking) => {
     setBusyId(b.id);
     try {

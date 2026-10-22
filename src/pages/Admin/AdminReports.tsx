@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { FileText, FileSpreadsheet, ChevronLeft, ChevronRight, Wallet, CheckCircle2, Receipt, XCircle, Loader2, Clock, CalendarDays } from 'lucide-react';
 import { getBookingsByMonth, getBookingsByYear, getBookingsInRange } from '../../services/bookings';
 import { getBarbers } from '../../services/barbers';
+import { getAllServices } from '../../services/services';
 import { formatCOP } from '../../data';
 import { todayKey, addDays } from '../../lib/dates';
 import { businessConfig } from '../../config/business';
@@ -15,6 +16,7 @@ import type { ReportData } from '../../lib/report';
 import DateRangePicker from '../../components/admin/DateRangePicker';
 import { quincenaOf, rangeLabel, type DateRange } from '../../lib/dateRange';
 import type { Booking, Barber } from '../../types';
+import { barberShare } from '../../lib/earnings';
 import { Panel, KpiCard, Trend, Segmented, Initials } from '../../components/admin/ui';
 import { RevenueTrendChart, GoldBarChart, DonutChart } from '../../components/admin/charts';
 import DataTable, { type Column } from '../../components/admin/DataTable';
@@ -87,7 +89,8 @@ export default function AdminReports() {
       : viewMode === 'month'
         ? [getBookingsByMonth(year, month), getBookingsByMonth(prevY, prevM)]
         : [getBookingsByYear(year), getBookingsByYear(year - 1)];
-    Promise.all([...requests, getBarbers()])
+    // Los servicios se cargan para saber el porcentaje del barbero en cada uno
+    Promise.all([...requests, getBarbers(), getAllServices()])
       .then(([curr, prev, barberList]) => {
         setCurrent(curr as Booking[]);
         setPrevious(prev as Booking[]);
@@ -167,10 +170,12 @@ export default function AdminReports() {
       const row = map.get(id) ?? { name: barber?.name ?? (b.barberName || 'Sin asignar'), services: 0, revenue: 0, commission: barber ? barber.commission : null, pay: null };
       row.services += 1;
       row.revenue += b.price;
+      if (barber) row.pay = (row.pay ?? 0) + barberShare(b, barber);
       map.set(id, row);
     }
     return [...map.values()]
-      .map((r) => ({ ...r, pay: r.commission === null ? null : Math.round((r.revenue * r.commission) / 100) }))
+      // % efectivo: si hay servicios con porcentaje propio, el del barbero no aplica a todo
+      .map((r) => ({ ...r, commission: r.commission === null || !r.revenue ? r.commission : Math.round(((r.pay ?? 0) * 100) / r.revenue) }))
       .sort((a, b) => b.revenue - a.revenue);
   })();
   const totalPay = barberRows.reduce((sum, r) => sum + (r.pay ?? 0), 0);

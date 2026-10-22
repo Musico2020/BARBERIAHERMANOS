@@ -21,6 +21,7 @@ import TodayChairs from '../../components/admin/TodayChairs';
 import NewClientModal from '../../components/admin/NewClientModal';
 import PushCard from '../../components/admin/PushCard';
 import MobileHome from '../../components/admin/MobileHome';
+import { barberEarnings } from '../../lib/earnings';
 
 /** Del 1 del mes a hoy, y el mismo tramo del mes anterior, para comparar en igualdad de días. */
 function monthToDate(today: string) {
@@ -132,7 +133,7 @@ export default function AdminDashboard({ onNavigate, onLogout }: { onNavigate?: 
     .map((barber) => {
       const mine = month.filter((b) => b.barberId === barber.id);
       const revenue = revenueOf(mine);
-      return { barber, revenue, services: mine.filter(isCompleted).length, earnings: Math.round((revenue * barber.commission) / 100) };
+      return { barber, revenue, services: mine.filter(isCompleted).length, earnings: barberEarnings(mine.filter(isCompleted), barber) };
     })
     .sort((a, b) => b.revenue - a.revenue);
   const topRevenue = Math.max(...barberRows.map((r) => r.revenue), 1);

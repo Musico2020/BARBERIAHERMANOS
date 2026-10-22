@@ -30,6 +30,7 @@ interface ServiceForm {
   price: number;
   description: string;
   popular: boolean;
+  barberPercent: number | null;
 }
 
 const emptyForm: ServiceForm = {
@@ -39,6 +40,7 @@ const emptyForm: ServiceForm = {
   price: 20000,
   description: '',
   popular: false,
+  barberPercent: null,
 };
 
 export default function AdminServices() {
@@ -95,6 +97,7 @@ export default function AdminServices() {
       price: service.price,
       description: service.description,
       popular: service.popular ?? false,
+      barberPercent: service.barberPercent ?? null,
     });
     setErrors({});
     setFormError("");
@@ -106,6 +109,7 @@ export default function AdminServices() {
     if (!form.name.trim()) e.name = 'Escribe el nombre del servicio';
     if (!Number.isFinite(form.duration) || form.duration < 5) e.duration = 'Duración mínima 5 min';
     if (!Number.isFinite(form.price) || form.price < 1000) e.price = 'Precio mínimo $1.000';
+    if (form.barberPercent !== null && form.barberPercent !== undefined && (form.barberPercent < 0 || form.barberPercent > 100)) e.barberPercent = 'Entre 0 y 100';
     setErrors(e);
     // El aviso sale también junto al botón, para que se vea aunque el campo quede arriba
     setFormError(Object.keys(e).length ? `No se guardó: ${Object.values(e).join(' · ')}.` : '');
@@ -353,6 +357,34 @@ export default function AdminServices() {
                   />
                   {errors.price && <p className="text-red-400 text-xs mt-1">{errors.price}</p>}
                 </div>
+              </div>
+
+              <div>
+                <label htmlFor="service-barber-percent" className="text-zinc-400 text-xs mb-1.5 block">
+                  % que se lleva el barbero <span className="text-zinc-600">(opcional)</span>
+                </label>
+                <div className="flex items-center gap-3">
+                  <div className="relative w-28">
+                    <input
+                      id="service-barber-percent"
+                      type="number"
+                      inputMode="numeric"
+                      min={0}
+                      max={100}
+                      placeholder="—"
+                      className={`${inputClass('barberPercent')} pr-8`}
+                      value={form.barberPercent ?? ''}
+                      onChange={(e) => setForm({ ...form, barberPercent: e.target.value === '' ? null : Math.round(Number(e.target.value)) })}
+                    />
+                    <span className="absolute right-3 top-1/2 -translate-y-1/2 text-zinc-500 text-sm">%</span>
+                  </div>
+                  <p className="text-zinc-500 text-xs leading-snug">
+                    {form.barberPercent === null || form.barberPercent === undefined
+                      ? 'Vacío: se usa el porcentaje de cada barbero (Panel → Barberos).'
+                      : `En este servicio cualquier barbero se lleva el ${form.barberPercent} % y el salón el ${100 - form.barberPercent} %.`}
+                  </p>
+                </div>
+                {errors.barberPercent && <p className="text-red-400 text-xs mt-1">{errors.barberPercent}</p>}
               </div>
 
               <div className="flex items-center justify-between py-2 px-4 bg-white/3 border border-white/8 rounded-xl">

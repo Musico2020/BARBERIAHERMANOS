@@ -3,6 +3,7 @@ import BarberAvatar from '../../components/common/BarberAvatar';
 import { formatCOP } from '../../data';
 import { todayKey, nowMinutes, timeToMinutes, time12 } from '../../lib/dates';
 import type { Barber, Booking } from '../../types';
+import { barberEarnings } from '../../lib/earnings';
 
 // Inicio del portal del barbero en el teléfono: su perfil, cómo va su día y botones grandes por
 // secciones (igual que el inicio del panel del administrador).
@@ -25,7 +26,7 @@ export default function BarberHome({ barber, appts, greeting, onNavigate, onNewC
   const todayList = appts.filter((b) => b.date === today).sort((a, b) => a.time.localeCompare(b.time));
   const pending = todayList.filter(isOpen);
   const done = todayList.filter((b) => b.status === 'completed');
-  const earned = Math.round((done.reduce((s, b) => s + b.price, 0) * barber.commission) / 100);
+  const earned = barberEarnings(done, barber);
   const next = pending.find((b) => timeToMinutes(b.time) + 30 >= nowMinutes());
 
   const tiles: { label: string; icon: React.ElementType; onClick: () => void }[] = [

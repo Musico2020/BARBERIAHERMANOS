@@ -1,5 +1,6 @@
 import { supabase } from '../lib/supabase';
 import type { Service } from '../types';
+import { rememberServicePercent } from '../lib/earnings';
 
 interface ServiceRow {
   id: string;
@@ -10,9 +11,11 @@ interface ServiceRow {
   description: string;
   popular: boolean;
   active: boolean;
+  barber_percent?: number | null;
 }
 
 function rowToService(row: ServiceRow): Service {
+  rememberServicePercent(row.id, row.barber_percent);
   return {
     id: row.id,
     name: row.name,
@@ -21,6 +24,7 @@ function rowToService(row: ServiceRow): Service {
     price: row.price,
     description: row.description,
     popular: row.popular,
+    barberPercent: row.barber_percent ?? null,
   };
 }
 
@@ -54,6 +58,7 @@ export async function createService(service: Omit<Service, 'id'> & { active?: bo
       description: service.description,
       popular: service.popular ?? false,
       active: service.active ?? true,
+      barber_percent: service.barberPercent ?? null,
     })
     .select()
     .single();
@@ -69,6 +74,7 @@ export async function updateService(id: string, updates: Partial<Service & { act
   if (updates.price !== undefined) dbUpdates.price = updates.price;
   if (updates.description !== undefined) dbUpdates.description = updates.description;
   if (updates.popular !== undefined) dbUpdates.popular = updates.popular;
+  if (updates.barberPercent !== undefined) dbUpdates.barber_percent = updates.barberPercent;
   if (updates.active !== undefined) dbUpdates.active = updates.active;
 
   const { error } = await supabase

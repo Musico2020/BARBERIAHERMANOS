@@ -6,6 +6,8 @@ export interface Service {
   price: number;
   description: string;
   popular?: boolean;
+  /** Porcentaje que se lleva el barbero en este servicio; null = el porcentaje de cada barbero */
+  barberPercent?: number | null;
 }
 
 /** 'barbero' o 'manicurista': define qué servicios puede atender */
