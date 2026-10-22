@@ -36,7 +36,7 @@ interface Props {
   bookings: Booking[];
 }
 
-function Timeline({ date, barber, bookings, durations }: { date: string; barber: Barber; bookings: Booking[]; durations: Map<string, number> }) {
+export function Timeline({ date, barber, bookings, durations }: { date: string; barber: Barber; bookings: Booking[]; durations: Map<string, number> }) {
   const [closed, setClosed] = useState<BusySlot[]>([]);
   useEffect(() => {
     let alive = true;

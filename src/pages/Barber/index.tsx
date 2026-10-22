@@ -1,7 +1,7 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import {
   CalendarDays, Wallet, History, User, LogOut, Star, Check, X, CheckCheck, MessageCircle, Clock,
-  KeyRound, Loader2, CheckCircle2, AlertCircle, ChevronLeft, ChevronRight, Scissors, CalendarClock, UserPlus,
+  KeyRound, Loader2, CheckCircle2, AlertCircle, ChevronLeft, ChevronRight, Scissors, CalendarClock, UserPlus, ArrowLeft,
 } from 'lucide-react';
 import BarberShifts from './BarberShifts';
 import BarberLogin from './BarberLogin';
@@ -17,13 +17,16 @@ import ShiftedTag from '../../components/common/ShiftedTag';
 import { isShifted } from '../../lib/shifted';
 import ThemeToggle from '../../components/common/ThemeToggle';
 import NewClientModal from '../../components/admin/NewClientModal';
+import BarberHome from './BarberHome';
+import { Timeline } from '../../components/admin/MobileAgenda';
+import { getAllServices } from '../../services/services';
 import { Panel, KpiCard, StatusBadge, Initials, EmptyState } from '../../components/admin/ui';
 import { GoldBarChart } from '../../components/admin/charts';
 
 // Portal del barbero: su agenda, lo que gana, su historial y su perfil.
 // Cada consulta al servidor va con el PIN, que se valida allá.
 
-type BarberTab = 'agenda' | 'turnos' | 'ganancias' | 'historial' | 'perfil';
+type BarberTab = 'inicio' | 'agenda' | 'turnos' | 'ganancias' | 'historial' | 'perfil';
 
 const TABS: { id: BarberTab; label: string; icon: React.ElementType }[] = [
   { id: 'agenda', label: 'Agenda', icon: CalendarDays },
@@ -96,7 +99,13 @@ function AppointmentCard({ b, onStatus, busy }: { b: Booking; onStatus: (id: str
 function AgendaTab({ appts, barber, onStatus, busyId, onNewClient }: { appts: Booking[]; barber: Barber; onStatus: (id: string, s: Booking['status']) => void; busyId: string | null; onNewClient: () => void }) {
   const today = todayKey();
   const days = Array.from({ length: 7 }, (_, i) => addDays(today, i));
+  const circleDays = Array.from({ length: 21 }, (_, i) => addDays(today, i - 3));
   const [day, setDay] = useState(today);
+  const [view, setView] = useState<'lista' | 'linea'>('lista');
+  const [durations, setDurations] = useState<Map<string, number>>(new Map());
+  useEffect(() => {
+    getAllServices().then((s) => setDurations(new Map(s.map((x) => [x.id, x.duration])))).catch(() => undefined);
+  }, []);
   const list = appts.filter((b) => b.date === day).sort((a, b) => a.time.localeCompare(b.time));
   const active = list.filter((b) => b.status !== 'cancelled');
   const done = list.filter((b) => b.status === 'completed');
@@ -109,7 +118,33 @@ function AgendaTab({ appts, barber, onStatus, busyId, onNewClient }: { appts: Bo
       <button type="button" onClick={onNewClient} className="btn-gold w-full sm:w-auto min-h-[50px] px-6 rounded-2xl text-base font-bold">
         <UserPlus size={19} /> <span>Cliente nuevo</span>
       </button>
-      <div className="flex gap-2 overflow-x-auto pb-1 -mx-1 px-1" style={{ scrollbarWidth: 'none' }}>
+      {/* Teléfono: días en círculos */}
+      <div className="sm:hidden flex gap-3 overflow-x-auto pb-1 -mx-4 px-4" style={{ scrollbarWidth: 'none' }}>
+        {circleDays.map((d) => {
+          const count = appts.filter((b) => b.date === d && isOpen(b)).length;
+          const selected = d === day;
+          return (
+            <button key={d} type="button" onClick={() => setDay(d)} aria-pressed={selected} className="relative flex flex-col items-center gap-1 shrink-0">
+              <span className={`w-14 h-14 rounded-full border-2 flex items-center justify-center font-mono text-xl font-bold ${
+                selected ? 'bg-gold border-gold text-dark' : d === today ? 'border-emerald-400 text-emerald-300' : 'border-gold/40 text-white'
+              } ${d < today && !selected ? 'opacity-50' : ''}`}>
+                {dayOfMonth(d)}
+              </span>
+              {count > 0 && <span className="absolute -top-1 -right-1 min-w-[20px] h-5 px-1 rounded-full bg-gold text-dark text-[11px] font-bold flex items-center justify-center">{count}</span>}
+              <span className={`text-[11px] ${selected ? 'text-gold font-semibold' : 'text-zinc-400'}`}>{d === today ? 'Hoy' : dayShort(d)}</span>
+            </button>
+          );
+        })}
+      </div>
+      <div className="sm:hidden grid grid-cols-2 gap-1 p-1 rounded-2xl bg-white/[0.04] border border-white/10">
+        {([['lista', 'Lista'], ['linea', 'Línea de tiempo']] as const).map(([v, label]) => (
+          <button key={v} type="button" onClick={() => setView(v)} aria-pressed={view === v} className={`py-2.5 rounded-xl text-sm font-semibold ${view === v ? 'bg-gold text-dark' : 'text-zinc-300'}`}>
+            {label}
+          </button>
+        ))}
+      </div>
+
+      <div className="hidden sm:flex gap-2 overflow-x-auto pb-1 -mx-1 px-1" style={{ scrollbarWidth: 'none' }}>
         {days.map((d, i) => {
           const count = appts.filter((b) => b.date === d && isOpen(b)).length;
           const selected = d === day;
@@ -130,7 +165,7 @@ function AgendaTab({ appts, barber, onStatus, busyId, onNewClient }: { appts: Bo
         })}
       </div>
 
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+      <div className="hidden sm:grid grid-cols-2 lg:grid-cols-4 gap-3">
         <KpiCard label="Citas" value={active.length} sub={day === today ? 'hoy' : formatDateLong(day)} icon={CalendarDays} accent="blue" />
         <KpiCard label="Por atender" value={pendingCount} sub="pendientes o confirmadas" icon={Clock} accent="violet" />
         <KpiCard label="Completadas" value={done.length} sub={`de ${active.length}`} icon={CheckCircle2} accent="emerald" />
@@ -153,6 +188,14 @@ function AgendaTab({ appts, barber, onStatus, busyId, onNewClient }: { appts: Bo
         </div>
       )}
 
+      {view === 'linea' && (
+        <div className="sm:hidden">
+          <h3 className="text-white font-semibold capitalize mb-3">{day === today ? 'Hoy · ' : ''}{formatDateLong(day)}</h3>
+          <Timeline date={day} barber={barber} bookings={appts} durations={durations} />
+        </div>
+      )}
+
+      <div className={view === 'linea' ? 'hidden sm:block' : ''}>
       <Panel title={day === today ? 'Agenda de hoy' : formatDateLong(day)} subtitle={`${active.length} ${active.length === 1 ? 'cita' : 'citas'}`} bodyClassName="p-3 sm:p-4">
         {list.length === 0 ? (
           <EmptyState icon={CalendarDays}>No tienes citas este día.</EmptyState>
@@ -162,6 +205,7 @@ function AgendaTab({ appts, barber, onStatus, busyId, onNewClient }: { appts: Bo
           </ul>
         )}
       </Panel>
+      </div>
     </div>
   );
 }
@@ -441,7 +485,8 @@ function ProfileTab({ barber, appts, pin, onPinChanged, onWorkHoursChanged }: { 
 // ---------------------------------------------------------------------------
 
 function BarberDashboard({ barber, pin, onLogout, onPinChanged, onWorkHoursChanged }: { barber: Barber; pin: string; onLogout: () => void; onPinChanged: (pin: string) => void; onWorkHoursChanged: (hours: WorkHours) => void }) {
-  const [tab, setTab] = useState<BarberTab>('agenda');
+  const [tab, setTabState] = useState<BarberTab>(() => (window.innerWidth < 1024 ? 'inicio' : 'agenda'));
+  const setTab = (next: BarberTab) => { setTabState(next); window.scrollTo(0, 0); };
   const [appts, setAppts] = useState<Booking[]>([]);
   const [loaded, setLoaded] = useState(false);
   const [busyId, setBusyId] = useState<string | null>(null);
@@ -491,12 +536,23 @@ function BarberDashboard({ barber, pin, onLogout, onPinChanged, onWorkHoursChang
   const greeting = hour < 12 ? 'Buenos días' : hour < 19 ? 'Buenas tardes' : 'Buenas noches';
 
   return (
-    <div className="min-h-screen bg-dark/90 relative z-10 pb-24 lg:pb-10">
+    <div className="min-h-screen bg-dark/90 relative z-10 pb-10">
       <header className="sticky top-0 z-30 glass border-b border-white/10">
         <div className="max-w-6xl mx-auto px-4 sm:px-6 py-3 flex items-center gap-3">
           <img src="/logo-salon-hermanos.png" alt="" width={900} height={594} className="hidden sm:block w-16 h-auto object-contain" />
-          <BarberAvatar barber={barber} className="w-10 h-10 rounded-full text-sm border border-gold/40 sm:hidden" />
-          <div className="min-w-0 flex-1">
+          {tab !== 'inicio' && (
+            <button onClick={() => setTab('inicio')} aria-label="Volver al inicio" className="lg:hidden w-10 h-10 -ml-1 rounded-xl flex items-center justify-center text-gold active:bg-gold/10">
+              <ArrowLeft size={22} />
+            </button>
+          )}
+          {tab !== 'inicio' && (
+            <p className="lg:hidden flex-1 min-w-0 flex items-center gap-2 text-white font-semibold text-base truncate">
+              {(() => { const Icon = TABS.find((x) => x.id === tab)?.icon; return Icon ? <Icon size={19} className="text-gold shrink-0" /> : null; })()}
+              {TABS.find((x) => x.id === tab)?.label}
+            </p>
+          )}
+          <BarberAvatar barber={barber} className={`w-10 h-10 rounded-full text-sm border border-gold/40 sm:hidden ${tab !== 'inicio' ? 'hidden' : ''}`} />
+          <div className={`min-w-0 flex-1 ${tab !== 'inicio' ? 'hidden lg:block' : ''}`}>
             <p className="text-white font-semibold leading-tight truncate">{greeting}, {barber.shortName}</p>
             <p className="text-zinc-500 text-xs truncate">
               {formatDateLong(today)} · {openToday ? `${openToday} ${openToday === 1 ? 'cita' : 'citas'} por atender hoy` : 'sin citas pendientes hoy'}
@@ -507,8 +563,8 @@ function BarberDashboard({ barber, pin, onLogout, onPinChanged, onWorkHoursChang
               <button
                 key={id}
                 onClick={() => setTab(id)}
-                aria-current={tab === id ? 'page' : undefined}
-                className={`inline-flex items-center gap-2 px-3.5 py-2 rounded-lg text-sm font-medium transition-all ${tab === id ? 'bg-gold text-dark font-semibold' : 'text-zinc-400 hover:text-white'}`}
+                aria-current={tab === id || (tab === 'inicio' && id === 'agenda') ? 'page' : undefined}
+                className={`inline-flex items-center gap-2 px-3.5 py-2 rounded-lg text-sm font-medium transition-all ${tab === id || (tab === 'inicio' && id === 'agenda') ? 'bg-gold text-dark font-semibold' : 'text-zinc-400 hover:text-white'}`}
               >
                 <Icon size={16} /> {label}
               </button>
@@ -523,7 +579,7 @@ function BarberDashboard({ barber, pin, onLogout, onPinChanged, onWorkHoursChang
       </header>
 
       <main className="max-w-6xl mx-auto px-4 sm:px-6 py-5 sm:py-7">
-        <h1 className="font-serif text-2xl sm:text-3xl font-bold text-white mb-5">
+        <h1 className={`font-serif text-2xl sm:text-3xl font-bold text-white mb-5 ${tab === 'inicio' ? 'hidden' : 'hidden lg:block'}`}>
           {TABS.find((t) => t.id === tab)?.label}
           {tab === 'agenda' && <span className="block text-sm font-sans font-normal text-zinc-500 mt-1">Toca un día para ver sus citas · {lowerFirst(formatDateLong(today))}</span>}
         </h1>
@@ -541,6 +597,23 @@ function BarberDashboard({ barber, pin, onLogout, onPinChanged, onWorkHoursChang
           </div>
         ) : (
           <>
+            {tab === 'inicio' && (
+              <>
+                <div className="lg:hidden">
+                  <BarberHome
+                    barber={barber}
+                    appts={appts}
+                    greeting={greeting}
+                    onNavigate={setTab}
+                    onNewClient={() => { setShowNewClient(true); setShiftNotice(''); }}
+                    onLogout={onLogout}
+                  />
+                </div>
+                <div className="hidden lg:block">
+                  <AgendaTab appts={appts} barber={barber} onStatus={updateStatus} busyId={busyId} onNewClient={() => { setShowNewClient(true); setShiftNotice(''); }} />
+                </div>
+              </>
+            )}
             {tab === 'agenda' && <AgendaTab appts={appts} barber={barber} onStatus={updateStatus} busyId={busyId} onNewClient={() => { setShowNewClient(true); setShiftNotice(''); }} />}
             {tab === 'turnos' && <BarberShifts barber={barber} pin={pin} appts={appts} />}
             {tab === 'ganancias' && <EarningsTab appts={appts} barber={barber} />}
@@ -564,20 +637,6 @@ function BarberDashboard({ barber, pin, onLogout, onPinChanged, onWorkHoursChang
         />
       )}
 
-      {/* Celular: barra inferior */}
-      <nav className="lg:hidden fixed bottom-0 inset-x-0 z-30 glass border-t border-white/10 px-2 pt-2 pb-[max(0.5rem,env(safe-area-inset-bottom))] grid grid-cols-5" aria-label="Secciones">
-        {TABS.map(({ id, label, icon: Icon }) => (
-          <button
-            key={id}
-            onClick={() => setTab(id)}
-            aria-current={tab === id ? 'page' : undefined}
-            className={`flex flex-col items-center gap-1 py-1.5 rounded-xl transition-all ${tab === id ? 'text-gold' : 'text-zinc-500'}`}
-          >
-            <span className={`w-10 h-7 rounded-full flex items-center justify-center ${tab === id ? 'bg-gold/15' : ''}`}><Icon size={19} /></span>
-            <span className="text-[10px] font-semibold">{label}</span>
-          </button>
-        ))}
-      </nav>
     </div>
   );
 }
