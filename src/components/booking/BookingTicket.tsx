@@ -210,7 +210,7 @@ export default function BookingTicket({ ticket, onClose }: Props) {
               </p>
             </>
           ) : (
-            <p className="text-[11px] text-right" style={{ color: '#71717a' }}>Pago en el salón</p>
+            <p className="text-[11px] text-right" style={{ color: '#71717a' }}>Pago en el salón · Sé puntual; si no puedes venir, avísanos 2 horas antes</p>
           )}
         </div>
 
