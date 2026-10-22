@@ -8,6 +8,7 @@ import { businessConfig } from '../../config/business';
 import { formatCOP } from '../../data';
 import { todayKey, addDays, formatDateLong, time12 } from '../../lib/dates';
 import { waNumber } from '../../lib/whatsapp';
+import { barberEditBooking, type EditBookingResult } from '../../services/barberPortal';
 import type { Barber, Booking, Service } from '../../types';
 
 // Panel → Reservas → Editar: cambia cliente, servicio, barbero, día, hora o valor de una reserva.
@@ -18,7 +19,19 @@ interface Props {
   booking: Booking;
   onClose: () => void;
   onSaved: (updated: Booking) => void;
+  /** Desde el portal del barbero: la cita sigue siendo suya, con el precio del servicio, y se guarda con su PIN */
+  barberSession?: { barber: Barber; pin: string };
 }
+
+const EDIT_ERRORS: Partial<Record<EditBookingResult, string>> = {
+  SLOT_TAKEN: 'Esa hora ya se ocupó. Escoge otra.',
+  INVALID_NAME: 'Escribe el nombre del cliente.',
+  INVALID_PHONE: 'Revisa el celular: 10 dígitos o déjalo vacío.',
+  INVALID_DATE: 'Escoge otro día.',
+  BOOKING_NOT_FOUND: 'Esta cita ya no existe.',
+  PIN_LOCKED: 'Demasiados intentos. Espera 15 minutos.',
+  INVALID_PIN: 'Tu PIN cambió. Sal y vuelve a entrar.',
+};
 
 const inputClass = 'w-full px-3.5 py-2.5 rounded-xl bg-white/[0.04] border border-white/10 text-white text-sm focus:outline-none focus:border-gold/60 [color-scheme:dark]';
 const label = 'text-xs text-zinc-400 uppercase tracking-wider block mb-1.5';
@@ -44,7 +57,7 @@ function changeMessage(before: Booking, after: Booking): string {
   ].filter((l, i, all) => !(l === '' && all[i - 1] === '')).join('\n');
 }
 
-export default function EditBookingModal({ booking, onClose, onSaved }: Props) {
+export default function EditBookingModal({ booking, onClose, onSaved, barberSession }: Props) {
   const [services, setServices] = useState<Service[]>([]);
   const [barbers, setBarbers] = useState<Barber[]>([]);
   const [name, setName] = useState(booking.clientName);
@@ -61,7 +74,7 @@ export default function EditBookingModal({ booking, onClose, onSaved }: Props) {
 
   useEffect(() => {
     Promise.all([getServices(), getBarbers()])
-      .then(([s, b]) => { setServices(s); setBarbers(b); })
+      .then(([s, b]) => { setServices(s); setBarbers(barberSession ? [barberSession.barber] : b); })
       .catch((err) => { console.error('No se pudieron cargar servicios y barberos', err); setError('No se pudieron cargar los servicios. Cierra y vuelve a intentar.'); });
   }, []);
 
@@ -99,7 +112,8 @@ export default function EditBookingModal({ booking, onClose, onSaved }: Props) {
   const changeService = (id: string) => {
     setServiceId(id);
     const s = services.find((x) => x.id === id);
-    if (s) setPrice(String(s.price));
+    // El barbero cobra el precio del servicio; si vuelve al servicio que tenía, se conserva su valor
+    if (s) setPrice(String(barberSession && id === booking.serviceId ? booking.price : s.price));
   };
 
   const save = async () => {
@@ -112,7 +126,14 @@ export default function EditBookingModal({ booking, onClose, onSaved }: Props) {
         clientName: name, clientPhone: phone, serviceId: service.id, serviceName: service.name,
         barberId: barber.id, barberName: barber.shortName, date, time, price: priceNum,
       };
-      await updateBookingDetails(booking.id, patch);
+      if (barberSession) {
+        const result = await barberEditBooking(barberSession.barber.id, barberSession.pin, booking.id, {
+          clientName: name, clientPhone: phone, serviceId: service.id, date, time,
+        });
+        if (result !== 'OK') { setError(EDIT_ERRORS[result] ?? 'No se pudo guardar. Revisa los datos.'); return; }
+      } else {
+        await updateBookingDetails(booking.id, patch);
+      }
       const updated: Booking = { ...booking, ...patch, clientName: name.trim(), clientPhone: phone.trim(), originalTime: undefined, shiftedAt: undefined };
       setSaved(updated);
       onSaved(updated);
@@ -206,7 +227,7 @@ export default function EditBookingModal({ booking, onClose, onSaved }: Props) {
               </div>
               <label className="block">
                 <span className={label}>Valor</span>
-                <input className={`${inputClass} font-mono`} inputMode="numeric" value={price} onChange={(e) => setPrice(e.target.value.replace(/\D/g, ''))} />
+                <input className={`${inputClass} font-mono read-only:opacity-70`} inputMode="numeric" value={price} readOnly={!!barberSession} onChange={(e) => setPrice(e.target.value.replace(/\D/g, ''))} />
               </label>
             </div>
             <div className="border-t border-white/10 px-5 py-4">

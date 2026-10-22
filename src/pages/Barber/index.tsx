@@ -1,12 +1,13 @@
 import { useEffect, useState } from 'react';
 import {
   CalendarDays, Wallet, History, User, LogOut, Star, Check, X, CheckCheck, MessageCircle, Clock,
-  KeyRound, Loader2, CheckCircle2, AlertCircle, ChevronLeft, ChevronRight, Scissors, CalendarClock, UserPlus, ArrowLeft,
+  KeyRound, Loader2, CheckCircle2, AlertCircle, ChevronLeft, ChevronRight, Scissors, CalendarClock, UserPlus, ArrowLeft, Pencil, Ban, Trash2,
 } from 'lucide-react';
 import BarberShifts from './BarberShifts';
 import BarberLogin from './BarberLogin';
 import { usePageMeta } from '../../hooks/usePageMeta';
-import { getBarberBookings, setBarberBookingStatus, changeBarberPin, setBarberWorkHours, BarberPortalError } from '../../services/barberPortal';
+import { getBarberBookings, setBarberBookingStatus, changeBarberPin, setBarberWorkHours, barberDeleteBooking, BarberPortalError } from '../../services/barberPortal';
+import EditBookingModal from '../../components/admin/EditBookingModal';
 import WorkHoursEditor, { validWorkHours } from '../../components/admin/WorkHoursEditor';
 import { formatCOP } from '../../data';
 import { todayKey, addDays, dayShort, dayOfMonth, monthShort, monthLong, formatDateLong, nowMinutes, timeToMinutes, time12, time12Parts } from '../../lib/dates';
@@ -51,7 +52,7 @@ function inMinutes(time: string): string {
 
 // ---------------------------------------------------------------------------
 
-function AppointmentCard({ b, onStatus, busy }: { b: Booking; onStatus: (id: string, s: Booking['status']) => void; busy: boolean }) {
+function AppointmentCard({ b, onStatus, busy, onEdit, onDelete }: { b: Booking; onStatus: (id: string, s: Booking['status']) => void; busy: boolean; onEdit: (b: Booking) => void; onDelete: (b: Booking) => void }) {
   return (
     <li className={`flex gap-3 sm:gap-4 rounded-2xl border p-3.5 sm:p-4 transition-colors ${
       isOpen(b) ? 'border-white/10 bg-white/[0.03]' : 'border-white/[0.05] bg-white/[0.015]'
@@ -91,12 +92,34 @@ function AppointmentCard({ b, onStatus, busy }: { b: Booking; onStatus: (id: str
             </button>
           </div>
         )}
+        {/* Editar, cancelar o eliminar (solo sus propias citas) */}
+        <div className="flex flex-wrap gap-2 mt-2">
+          <button disabled={busy} onClick={() => onEdit(b)} className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-gold/30 text-gold text-xs font-semibold hover:bg-gold/10 disabled:opacity-50">
+            <Pencil size={13} /> Editar
+          </button>
+          {isOpen(b) && (
+            <button
+              disabled={busy}
+              onClick={() => { if (window.confirm(`¿Cancelar la cita de ${b.clientName} (${time12(b.time)})? La hora queda libre.`)) onStatus(b.id, 'cancelled'); }}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-white/12 text-zinc-300 text-xs font-semibold hover:bg-white/5 disabled:opacity-50"
+            >
+              <Ban size={13} /> Cancelar
+            </button>
+          )}
+          <button
+            disabled={busy}
+            onClick={() => { if (window.confirm(`¿Eliminar la cita de ${b.clientName} (${time12(b.time)})? No se puede deshacer.`)) onDelete(b); }}
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-rose-500/25 text-rose-300 text-xs font-semibold hover:bg-rose-500/10 disabled:opacity-50"
+          >
+            <Trash2 size={13} /> Eliminar
+          </button>
+        </div>
       </div>
     </li>
   );
 }
 
-function AgendaTab({ appts, barber, onStatus, busyId, onNewClient }: { appts: Booking[]; barber: Barber; onStatus: (id: string, s: Booking['status']) => void; busyId: string | null; onNewClient: () => void }) {
+function AgendaTab({ appts, barber, onStatus, busyId, onNewClient, onEdit, onDelete }: { appts: Booking[]; barber: Barber; onStatus: (id: string, s: Booking['status']) => void; busyId: string | null; onNewClient: () => void; onEdit: (b: Booking) => void; onDelete: (b: Booking) => void }) {
   const today = todayKey();
   const days = Array.from({ length: 7 }, (_, i) => addDays(today, i));
   const circleDays = Array.from({ length: 21 }, (_, i) => addDays(today, i - 3));
@@ -201,7 +224,7 @@ function AgendaTab({ appts, barber, onStatus, busyId, onNewClient }: { appts: Bo
           <EmptyState icon={CalendarDays}>No tienes citas este día.</EmptyState>
         ) : (
           <ul className="space-y-2.5">
-            {list.map((b) => <AppointmentCard key={b.id} b={b} onStatus={onStatus} busy={busyId === b.id} />)}
+            {list.map((b) => <AppointmentCard key={b.id} b={b} onStatus={onStatus} busy={busyId === b.id} onEdit={onEdit} onDelete={onDelete} />)}
           </ul>
         )}
       </Panel>
@@ -492,6 +515,20 @@ function BarberDashboard({ barber, pin, onLogout, onPinChanged, onWorkHoursChang
   const [busyId, setBusyId] = useState<string | null>(null);
   const [shiftNotice, setShiftNotice] = useState('');
   const [showNewClient, setShowNewClient] = useState(false);
+  const [editing, setEditing] = useState<Booking | null>(null);
+  const removeBooking = async (b: Booking) => {
+    setBusyId(b.id);
+    try {
+      const result = await barberDeleteBooking(barber.id, pin, b.id);
+      if (result === 'OK') { setAppts((prev) => prev.filter((x) => x.id !== b.id)); setShiftNotice(`Se eliminó la cita de ${b.clientName}.`); }
+      else if (result === 'INVALID_PIN' || result === 'PIN_LOCKED') onLogout();
+      else setError('Esa cita ya no existe.');
+    } catch (err) {
+      handlePortalError(err, 'No se pudo eliminar la cita. Intenta de nuevo.');
+    } finally {
+      setBusyId(null);
+    }
+  };
   const [error, setError] = useState('');
 
   const handlePortalError = (err: unknown, fallback: string) => {
@@ -610,11 +647,11 @@ function BarberDashboard({ barber, pin, onLogout, onPinChanged, onWorkHoursChang
                   />
                 </div>
                 <div className="hidden lg:block">
-                  <AgendaTab appts={appts} barber={barber} onStatus={updateStatus} busyId={busyId} onNewClient={() => { setShowNewClient(true); setShiftNotice(''); }} />
+                  <AgendaTab appts={appts} barber={barber} onStatus={updateStatus} busyId={busyId} onNewClient={() => { setShowNewClient(true); setShiftNotice(''); }} onEdit={setEditing} onDelete={removeBooking} />
                 </div>
               </>
             )}
-            {tab === 'agenda' && <AgendaTab appts={appts} barber={barber} onStatus={updateStatus} busyId={busyId} onNewClient={() => { setShowNewClient(true); setShiftNotice(''); }} />}
+            {tab === 'agenda' && <AgendaTab appts={appts} barber={barber} onStatus={updateStatus} busyId={busyId} onNewClient={() => { setShowNewClient(true); setShiftNotice(''); }} onEdit={setEditing} onDelete={removeBooking} />}
             {tab === 'turnos' && <BarberShifts barber={barber} pin={pin} appts={appts} />}
             {tab === 'ganancias' && <EarningsTab appts={appts} barber={barber} />}
             {tab === 'historial' && <HistoryTab appts={appts} />}
@@ -622,6 +659,15 @@ function BarberDashboard({ barber, pin, onLogout, onPinChanged, onWorkHoursChang
           </>
         )}
       </main>
+
+      {editing && (
+        <EditBookingModal
+          booking={editing}
+          barberSession={{ barber, pin }}
+          onClose={() => setEditing(null)}
+          onSaved={() => { getBarberBookings(barber.id, pin).then(setAppts).catch((err) => handlePortalError(err, 'No se pudieron recargar tus citas.')); }}
+        />
+      )}
 
       {showNewClient && (
         <NewClientModal

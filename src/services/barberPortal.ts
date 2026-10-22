@@ -64,6 +64,30 @@ export type DayClosuresResult = BarberAuthResult | 'INVALID_DATE' | 'DAY_CLOSED'
  * El barbero cierra sus propias horas de un día (reemplaza las que tenía cerradas ese día).
  * No toca lo cerrado para todo el salón ni a los demás barberos. `ranges` vacío = abre todas sus horas.
  */
+export type EditBookingResult = 'OK' | 'INVALID_PIN' | 'PIN_LOCKED' | 'BOOKING_NOT_FOUND' | 'INVALID_NAME' | 'INVALID_PHONE' | 'INVALID_SERVICE' | 'INVALID_DATE' | 'INVALID_TIME' | 'SLOT_TAKEN';
+
+/** El barbero cambia una cita suya (cliente, servicio, día u hora). */
+export async function barberEditBooking(
+  barberId: string,
+  pin: string,
+  bookingId: string,
+  patch: { clientName: string; clientPhone: string; serviceId: string; date: string; time: string },
+): Promise<EditBookingResult> {
+  const { data, error } = await supabase.rpc('barber_edit_booking', {
+    p_barber_id: barberId, p_pin: pin, p_booking_id: bookingId,
+    p_client_name: patch.clientName, p_client_phone: patch.clientPhone, p_service_id: patch.serviceId, p_date: patch.date, p_time: patch.time,
+  });
+  if (error) throw error;
+  return data as EditBookingResult;
+}
+
+/** El barbero elimina una cita suya. */
+export async function barberDeleteBooking(barberId: string, pin: string, bookingId: string): Promise<'OK' | 'INVALID_PIN' | 'PIN_LOCKED' | 'BOOKING_NOT_FOUND'> {
+  const { data, error } = await supabase.rpc('barber_delete_booking', { p_barber_id: barberId, p_pin: pin, p_booking_id: bookingId });
+  if (error) throw error;
+  return data;
+}
+
 export type AddClientResult = 'OK' | 'INVALID_PIN' | 'PIN_LOCKED' | 'INVALID_NAME' | 'INVALID_PHONE' | 'INVALID_LINES' | 'INVALID_DATE' | 'SLOT_TAKEN';
 
 /** El barbero registra un cliente (atendido ahora o cita agendada), siempre a su nombre. */
