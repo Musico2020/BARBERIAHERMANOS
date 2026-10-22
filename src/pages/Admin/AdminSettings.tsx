@@ -640,15 +640,34 @@ function DepositCard() {
   };
 
   return (
-    <Panel title="Anticipo al reservar" subtitle="Se paga con tu QR de Nequi y lo verificas en Panel → Pagos">
+    <Panel title="Pago anticipado al reservar" subtitle="Se paga con tu QR de Nequi y lo verificas en Panel → Pagos">
       <div className="space-y-5">
-        <label className="flex items-center justify-between gap-4 cursor-pointer">
+        <div className={`flex items-center justify-between gap-4 rounded-xl border p-3.5 ${form.enabled ? 'border-gold/40 bg-gold/[0.06]' : 'border-emerald-500/40 bg-emerald-500/[0.06]'}`}>
           <span>
-            <span className="block text-white text-sm font-medium">Pedir anticipo en las reservas de la web</span>
-            <span className="block text-zinc-500 text-xs">Las citas que registras desde el panel no lo piden.</span>
+            <span className="flex items-center gap-2 text-white text-sm font-semibold">
+              Pago anticipado
+              <span className={`text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full ${form.enabled ? 'bg-gold text-dark' : 'bg-emerald-500 text-white'}`}>
+                {form.enabled ? 'Activado' : 'Desactivado'}
+              </span>
+            </span>
+            <span className="block text-zinc-400 text-xs mt-1">
+              {form.enabled
+                ? 'Al reservar en la web, el cliente debe pagar el anticipo con el QR para separar su turno.'
+                : 'Los clientes reservan en la web sin pagar nada: la cita queda agendada de una vez y pagan en el salón.'}
+            </span>
           </span>
-          <input type="checkbox" checked={form.enabled} onChange={(e) => set({ enabled: e.target.checked })} className="w-5 h-5 accent-yellow-500" />
-        </label>
+          <button
+            type="button"
+            role="switch"
+            aria-checked={form.enabled}
+            aria-label="Pedir pago anticipado al reservar"
+            onClick={() => set({ enabled: !form.enabled })}
+            className={`relative shrink-0 w-14 h-8 rounded-full transition-colors ${form.enabled ? 'bg-gold' : 'bg-zinc-600'}`}
+          >
+            <span className={`absolute top-1 w-6 h-6 rounded-full bg-white shadow transition-all ${form.enabled ? 'left-7' : 'left-1'}`} />
+          </button>
+        </div>
+        <p className="text-zinc-500 text-xs -mt-2">Toca el interruptor y luego «Guardar anticipo». Las citas que registras desde el panel nunca lo piden.</p>
         {form.enabled && (
           <>
             <ChoiceRow
