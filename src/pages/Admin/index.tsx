@@ -51,6 +51,9 @@ export default function AdminPage() {
     return () => added.forEach((el) => el.remove());
   }, []);
 
+  // Al cambiar de sección se empieza desde arriba (en el teléfono cada sección es una pantalla)
+  useEffect(() => { window.scrollTo(0, 0); }, [activeTab]);
+
   // Si el panel ya estaba abierto, el aviso tocado le pide cambiar de sección
   useEffect(() => {
     if (!('serviceWorker' in navigator)) return;
@@ -87,7 +90,7 @@ export default function AdminPage() {
 
   const renderContent = () => {
     switch (activeTab) {
-      case 'dashboard': return <AdminDashboard onNavigate={setActiveTab} />;
+      case 'dashboard': return <AdminDashboard onNavigate={setActiveTab} onLogout={handleLogout} />;
       case 'calendar': return <AdminCalendar />;
       case 'shifts': return <AdminShifts />;
       case 'payments': return <AdminPayments />;
@@ -100,7 +103,7 @@ export default function AdminPage() {
       case 'clients': return <AdminClients />;
       case 'reports': return <AdminReports />;
       case 'settings': return <AdminSettings />;
-      default: return <AdminDashboard onNavigate={setActiveTab} />;
+      default: return <AdminDashboard onNavigate={setActiveTab} onLogout={handleLogout} />;
     }
   };
 

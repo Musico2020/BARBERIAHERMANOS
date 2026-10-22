@@ -3,7 +3,7 @@ import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { getBookingsInRange } from '../../services/bookings';
 import { getBarbers } from '../../services/barbers';
 import { todayKey, addDays, startOfWeek, dayOfMonth, dayShort, monthShort, time12, time12Parts } from '../../lib/dates';
-import CalendarAgenda from '../../components/admin/CalendarAgenda';
+import MobileAgenda from '../../components/admin/MobileAgenda';
 import { useAutoRefresh } from '../../hooks/useAutoRefresh';
 import { businessConfig } from '../../config/business';
 import { lunchFor } from '../../lib/businessHours';
@@ -69,8 +69,6 @@ export default function AdminCalendar() {
   const [bookings, setBookings] = useState<Booking[]>([]);
   const [barbers, setBarbers] = useState<Barber[]>([]);
   const [error, setError] = useState('');
-  // Filtro por barbero de la agenda del teléfono ('' = todos)
-  const [agendaBarber, setAgendaBarber] = useState('');
 
   useEffect(() => {
     getBarbers()
@@ -116,7 +114,7 @@ export default function AdminCalendar() {
       {error && (
         <div className="p-3 rounded-xl bg-red-500/10 border border-red-500/20 text-red-400 text-sm">{error}</div>
       )}
-      <div className="flex items-center gap-3 flex-wrap">
+      <div className="hidden sm:flex items-center gap-3 flex-wrap">
         <div className="flex bg-white/[0.03] rounded-xl overflow-hidden border border-white/[0.08] p-1 gap-1">
           {(['day', 'week'] as ViewMode[]).map((v) => (
             <button
@@ -147,21 +145,9 @@ export default function AdminCalendar() {
         </button>
       </div>
 
-      {/* Teléfono: agenda en lista, con el número de cada cliente */}
-      <div className="sm:hidden space-y-4">
-        <div className="flex gap-2 overflow-x-auto pb-1 -mx-1 px-1" style={{ scrollbarWidth: 'none' }}>
-          {[{ id: '', label: 'Todos' }, ...barbers.map((b) => ({ id: b.id, label: b.shortName }))].map((o) => (
-            <button
-              key={o.id || 'todos'}
-              onClick={() => setAgendaBarber(o.id)}
-              aria-pressed={agendaBarber === o.id}
-              className={`shrink-0 px-3.5 py-1.5 rounded-full text-xs font-semibold border ${agendaBarber === o.id ? 'bg-gold text-dark border-gold' : 'border-white/10 text-zinc-300'}`}
-            >
-              {o.label}
-            </button>
-          ))}
-        </div>
-        <CalendarAgenda dates={view === 'day' ? [currentDate] : weekDates} bookings={bookings} barberId={agendaBarber} />
+      {/* Teléfono: días en círculos, fotos de los barberos y la línea de tiempo de cada uno */}
+      <div className="sm:hidden">
+        <MobileAgenda date={currentDate} onDateChange={setCurrentDate} barbers={barbers} bookings={bookings} />
       </div>
 
       {view === 'day' ? (

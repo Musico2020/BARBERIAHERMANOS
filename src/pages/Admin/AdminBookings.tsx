@@ -193,7 +193,7 @@ export default function AdminBookings() {
             </button>
           </div>
         ) : (
-          <div className="flex items-center gap-1.5">
+          <div className="flex items-center gap-1.5 w-full min-w-[220px] md:min-w-0 md:w-auto">
             <div className="relative flex-1 md:flex-none">
               <select
                 value={b.status}

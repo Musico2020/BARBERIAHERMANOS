@@ -2,7 +2,7 @@ import { useState, useRef, useEffect } from 'react';
 import {
   LayoutDashboard, Calendar, ClipboardList, Users,
   UserCircle, BarChart2, Settings, LogOut, ExternalLink, Menu, Bell,
-  CheckCheck, AlertCircle, CalendarCheck, MessageCircle, BellRing, ShoppingBag, Images, CalendarClock, Banknote,
+  CheckCheck, AlertCircle, CalendarCheck, MessageCircle, BellRing, ShoppingBag, Images, CalendarClock, Banknote, ArrowLeft,
 } from 'lucide-react';
 import { ClipperIcon } from '../../components/common/BarberIcons';
 import ThemeToggle from '../../components/common/ThemeToggle';
@@ -167,16 +167,32 @@ export default function AdminLayout({ activeTab, onTabChange, onLogout, children
 
       <div className="flex-1 min-w-0 lg:ml-56 flex flex-col min-h-screen">
         <header className="admin-topbar sticky top-0 z-30 glass border-b border-white/8 px-4 sm:px-6 py-3 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <button
-              onClick={() => setSidebarOpen(true)}
-              className="lg:hidden w-8 h-8 glass rounded-lg flex items-center justify-center text-zinc-400"
-            >
-              <Menu size={16} />
-            </button>
+          <div className="flex items-center gap-3 min-w-0">
+            {/* Teléfono: el inicio es el menú; en cada sección, flecha para volver */}
+            {activeTab === 'dashboard' ? (
+              <button
+                onClick={() => setSidebarOpen(true)}
+                aria-label="Menú"
+                className="lg:hidden w-9 h-9 glass rounded-xl flex items-center justify-center text-zinc-400"
+              >
+                <Menu size={17} />
+              </button>
+            ) : (
+              <button
+                onClick={() => onTabChange('dashboard')}
+                aria-label="Volver al inicio"
+                className="lg:hidden w-10 h-10 -ml-1 rounded-xl flex items-center justify-center text-gold active:bg-gold/10"
+              >
+                <ArrowLeft size={22} />
+              </button>
+            )}
             <div className="min-w-0">
-              <h1 className="font-semibold text-white text-base leading-tight">
-                {navItems.find((n) => n.id === activeTab)?.label}
+              <h1 className="flex items-center gap-2 font-semibold text-white text-base lg:text-base leading-tight">
+                {(() => {
+                  const Icon = navItems.find((n) => n.id === activeTab)?.icon;
+                  return Icon && activeTab !== 'dashboard' ? <Icon size={19} className="lg:hidden text-gold shrink-0" /> : null;
+                })()}
+                <span className="truncate">{activeTab === 'dashboard' ? <><span className="lg:hidden">Inicio</span><span className="hidden lg:inline">Dashboard</span></> : navItems.find((n) => n.id === activeTab)?.label}</span>
               </h1>
               <p className="hidden sm:block text-zinc-500 text-xs truncate">
                 {navItems.find((n) => n.id === activeTab)?.description}

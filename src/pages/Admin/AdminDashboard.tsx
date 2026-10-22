@@ -20,6 +20,7 @@ import DataTable, { type Column } from '../../components/admin/DataTable';
 import TodayChairs from '../../components/admin/TodayChairs';
 import NewClientModal from '../../components/admin/NewClientModal';
 import PushCard from '../../components/admin/PushCard';
+import MobileHome from '../../components/admin/MobileHome';
 
 /** Del 1 del mes a hoy, y el mismo tramo del mes anterior, para comparar en igualdad de días. */
 function monthToDate(today: string) {
@@ -73,7 +74,7 @@ function DayStat({ label, value, tone = 'text-white' }: { label: string; value: 
   );
 }
 
-export default function AdminDashboard({ onNavigate }: { onNavigate?: (tab: AdminTab) => void }) {
+export default function AdminDashboard({ onNavigate, onLogout }: { onNavigate?: (tab: AdminTab) => void; onLogout?: () => void }) {
   const [bookings, setBookings] = useState<Booking[]>([]);
   const [barbers, setBarbers] = useState<Barber[]>([]);
   const [durations, setDurations] = useState<Map<string, number>>(new Map());
@@ -149,8 +150,19 @@ export default function AdminDashboard({ onNavigate }: { onNavigate?: (tab: Admi
   return (
     <div className="space-y-6 sm:space-y-8">
       <PushCard compact />
-      {/* Encabezado del día */}
-      <section className="frame-gold rounded-3xl overflow-hidden">
+      {/* Teléfono: inicio con botones grandes por secciones */}
+      <MobileHome
+        greeting={greeting(now)}
+        barbers={barbers}
+        clientsCount={clientsCount}
+        todayCount={todayActive.length}
+        todayRevenue={todayRevenue}
+        onNavigate={(tab) => onNavigate?.(tab)}
+        onNewClient={() => setShowNewClient(true)}
+        onLogout={onLogout}
+      />
+      {/* Encabezado del día (computador) */}
+      <section className="hidden lg:block frame-gold rounded-3xl overflow-hidden">
         <div className="barber-stripe" />
         <div className="p-5 sm:p-7 flex flex-col xl:flex-row xl:items-end gap-6 xl:gap-10">
           <div className="min-w-0 flex-1">
@@ -213,8 +225,8 @@ export default function AdminDashboard({ onNavigate }: { onNavigate?: (tab: Admi
         )}
       </section>
 
-      {/* Los números del mes */}
-      <section className="space-y-4 sm:space-y-6">
+      {/* Los números del mes (en el teléfono están en Informes) */}
+      <section className="hidden lg:block space-y-4 sm:space-y-6">
         <div>
           <p className="section-label">Los números de {monthName}</p>
           <h3 className="font-serif text-xl sm:text-2xl font-bold text-white mt-1">Cómo va el mes</h3>
