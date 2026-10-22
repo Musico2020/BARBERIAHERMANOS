@@ -3,6 +3,7 @@ import type { WorkHours, GalleryItem } from '../types';
 import { resizeImage } from './gallery';
 import { isSupportedImage } from '../lib/imageFile';
 import { rowToBooking } from './bookings';
+import { syncAutoStatusToDb } from '../lib/autoStatus';
 import type { Booking } from '../types';
 
 // Portal del barbero: el PIN se valida en el servidor en cada llamada.
@@ -28,7 +29,9 @@ export async function getBarberBookings(barberId: string, pin: string): Promise<
   if (error) throw error;
   const result = data as { error?: string; bookings?: Parameters<typeof rowToBooking>[0][] };
   if (result.error) throw new BarberPortalError(result.error);
-  return (result.bookings ?? []).map(rowToBooking);
+  const bookings = (result.bookings ?? []).map(rowToBooking);
+  syncAutoStatusToDb(bookings);
+  return bookings;
 }
 
 export async function setBarberBookingStatus(

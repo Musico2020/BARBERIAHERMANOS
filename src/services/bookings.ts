@@ -1,5 +1,6 @@
 import { supabase } from '../lib/supabase';
 import type { Booking } from '../types';
+import { applyAutoStatus, syncAutoStatusToDb } from '../lib/autoStatus';
 
 interface BookingRow {
   id: string;
@@ -28,7 +29,7 @@ interface BookingRow {
 }
 
 export function rowToBooking(row: BookingRow): Booking {
-  return {
+  const booking: Booking = {
     id: row.id,
     clientName: row.client_name,
     clientPhone: row.client_phone,
@@ -53,6 +54,7 @@ export function rowToBooking(row: BookingRow): Booking {
     depositMethod: (row.deposit_method ?? undefined) as Booking['depositMethod'],
     depositTermsAt: row.deposit_terms_at ?? undefined,
   };
+  return applyAutoStatus(booking);
 }
 
 // Supabase devuelve como máximo 1000 filas por consulta; se piden por páginas.
@@ -69,7 +71,10 @@ async function fetchAllPages(
     rows.push(...page);
     if (page.length < PAGE_SIZE) break;
   }
-  return rows.map(rowToBooking);
+  const bookings = rows.map(rowToBooking);
+  // Sincroniza en la base de datos en segundo plano cualquier cita cuyo estado haya vencido o comenzado
+  syncAutoStatusToDb(bookings);
+  return bookings;
 }
 
 export async function getBookings(): Promise<Booking[]> {
@@ -89,6 +94,8 @@ export async function getBookingsByDate(date: string): Promise<Booking[]> {
 }
 
 export async function getBookingsInRange(start: string, end: string): Promise<Booking[]> {
+  // Dispara en segundo plano la actualización automática en la base de datos
+  supabase.rpc('auto_update_booking_statuses').then(() => undefined, () => undefined);
   return fetchAllPages((from, to) =>
     supabase
       .from('bookings')

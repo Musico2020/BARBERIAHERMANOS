@@ -14,8 +14,19 @@ interface ServiceRow {
   barber_percent?: number | null;
 }
 
+const DURATION_CACHE = new Map<string, number>();
+
+export function rememberServiceDuration(serviceId: string, duration: number) {
+  if (serviceId && duration > 0) DURATION_CACHE.set(serviceId, duration);
+}
+
+export function getCachedServiceDuration(serviceId: string): number {
+  return DURATION_CACHE.get(serviceId) ?? 30;
+}
+
 function rowToService(row: ServiceRow): Service {
   rememberServicePercent(row.id, row.barber_percent);
+  rememberServiceDuration(row.id, row.duration);
   return {
     id: row.id,
     name: row.name,
