@@ -48,6 +48,7 @@ export default function AdminServices() {
   const [editTarget, setEditTarget] = useState<ActiveService | null>(null);
   const [form, setForm] = useState<ServiceForm>(emptyForm);
   const [errors, setErrors] = useState<Partial<Record<keyof ServiceForm, string>>>({});
+  const [formError, setFormError] = useState("");
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [pageError, setPageError] = useState('');
@@ -81,6 +82,7 @@ export default function AdminServices() {
     setEditTarget(null);
     setForm(emptyForm);
     setErrors({});
+    setFormError("");
     setShowModal(true);
   };
 
@@ -95,42 +97,47 @@ export default function AdminServices() {
       popular: service.popular ?? false,
     });
     setErrors({});
+    setFormError("");
     setShowModal(true);
   };
 
   const validate = (): boolean => {
     const e: Partial<Record<keyof ServiceForm, string>> = {};
-    if (!form.name.trim()) e.name = 'Nombre requerido';
-    if (!form.description.trim()) e.description = 'Descripción requerida';
-    if (form.duration < 5) e.duration = 'Duración mínima 5 min';
-    if (form.price < 1000) e.price = 'Precio mínimo $1.000';
+    if (!form.name.trim()) e.name = 'Escribe el nombre del servicio';
+    if (!Number.isFinite(form.duration) || form.duration < 5) e.duration = 'Duración mínima 5 min';
+    if (!Number.isFinite(form.price) || form.price < 1000) e.price = 'Precio mínimo $1.000';
     setErrors(e);
+    // El aviso sale también junto al botón, para que se vea aunque el campo quede arriba
+    setFormError(Object.keys(e).length ? `No se guardó: ${Object.values(e).join(' · ')}.` : '');
     return Object.keys(e).length === 0;
   };
 
   const handleSubmit = async () => {
     if (!validate()) return;
     setSaving(true);
+    // La descripción es opcional
+    const data = { ...form, name: form.name.trim(), description: form.description.trim() };
     try {
       if (editTarget) {
-        await updateService(editTarget.id, form);
+        await updateService(editTarget.id, data);
         setList((prev) =>
           prev.map((s) =>
             s.id === editTarget.id
-              ? { ...s, ...form }
+              ? { ...s, ...data }
               : s
           )
         );
       } else {
-        const newService = await createService({ ...form, active: true });
+        const newService = await createService({ ...data, active: true });
         setList((prev) => [...prev, { ...newService, active: true }]);
       }
       setShowModal(false);
       setPageError('');
+      setFormError('');
     } catch (err) {
       console.error('No se pudo guardar el servicio', err);
-      setShowModal(false);
-      setPageError('No se pudo guardar el servicio. Intenta de nuevo.');
+      // La ventana sigue abierta con lo escrito, para intentar de nuevo
+      setFormError('No se pudo guardar el servicio. Revisa tu conexión e intenta de nuevo.');
     } finally {
       setSaving(false);
     }
@@ -258,7 +265,7 @@ export default function AdminServices() {
             className="absolute inset-0 bg-black/70 backdrop-blur-sm"
             onClick={() => setShowModal(false)}
           />
-          <div className="relative w-full max-w-lg border border-white/10 rounded-2xl shadow-2xl overflow-hidden" style={{ background: '#1a1a1a' }}>
+          <div className="relative w-full max-w-lg border border-white/10 rounded-2xl shadow-2xl overflow-hidden bg-[#1a1a1a]">
             <div className="flex items-center justify-between px-6 py-5 border-b border-white/8">
               <div className="flex items-center gap-3">
                 <div className="w-8 h-8 rounded-xl bg-gold/15 border border-gold/20 flex items-center justify-center">
@@ -289,7 +296,7 @@ export default function AdminServices() {
               </div>
 
               <div>
-                <label className="text-zinc-400 text-xs mb-1.5 block">Descripción</label>
+                <label className="text-zinc-400 text-xs mb-1.5 block">Descripción <span className="text-zinc-600">(opcional)</span></label>
                 <textarea
                   className={`${inputClass('description')} resize-none`}
                   rows={3}
@@ -365,7 +372,8 @@ export default function AdminServices() {
               </div>
             </div>
 
-            <div className="px-6 py-4 border-t border-white/8 flex items-center justify-end gap-3">
+            <div className="px-6 py-4 border-t border-white/8 flex flex-wrap items-center justify-end gap-3">
+              {formError && <p className="w-full text-red-400 text-sm">{formError}</p>}
               <button
                 onClick={() => setShowModal(false)}
                 className="px-5 py-2 glass border border-white/10 rounded-xl text-zinc-400 hover:text-white text-sm transition-all"
@@ -391,7 +399,7 @@ export default function AdminServices() {
             className="absolute inset-0 bg-black/70 backdrop-blur-sm"
             onClick={() => setDeleteId(null)}
           />
-          <div className="relative w-full max-w-sm border border-white/10 rounded-2xl shadow-2xl p-6" style={{ background: '#1a1a1a' }}>
+          <div className="relative w-full max-w-sm border border-white/10 rounded-2xl shadow-2xl p-6 bg-[#1a1a1a]">
             <div className="w-10 h-10 rounded-xl bg-red-500/10 border border-red-500/20 flex items-center justify-center mx-auto mb-4">
               <Trash2 size={18} className="text-red-400" />
             </div>

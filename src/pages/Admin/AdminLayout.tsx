@@ -217,8 +217,8 @@ export default function AdminLayout({ activeTab, onTabChange, onLogout, children
               </button>
 
               {notifOpen && (
-                <div className="absolute right-0 top-10 w-80 border border-white/10 rounded-2xl shadow-2xl overflow-hidden z-50" style={{ background: '#1a1a1a' }}>
-                  <div className="flex items-center justify-between px-4 py-3 border-b border-white/8" style={{ background: '#1a1a1a' }}>
+                <div className="absolute right-0 top-10 w-80 max-w-[calc(100vw-2rem)] border border-white/10 rounded-2xl shadow-2xl overflow-hidden z-50 bg-[#1a1a1a]">
+                  <div className="flex items-center justify-between px-4 py-3 border-b border-white/8">
                     <div className="flex items-center gap-2">
                       <Bell size={14} className="text-gold" />
                       <span className="text-white text-sm font-semibold">Notificaciones</span>
@@ -249,7 +249,7 @@ export default function AdminLayout({ activeTab, onTabChange, onLogout, children
                     </button>
                   )}
 
-                  <div className="max-h-[360px] overflow-y-auto divide-y divide-white/5" style={{ background: '#1a1a1a' }}>
+                  <div className="max-h-[360px] overflow-y-auto divide-y divide-white/5">
                     {notifications.length === 0 ? (
                       <div className="py-10 text-center text-zinc-600 text-sm">
                         Sin reservas ni mensajes nuevos en las últimas 48 horas
@@ -290,7 +290,7 @@ export default function AdminLayout({ activeTab, onTabChange, onLogout, children
                   </div>
 
                   {notifications.length > 0 && (
-                    <div className="px-4 py-3 border-t border-white/8" style={{ background: '#1a1a1a' }}>
+                    <div className="px-4 py-3 border-t border-white/8">
                       <button
                         onClick={() => { onTabChange('bookings'); setNotifOpen(false); }}
                         className="w-full text-center text-xs text-zinc-500 hover:text-gold transition-colors"
