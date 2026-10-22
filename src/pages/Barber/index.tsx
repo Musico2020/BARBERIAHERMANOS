@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import {
   CalendarDays, Wallet, History, User, LogOut, Star, Check, X, CheckCheck, MessageCircle, Clock,
-  KeyRound, Loader2, CheckCircle2, AlertCircle, ChevronLeft, ChevronRight, Scissors, CalendarClock,
+  KeyRound, Loader2, CheckCircle2, AlertCircle, ChevronLeft, ChevronRight, Scissors, CalendarClock, UserPlus,
 } from 'lucide-react';
 import BarberShifts from './BarberShifts';
 import BarberLogin from './BarberLogin';
@@ -16,6 +16,7 @@ import BarberAvatar from '../../components/common/BarberAvatar';
 import ShiftedTag from '../../components/common/ShiftedTag';
 import { isShifted } from '../../lib/shifted';
 import ThemeToggle from '../../components/common/ThemeToggle';
+import NewClientModal from '../../components/admin/NewClientModal';
 import { Panel, KpiCard, StatusBadge, Initials, EmptyState } from '../../components/admin/ui';
 import { GoldBarChart } from '../../components/admin/charts';
 
@@ -92,7 +93,7 @@ function AppointmentCard({ b, onStatus, busy }: { b: Booking; onStatus: (id: str
   );
 }
 
-function AgendaTab({ appts, barber, onStatus, busyId }: { appts: Booking[]; barber: Barber; onStatus: (id: string, s: Booking['status']) => void; busyId: string | null }) {
+function AgendaTab({ appts, barber, onStatus, busyId, onNewClient }: { appts: Booking[]; barber: Barber; onStatus: (id: string, s: Booking['status']) => void; busyId: string | null; onNewClient: () => void }) {
   const today = todayKey();
   const days = Array.from({ length: 7 }, (_, i) => addDays(today, i));
   const [day, setDay] = useState(today);
@@ -105,6 +106,9 @@ function AgendaTab({ appts, barber, onStatus, busyId }: { appts: Booking[]; barb
 
   return (
     <div className="space-y-5">
+      <button type="button" onClick={onNewClient} className="btn-gold w-full sm:w-auto min-h-[50px] px-6 rounded-2xl text-base font-bold">
+        <UserPlus size={19} /> <span>Cliente nuevo</span>
+      </button>
       <div className="flex gap-2 overflow-x-auto pb-1 -mx-1 px-1" style={{ scrollbarWidth: 'none' }}>
         {days.map((d, i) => {
           const count = appts.filter((b) => b.date === d && isOpen(b)).length;
@@ -442,6 +446,7 @@ function BarberDashboard({ barber, pin, onLogout, onPinChanged, onWorkHoursChang
   const [loaded, setLoaded] = useState(false);
   const [busyId, setBusyId] = useState<string | null>(null);
   const [shiftNotice, setShiftNotice] = useState('');
+  const [showNewClient, setShowNewClient] = useState(false);
   const [error, setError] = useState('');
 
   const handlePortalError = (err: unknown, fallback: string) => {
@@ -536,7 +541,7 @@ function BarberDashboard({ barber, pin, onLogout, onPinChanged, onWorkHoursChang
           </div>
         ) : (
           <>
-            {tab === 'agenda' && <AgendaTab appts={appts} barber={barber} onStatus={updateStatus} busyId={busyId} />}
+            {tab === 'agenda' && <AgendaTab appts={appts} barber={barber} onStatus={updateStatus} busyId={busyId} onNewClient={() => { setShowNewClient(true); setShiftNotice(''); }} />}
             {tab === 'turnos' && <BarberShifts barber={barber} pin={pin} appts={appts} />}
             {tab === 'ganancias' && <EarningsTab appts={appts} barber={barber} />}
             {tab === 'historial' && <HistoryTab appts={appts} />}
@@ -544,6 +549,20 @@ function BarberDashboard({ barber, pin, onLogout, onPinChanged, onWorkHoursChang
           </>
         )}
       </main>
+
+      {showNewClient && (
+        <NewClientModal
+          barberSession={{ barber, pin }}
+          onClose={() => setShowNewClient(false)}
+          onSaved={(count, clientName, scheduled) => {
+            setShowNewClient(false);
+            setShiftNotice(scheduled
+              ? `Cita agendada para ${clientName}: ${formatDateLong(scheduled.date)} a las ${time12(scheduled.time)}.`
+              : `Registrado ${clientName}: ${count === 1 ? 'el servicio quedó completado' : `${count} servicios completados`} y ya cuenta en tus ganancias.`);
+            getBarberBookings(barber.id, pin).then(setAppts).catch((err) => handlePortalError(err, 'No se pudieron recargar tus citas.'));
+          }}
+        />
+      )}
 
       {/* Celular: barra inferior */}
       <nav className="lg:hidden fixed bottom-0 inset-x-0 z-30 glass border-t border-white/10 px-2 pt-2 pb-[max(0.5rem,env(safe-area-inset-bottom))] grid grid-cols-5" aria-label="Secciones">

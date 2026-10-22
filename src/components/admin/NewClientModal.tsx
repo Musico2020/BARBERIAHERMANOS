@@ -3,6 +3,7 @@ import { X, UserPlus, Loader2, Minus, Plus, Clock, Check, CalendarDays, Zap, Che
 import { getServices } from '../../services/services';
 import { getBarbers } from '../../services/barbers';
 import { createManualBookings, getBusySlots, type BusySlot } from '../../services/bookings';
+import { barberAddClient, type AddClientResult } from '../../services/barberPortal';
 import { businessConfig } from '../../config/business';
 import { generateSlots } from '../../lib/availability';
 import { formatCOP } from '../../data';
@@ -21,7 +22,17 @@ import type { Service, Barber } from '../../types';
 interface Props {
   onClose: () => void;
   onSaved: (count: number, clientName: string, scheduled: { date: string; time: string } | null) => void;
+  /** Desde el portal del barbero: queda siempre a su nombre, con el precio del servicio, y se guarda con su PIN */
+  barberSession?: { barber: Barber; pin: string };
 }
+
+const ADD_ERRORS: Partial<Record<AddClientResult, string>> = {
+  INVALID_NAME: 'Escribe el nombre del cliente.',
+  INVALID_PHONE: 'Revisa el celular: 10 dígitos o déjalo vacío.',
+  INVALID_DATE: 'Escoge un día de hoy en adelante.',
+  SLOT_TAKEN: 'Esa hora ya se ocupó. Escoge otra.',
+  INVALID_LINES: 'Revisa los servicios elegidos.',
+};
 
 type When = 'now' | 'later';
 
@@ -40,7 +51,7 @@ function SectionTitle({ number, children, hint }: { number: number; children: Re
   );
 }
 
-export default function NewClientModal({ onClose, onSaved }: Props) {
+export default function NewClientModal({ onClose, onSaved, barberSession }: Props) {
   const [services, setServices] = useState<Service[]>([]);
   const [team, setTeam] = useState<Barber[]>([]);
   const [loading, setLoading] = useState(true);
@@ -60,7 +71,12 @@ export default function NewClientModal({ onClose, onSaved }: Props) {
 
   useEffect(() => {
     Promise.all([getServices(), getBarbers()])
-      .then(([s, b]) => { setServices([...s].sort((x, y) => Number(!!y.popular) - Number(!!x.popular))); setTeam(b); })
+      .then(([s, b]) => {
+        // El barbero solo ve los servicios de su rol
+        const mine = barberSession ? s.filter((x) => roleFor(x) === barberSession.barber.role) : s;
+        setServices([...mine].sort((x, y) => Number(!!y.popular) - Number(!!x.popular)));
+        setTeam(barberSession ? [barberSession.barber] : b);
+      })
       .catch((err) => {
         console.error('No se pudieron cargar servicios y equipo', err);
         setError('No se pudieron cargar los servicios. Cierra y vuelve a intentar.');
@@ -80,6 +96,7 @@ export default function NewClientModal({ onClose, onSaved }: Props) {
   const barber = staff.find((b) => b.id === barberId) ?? (staff.length === 1 ? staff[0] : undefined);
 
   const unitPrice = (s: Service) => {
+    if (barberSession) return s.price;
     const raw = prices[s.id];
     return raw === undefined ? s.price : Number(raw.replace(/\D/g, '')) || 0;
   };
@@ -155,15 +172,29 @@ export default function NewClientModal({ onClose, onSaved }: Props) {
           return line;
         }),
       );
-      await createManualBookings({
-        clientName: name,
-        clientPhone: phone,
-        barberId: barber.id,
-        barberName: barber.shortName,
-        date: scheduled ? scheduled.date : todayKey(),
-        status: scheduled ? 'confirmed' : 'completed',
-        lines,
-      });
+      if (barberSession) {
+        const result = await barberAddClient(barberSession.barber.id, barberSession.pin, {
+          clientName: name,
+          clientPhone: phone,
+          date: scheduled ? scheduled.date : null,
+          schedule: !!scheduled,
+          lines: lines.map(({ serviceId, time }) => ({ serviceId, time })),
+        });
+        if (result !== 'OK') {
+          setError(ADD_ERRORS[result] ?? (result === 'PIN_LOCKED' ? 'Demasiados intentos. Espera 15 minutos.' : 'Tu PIN cambió. Sal y vuelve a entrar.'));
+          return;
+        }
+      } else {
+        await createManualBookings({
+          clientName: name,
+          clientPhone: phone,
+          barberId: barber.id,
+          barberName: barber.shortName,
+          date: scheduled ? scheduled.date : todayKey(),
+          status: scheduled ? 'confirmed' : 'completed',
+          lines,
+        });
+      }
       onSaved(lines.length, name.trim(), scheduled);
     } catch (err) {
       console.error('No se pudo registrar el cliente', err);
@@ -251,7 +282,7 @@ export default function NewClientModal({ onClose, onSaved }: Props) {
           {hasItems && (
             <>
               <section>
-                <SectionTitle number={2} hint="Cambia el valor si se cobró distinto">Lo que se cobra</SectionTitle>
+                <SectionTitle number={2} hint={barberSession ? "Precio del servicio" : "Cambia el valor si se cobró distinto"}>Lo que se cobra</SectionTitle>
                 <div className="rounded-2xl border border-gold/25 bg-gold/[0.05] p-4">
                   <ul className="space-y-2">
                     {items.map(({ service, qty }) => (
@@ -263,9 +294,10 @@ export default function NewClientModal({ onClose, onSaved }: Props) {
                           <input
                             inputMode="numeric"
                             aria-label={`Valor cobrado por ${service.name}`}
-                            value={prices[service.id] ?? String(service.price)}
+                            value={barberSession ? String(service.price) : (prices[service.id] ?? String(service.price))}
+                            readOnly={!!barberSession}
                             onChange={(e) => setPrices({ ...prices, [service.id]: e.target.value.replace(/\D/g, '') })}
-                            className="w-full pl-6 pr-2 py-1.5 rounded-lg bg-black/30 border border-white/10 text-right font-mono text-sm text-white focus:outline-none focus:border-gold/60"
+                            className="w-full pl-6 pr-2 py-1.5 rounded-lg bg-black/30 border border-white/10 text-right font-mono text-sm text-white focus:outline-none focus:border-gold/60 read-only:opacity-70"
                           />
                         </span>
                         <button type="button" onClick={() => change(service, -qty)} aria-label={`Quitar ${service.name}`} className="w-7 h-7 rounded-full text-zinc-500 hover:text-red-400 hover:bg-red-500/10 flex items-center justify-center shrink-0">
