@@ -1,4 +1,4 @@
-import { CalendarDays, CalendarClock, Wallet, History, User, LogOut, UserPlus, Star, CalendarCheck, Clock, CheckCircle2 } from 'lucide-react';
+import { CalendarDays, CalendarClock, Wallet, History, User, LogOut, UserPlus, Star, CalendarCheck, Clock, CheckCircle2, Images } from 'lucide-react';
 import BarberAvatar from '../../components/common/BarberAvatar';
 import { formatCOP } from '../../data';
 import { todayKey, nowMinutes, timeToMinutes, time12 } from '../../lib/dates';
@@ -8,7 +8,7 @@ import { barberEarnings } from '../../lib/earnings';
 // Inicio del portal del barbero en el teléfono: su perfil, cómo va su día y botones grandes por
 // secciones (igual que el inicio del panel del administrador).
 
-export type BarberHomeTab = 'agenda' | 'turnos' | 'ganancias' | 'historial' | 'perfil';
+export type BarberHomeTab = 'agenda' | 'turnos' | 'trabajos' | 'ganancias' | 'historial' | 'perfil';
 
 interface Props {
   barber: Barber;
@@ -32,6 +32,7 @@ export default function BarberHome({ barber, appts, greeting, onNavigate, onNewC
   const tiles: { label: string; icon: React.ElementType; onClick: () => void }[] = [
     { label: 'Agenda', icon: CalendarDays, onClick: () => onNavigate('agenda') },
     { label: 'Turnos', icon: CalendarClock, onClick: () => onNavigate('turnos') },
+    { label: 'Mis trabajos', icon: Images, onClick: () => onNavigate('trabajos') },
     { label: 'Ganancias', icon: Wallet, onClick: () => onNavigate('ganancias') },
     { label: 'Historial', icon: History, onClick: () => onNavigate('historial') },
     { label: 'Mi perfil', icon: User, onClick: () => onNavigate('perfil') },

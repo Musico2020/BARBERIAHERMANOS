@@ -12,11 +12,11 @@ export const GALLERY_CATEGORIES = ['Cortes', 'Degradado', 'Barba', 'Cejas', 'Ni�
 export async function getGallery(): Promise<GalleryItem[]> {
   const { data, error } = await supabase
     .from('gallery')
-    .select('id, url, category, alt')
+    .select('id, url, category, alt, barber_id')
     .order('sort_order', { ascending: true })
     .order('created_at', { ascending: false });
   if (error) throw error;
-  return data as GalleryItem[];
+  return (data as (Omit<GalleryItem, 'barberId'> & { barber_id: string | null })[]).map(({ barber_id, ...rest }) => ({ ...rest, barberId: barber_id }));
 }
 
 /**
@@ -67,7 +67,7 @@ function contentBox(source: ImageBitmap): { x: number; y: number; w: number; h: 
 }
 
 /** Quita franjas negras y reduce la foto a máximo 1600 px por lado (JPEG) para que cargue rápido. */
-async function resizeImage(file: File): Promise<Blob> {
+export async function resizeImage(file: File): Promise<Blob> {
   const bitmap = await createImageBitmap(await toDrawableImage(file));
   const box = contentBox(bitmap);
   const scale = Math.min(1, MAX_SIDE / Math.max(box.w, box.h));
@@ -101,8 +101,9 @@ export async function uploadGalleryPhoto(file: File, category: string, alt: stri
   return item;
 }
 
-export async function updateGalleryItem(id: string, updates: Partial<Pick<GalleryItem, 'category' | 'alt'>>): Promise<void> {
-  const { error } = await supabase.from('gallery').update(updates).eq('id', id);
+export async function updateGalleryItem(id: string, updates: Partial<Pick<GalleryItem, 'category' | 'alt' | 'barberId'>>): Promise<void> {
+  const { barberId, ...rest } = updates;
+  const { error } = await supabase.from('gallery').update(barberId === undefined ? rest : { ...rest, barber_id: barberId }).eq('id', id);
   if (error) throw error;
 }
 

@@ -4,12 +4,15 @@ import { getGallery, uploadGalleryPhoto, updateGalleryItem, deleteGalleryItem, G
 import { Panel, EmptyState } from '../../components/admin/ui';
 import Lightbox from '../../components/common/Lightbox';
 import { IMAGE_ACCEPT } from '../../lib/imageFile';
-import type { GalleryItem } from '../../types';
+import type { Barber, GalleryItem } from '../../types';
+import { getBarbers } from '../../services/barbers';
 
 // Fotos de la galería pública (/galeria): subir varias a la vez, cambiar su categoría y borrarlas.
 
 export default function AdminGallery() {
   const [items, setItems] = useState<GalleryItem[]>([]);
+  const [barbers, setBarbers] = useState<Barber[]>([]);
+  useEffect(() => { getBarbers().then(setBarbers).catch((err) => console.error('No se pudieron cargar los barberos', err)); }, []);
   const [loading, setLoading] = useState(true);
   const [category, setCategory] = useState(GALLERY_CATEGORIES[0]);
   const [uploading, setUploading] = useState<{ done: number; total: number } | null>(null);
@@ -50,6 +53,18 @@ export default function AdminGallery() {
     setStatus(failed
       ? { ok: false, text: `Se subieron ${ok} de ${list.length}. Usa fotos JPG, PNG, WEBP o HEIC (iPhone).` }
       : { ok: true, text: ok === 1 ? 'Foto subida. Ya se ve en la galería.' : `${ok} fotos subidas. Ya se ven en la galería.` });
+  };
+
+  const changeBarber = async (item: GalleryItem, value: string) => {
+    const barberId = value || null;
+    setItems((prev) => prev.map((i) => (i.id === item.id ? { ...i, barberId } : i)));
+    try {
+      await updateGalleryItem(item.id, { barberId });
+    } catch (err) {
+      console.error('No se pudo cambiar el barbero', err);
+      setItems((prev) => prev.map((i) => (i.id === item.id ? item : i)));
+      setStatus({ ok: false, text: 'No se pudo cambiar el barbero.' });
+    }
   };
 
   const changeCategory = async (item: GalleryItem, value: string) => {
@@ -137,6 +152,15 @@ export default function AdminGallery() {
                     <Expand size={14} />
                   </span>
                 </button>
+                <select
+                  value={item.barberId ?? ''}
+                  onChange={(e) => changeBarber(item, e.target.value)}
+                  aria-label="Barbero que hizo el trabajo"
+                  className="mx-2 mt-2 bg-white/[0.04] border border-white/10 rounded-lg px-2 py-1.5 text-zinc-200 text-xs focus:outline-none focus:border-gold/50"
+                >
+                  <option value="" className="bg-[#141414]">Sin barbero</option>
+                  {barbers.map((b) => <option key={b.id} value={b.id} className="bg-[#141414]">✂ {b.shortName}</option>)}
+                </select>
                 <div className="flex items-center gap-1.5 p-2">
                   <select
                     value={item.category}

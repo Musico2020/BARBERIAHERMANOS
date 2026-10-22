@@ -5,20 +5,22 @@ import ClubBackground from './ClubBackground';
 import WhatsAppChat from './WhatsAppChat';
 import SocialFloat from './SocialFloat';
 import BookingModal from '../booking/BookingModal';
-import type { Service } from '../../types';
+import type { Barber, Service } from '../../types';
 
 interface Props {
   /** Recibe la función para abrir la reserva (opcionalmente con un servicio ya elegido). */
-  children: (openBooking: (service?: Service) => void) => ReactNode;
+  children: (openBooking: (service?: Service, barber?: Barber) => void) => ReactNode;
 }
 
 /** Estructura común de las páginas públicas: menú, contenido, pie de página y ventana de reserva. */
 export default function PublicLayout({ children }: Props) {
   const [bookingOpen, setBookingOpen] = useState(false);
   const [preselectedService, setPreselectedService] = useState<Service | null>(null);
+  const [preselectedBarber, setPreselectedBarber] = useState<Barber | null>(null);
 
-  const openBooking = (service?: Service) => {
+  const openBooking = (service?: Service, barber?: Barber) => {
     setPreselectedService(service || null);
+    setPreselectedBarber(barber || null);
     setBookingOpen(true);
   };
 
@@ -42,6 +44,7 @@ export default function PublicLayout({ children }: Props) {
         isOpen={bookingOpen}
         onClose={() => setBookingOpen(false)}
         preselectedService={preselectedService}
+        preselectedBarber={preselectedBarber}
       />
     </div>
   );

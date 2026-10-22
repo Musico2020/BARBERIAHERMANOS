@@ -1,5 +1,7 @@
 import { supabase } from '../lib/supabase';
-import type { WorkHours } from '../types';
+import type { WorkHours, GalleryItem } from '../types';
+import { resizeImage } from './gallery';
+import { isSupportedImage } from '../lib/imageFile';
 import { rowToBooking } from './bookings';
 import type { Booking } from '../types';
 
@@ -64,6 +66,35 @@ export type DayClosuresResult = BarberAuthResult | 'INVALID_DATE' | 'DAY_CLOSED'
  * El barbero cierra sus propias horas de un día (reemplaza las que tenía cerradas ese día).
  * No toca lo cerrado para todo el salón ni a los demás barberos. `ranges` vacío = abre todas sus horas.
  */
+/** El barbero publica una foto de su trabajo en la Galería (la sube el servidor, que valida el PIN). */
+export async function uploadBarberWork(barberId: string, pin: string, file: File, category: string): Promise<GalleryItem> {
+  if (!isSupportedImage(file)) throw new Error('INVALID_TYPE');
+  const blob = await resizeImage(file);
+  const image = await new Promise<string>((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(String(reader.result).split(',')[1] ?? '');
+    reader.onerror = () => reject(reader.error);
+    reader.readAsDataURL(blob);
+  });
+  const response = await fetch('/api/barber-gallery', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ action: 'upload', barberId, pin, image, category }),
+  });
+  if (!response.ok) throw new Error((await response.json().catch(() => ({}))).error ?? 'UPLOAD_FAILED');
+  return (await response.json()) as GalleryItem;
+}
+
+/** El barbero quita de la Galería una foto suya. */
+export async function deleteBarberWork(barberId: string, pin: string, id: string): Promise<void> {
+  const response = await fetch('/api/barber-gallery', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ action: 'delete', barberId, pin, id }),
+  });
+  if (!response.ok) throw new Error('DELETE_FAILED');
+}
+
 export type EditBookingResult = 'OK' | 'INVALID_PIN' | 'PIN_LOCKED' | 'BOOKING_NOT_FOUND' | 'INVALID_NAME' | 'INVALID_PHONE' | 'INVALID_SERVICE' | 'INVALID_DATE' | 'INVALID_TIME' | 'SLOT_TAKEN';
 
 /** El barbero cambia una cita suya (cliente, servicio, día u hora). */

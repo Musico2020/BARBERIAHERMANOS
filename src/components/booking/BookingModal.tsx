@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { X } from 'lucide-react';
-import type { Service } from '../../types';
+import type { Barber, Service } from '../../types';
 import { createBooking, BookingError, type BookingErrorCode } from '../../services/bookings';
 import { businessConfig } from '../../config/business';
 import { loadClientContact, saveClientContact, type ClientContact } from '../../lib/clientContact';
@@ -16,6 +16,8 @@ interface BookingModalProps {
   isOpen: boolean;
   onClose: () => void;
   preselectedService?: Service | null;
+  /** Barbero ya escogido (por ejemplo, desde su galería de trabajos) */
+  preselectedBarber?: Barber | null;
 }
 
 type Step = 'cita' | 'datos';
@@ -50,16 +52,16 @@ function notifyWhatsApp(payload: { bookingId: string }) {
     .catch((err) => console.warn('No se pudo enviar el WhatsApp de la reserva', err));
 }
 
-const emptyAppointment = (service: Service | null = null): Appointment => ({
+const emptyAppointment = (service: Service | null = null, barber: Barber | null = null): Appointment => ({
   items: service ? [{ service, qty: 1 }] : [],
-  barber: null,
+  barber,
   date: '',
   time: '',
 });
 
-export default function BookingModal({ isOpen, onClose, preselectedService }: BookingModalProps) {
+export default function BookingModal({ isOpen, onClose, preselectedService, preselectedBarber }: BookingModalProps) {
   const [step, setStep] = useState<Step>('cita');
-  const [appointment, setAppointment] = useState<Appointment>(emptyAppointment(preselectedService ?? null));
+  const [appointment, setAppointment] = useState<Appointment>(emptyAppointment(preselectedService ?? null, preselectedBarber ?? null));
   const [contact, setContact] = useState<ClientContact>(loadClientContact);
   const [ticket, setTicket] = useState<TicketData | null>(null);
   // Anticipo pendiente de la reserva recién hecha: se muestra el QR antes del ticket
@@ -70,13 +72,13 @@ export default function BookingModal({ isOpen, onClose, preselectedService }: Bo
   useEffect(() => {
     if (isOpen) {
       setStep('cita');
-      setAppointment(emptyAppointment(preselectedService ?? null));
+      setAppointment(emptyAppointment(preselectedService ?? null, preselectedBarber ?? null));
       setContact(loadClientContact());
       setTicket(null);
       setDeposit(null);
       setError('');
     }
-  }, [isOpen, preselectedService]);
+  }, [isOpen, preselectedService, preselectedBarber]);
 
   useEffect(() => {
     if (!isOpen) return;

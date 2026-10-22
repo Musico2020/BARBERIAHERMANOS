@@ -12,7 +12,7 @@ export default function GalleryPage() {
     <PublicLayout>
       {(openBooking) => (
         <div className="pt-20">
-          <Gallery />
+          <Gallery onBookWith={(barber) => openBooking(undefined, barber)} />
           <BookingCTA onBooking={() => openBooking()} />
         </div>
       )}

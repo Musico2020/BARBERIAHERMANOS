@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import {
   CalendarDays, Wallet, History, User, LogOut, Star, Check, X, CheckCheck, MessageCircle, Clock,
-  KeyRound, Loader2, CheckCircle2, AlertCircle, ChevronLeft, ChevronRight, Scissors, CalendarClock, UserPlus, ArrowLeft, Pencil, Ban, Trash2,
+  KeyRound, Loader2, CheckCircle2, AlertCircle, ChevronLeft, ChevronRight, Scissors, CalendarClock, UserPlus, ArrowLeft, Pencil, Ban, Trash2, Images,
 } from 'lucide-react';
 import BarberShifts from './BarberShifts';
 import BarberLogin from './BarberLogin';
@@ -19,6 +19,7 @@ import { isShifted } from '../../lib/shifted';
 import ThemeToggle from '../../components/common/ThemeToggle';
 import NewClientModal from '../../components/admin/NewClientModal';
 import BarberHome from './BarberHome';
+import BarberWorks from './BarberWorks';
 import { barberEarnings, barberShare } from '../../lib/earnings';
 import { Timeline } from '../../components/admin/MobileAgenda';
 import { getAllServices } from '../../services/services';
@@ -28,11 +29,12 @@ import { GoldBarChart } from '../../components/admin/charts';
 // Portal del barbero: su agenda, lo que gana, su historial y su perfil.
 // Cada consulta al servidor va con el PIN, que se valida allá.
 
-type BarberTab = 'inicio' | 'agenda' | 'turnos' | 'ganancias' | 'historial' | 'perfil';
+type BarberTab = 'inicio' | 'agenda' | 'turnos' | 'trabajos' | 'ganancias' | 'historial' | 'perfil';
 
 const TABS: { id: BarberTab; label: string; icon: React.ElementType }[] = [
   { id: 'agenda', label: 'Agenda', icon: CalendarDays },
   { id: 'turnos', label: 'Turnos', icon: CalendarClock },
+  { id: 'trabajos', label: 'Mis trabajos', icon: Images },
   { id: 'ganancias', label: 'Ganancias', icon: Wallet },
   { id: 'historial', label: 'Historial', icon: History },
   { id: 'perfil', label: 'Mi perfil', icon: User },
@@ -657,6 +659,7 @@ function BarberDashboard({ barber, pin, onLogout, onPinChanged, onWorkHoursChang
             )}
             {tab === 'agenda' && <AgendaTab appts={appts} barber={barber} onStatus={updateStatus} busyId={busyId} onNewClient={() => { setShowNewClient(true); setShiftNotice(''); }} onEdit={setEditing} onDelete={removeBooking} />}
             {tab === 'turnos' && <BarberShifts barber={barber} pin={pin} appts={appts} />}
+            {tab === 'trabajos' && <BarberWorks barber={barber} pin={pin} />}
             {tab === 'ganancias' && <EarningsTab appts={appts} barber={barber} />}
             {tab === 'historial' && <HistoryTab appts={appts} />}
             {tab === 'perfil' && <ProfileTab barber={barber} appts={appts} pin={pin} onPinChanged={onPinChanged} onWorkHoursChanged={onWorkHoursChanged} />}

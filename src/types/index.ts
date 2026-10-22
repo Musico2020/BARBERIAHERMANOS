@@ -109,6 +109,8 @@ export interface GalleryItem {
   url: string;
   category: string;
   alt: string;
+  /** Barbero que hizo el trabajo (lo sube desde su portal o lo asigna el administrador) */
+  barberId?: string | null;
 }
 
 export interface BusinessHours {

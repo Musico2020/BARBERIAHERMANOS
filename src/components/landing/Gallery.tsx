@@ -1,27 +1,42 @@
 import { useState, useEffect } from 'react';
-import { Camera, Expand } from 'lucide-react';
+import { Camera, Expand, Scissors, Users } from 'lucide-react';
 import { getGallery } from '../../services/gallery';
+import { getBarbers } from '../../services/barbers';
 import Lightbox from '../common/Lightbox';
-import type { GalleryItem } from '../../types';
+import BarberAvatar from '../common/BarberAvatar';
+import type { Barber, GalleryItem } from '../../types';
 
-// Galería de trabajos. Las fotos se suben desde Panel → Galería.
-// Mosaico que se adapta: 2 columnas en celular, 3 en tableta y 4 en computador.
+// Galería de trabajos. Las fotos se suben desde Panel → Galería y cada barbero sube las suyas desde su
+// portal («Mis trabajos»). Se puede ver por barbero y reservar con él. Mosaico de 2 columnas en celular,
+// 3 en tableta y 4 en computador.
 
-export default function Gallery() {
+interface Props {
+  /** Abre la reserva con ese barbero ya escogido */
+  onBookWith?: (barber: Barber) => void;
+}
+
+export default function Gallery({ onBookWith }: Props) {
   const [items, setItems] = useState<GalleryItem[]>([]);
+  const [barbers, setBarbers] = useState<Barber[]>([]);
   const [loading, setLoading] = useState(true);
   const [category, setCategory] = useState('Todas');
+  const [barberId, setBarberId] = useState('');
   const [open, setOpen] = useState<number | null>(null);
 
   useEffect(() => {
-    getGallery()
-      .then(setItems)
+    Promise.all([getGallery(), getBarbers()])
+      .then(([g, b]) => { setItems(g); setBarbers(b); })
       .catch((err) => console.error('No se pudo cargar la galería', err))
       .finally(() => setLoading(false));
   }, []);
 
-  const categories = ['Todas', ...new Set(items.map((i) => i.category))];
-  const shown = category === 'Todas' ? items : items.filter((i) => i.category === category);
+  // Solo se ofrecen los barberos que tienen fotos
+  const withPhotos = barbers.filter((b) => items.some((i) => i.barberId === b.id));
+  const byBarber = barberId ? items.filter((i) => i.barberId === barberId) : items;
+  const categories = ['Todas', ...new Set(byBarber.map((i) => i.category))];
+  const shown = category === 'Todas' ? byBarber : byBarber.filter((i) => i.category === category);
+  const selected = barbers.find((b) => b.id === barberId);
+  const nameOf = (id?: string | null) => barbers.find((b) => b.id === id)?.shortName;
 
   return (
     <section id="galeria" className="py-20 sm:py-24">
@@ -32,9 +47,42 @@ export default function Gallery() {
             Nuestro <span className="gold-text">Trabajo</span>
           </h2>
           <p className="text-zinc-400 text-lg max-w-xl mx-auto">
-            Cada corte es una obra de arte. Aquí algunos de nuestros mejores trabajos.
+            Mira los trabajos de cada barbero, escoge el que más te guste y reserva con él.
           </p>
         </div>
+
+        {/* Barberos */}
+        {withPhotos.length > 0 && (
+          <div className="flex gap-4 overflow-x-auto sm:justify-center pb-3 mb-6 -mx-4 px-4" style={{ scrollbarWidth: 'none' }}>
+            {[{ id: '', name: 'Todos' }, ...withPhotos.map((b) => ({ id: b.id, name: b.shortName }))].map((o) => {
+              const active = barberId === o.id;
+              const b = barbers.find((x) => x.id === o.id);
+              const count = o.id ? items.filter((i) => i.barberId === o.id).length : items.length;
+              return (
+                <button key={o.id || 'todos'} type="button" onClick={() => { setBarberId(o.id); setCategory('Todas'); }} aria-pressed={active} className="flex flex-col items-center gap-1.5 shrink-0 w-[84px]">
+                  <span className={`w-[72px] h-[72px] rounded-full p-[3px] transition-colors ${active ? 'bg-gold' : 'bg-white/10 hover:bg-gold/50'}`}>
+                    {b ? (
+                      <BarberAvatar barber={b} className="w-full h-full rounded-full text-lg" />
+                    ) : (
+                      <span className="w-full h-full rounded-full bg-[#141414] flex items-center justify-center text-gold"><Users size={26} /></span>
+                    )}
+                  </span>
+                  <span className={`text-sm truncate max-w-full ${active ? 'text-gold font-semibold' : 'text-zinc-300'}`}>{o.name}</span>
+                  <span className="text-[11px] text-zinc-500 -mt-1">{count} {count === 1 ? 'foto' : 'fotos'}</span>
+                </button>
+              );
+            })}
+          </div>
+        )}
+
+        {selected && onBookWith && (
+          <div className="flex flex-col sm:flex-row items-center justify-center gap-3 mb-8 text-center">
+            <p className="text-zinc-300">Trabajos de <span className="text-gold font-semibold">{selected.name}</span></p>
+            <button type="button" onClick={() => onBookWith(selected)} className="btn-gold px-6 min-h-[46px] rounded-full font-bold">
+              <Scissors size={17} /> <span>Reservar con {selected.shortName}</span>
+            </button>
+          </div>
+        )}
 
         {categories.length > 2 && (
           <div className="flex gap-2 overflow-x-auto sm:flex-wrap sm:justify-center pb-2 mb-8 -mx-4 px-4 sm:mx-0" style={{ scrollbarWidth: 'none' }}>
@@ -82,8 +130,11 @@ export default function Gallery() {
                   className="w-full h-auto block transition-transform duration-700 group-hover:scale-105"
                 />
                 <span className="keep-dark absolute inset-0 bg-gradient-to-t from-black/70 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
-                <span className="keep-dark absolute bottom-2.5 left-2.5 text-[11px] font-semibold text-gold bg-black/75 backdrop-blur-sm px-2.5 py-1 rounded-full">
-                  {item.category}
+                <span className="keep-dark absolute bottom-2.5 left-2.5 right-2.5 flex flex-wrap gap-1">
+                  <span className="text-[11px] font-semibold text-gold bg-black/75 backdrop-blur-sm px-2.5 py-1 rounded-full">{item.category}</span>
+                  {nameOf(item.barberId) && !barberId && (
+                    <span className="text-[11px] font-semibold text-white bg-black/75 backdrop-blur-sm px-2.5 py-1 rounded-full">✂ {nameOf(item.barberId)}</span>
+                  )}
                 </span>
                 <span className="absolute top-2.5 right-2.5 w-8 h-8 rounded-full bg-black/60 flex items-center justify-center text-white opacity-0 group-hover:opacity-100 transition-opacity">
                   <Expand size={14} />
@@ -96,7 +147,7 @@ export default function Gallery() {
 
       {open !== null && (
         <Lightbox
-          items={shown.map((i) => ({ url: i.url, alt: i.alt, caption: i.category }))}
+          items={shown.map((i) => ({ url: i.url, alt: i.alt, caption: nameOf(i.barberId) ? `${i.category} · por ${nameOf(i.barberId)}` : i.category }))}
           index={open}
           onClose={() => setOpen(null)}
           onNavigate={setOpen}
