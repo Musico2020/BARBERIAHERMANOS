@@ -408,7 +408,7 @@ function WorkHoursPanel({ barber, pin, onSaved }: { barber: Barber; pin: string;
   );
 }
 
-function ProfileTab({ barber, appts, pin, onPinChanged, onWorkHoursChanged }: { barber: Barber; appts: Booking[]; pin: string; onPinChanged: (pin: string) => void; onWorkHoursChanged: (hours: WorkHours) => void }) {
+function ProfileTab({ barber, appts, pin, onPinChanged, onWorkHoursChanged, onNavigate }: { barber: Barber; appts: Booking[]; pin: string; onPinChanged: (pin: string) => void; onWorkHoursChanged: (hours: WorkHours) => void; onNavigate?: (tab: BarberTab) => void }) {
   const month = todayKey().slice(0, 7);
   const doneMonth = appts.filter((b) => b.status === 'completed' && b.date.startsWith(month));
   const revenue = doneMonth.reduce((s, b) => s + b.price, 0);
@@ -474,6 +474,16 @@ function ProfileTab({ barber, appts, pin, onPinChanged, onWorkHoursChanged }: { 
               <span key={s} className="text-xs px-3 py-1.5 rounded-full border border-gold/25 bg-gold/10 text-gold">{s}</span>
             ))}
           </div>
+          {onNavigate && (
+            <button
+              type="button"
+              onClick={() => onNavigate('trabajos')}
+              className="w-full mt-5 btn-outline-gold py-2.5 rounded-2xl text-xs font-semibold flex items-center justify-center gap-2 hover:bg-gold/10 transition-colors"
+            >
+              <Images size={15} />
+              <span>Ver y subir mis trabajos a la Galería</span>
+            </button>
+          )}
         </div>
         <div className="grid grid-cols-2 gap-3">
           <KpiCard label="Servicios" value={doneMonth.length} sub="este mes" icon={Scissors} />
@@ -662,7 +672,7 @@ function BarberDashboard({ barber, pin, onLogout, onPinChanged, onWorkHoursChang
             {tab === 'trabajos' && <BarberWorks barber={barber} pin={pin} />}
             {tab === 'ganancias' && <EarningsTab appts={appts} barber={barber} />}
             {tab === 'historial' && <HistoryTab appts={appts} />}
-            {tab === 'perfil' && <ProfileTab barber={barber} appts={appts} pin={pin} onPinChanged={onPinChanged} onWorkHoursChanged={onWorkHoursChanged} />}
+            {tab === 'perfil' && <ProfileTab barber={barber} appts={appts} pin={pin} onPinChanged={onPinChanged} onWorkHoursChanged={onWorkHoursChanged} onNavigate={setTab} />}
           </>
         )}
       </main>

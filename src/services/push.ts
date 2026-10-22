@@ -52,7 +52,7 @@ export async function enablePush(): Promise<PushSubscription> {
   if (!response.ok) throw new Error('NOT_CONFIGURED');
   const { publicKey } = (await response.json()) as { publicKey: string };
   const subscription = (await reg.pushManager.getSubscription())
-    ?? (await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: base64ToBytes(publicKey) }));
+    ?? (await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: base64ToBytes(publicKey) as unknown as BufferSource }));
   const json = subscription.toJSON();
   const { error } = await supabase.from('push_subscriptions').upsert({
     endpoint: subscription.endpoint,

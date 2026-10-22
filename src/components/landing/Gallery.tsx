@@ -20,7 +20,12 @@ export default function Gallery({ onBookWith }: Props) {
   const [barbers, setBarbers] = useState<Barber[]>([]);
   const [loading, setLoading] = useState(true);
   const [category, setCategory] = useState('Todas');
-  const [barberId, setBarberId] = useState('');
+  const [barberId, setBarberId] = useState(() => {
+    if (typeof window !== 'undefined') {
+      return new URLSearchParams(window.location.search).get('barbero') || '';
+    }
+    return '';
+  });
   const [open, setOpen] = useState<number | null>(null);
 
   useEffect(() => {
@@ -30,8 +35,23 @@ export default function Gallery({ onBookWith }: Props) {
       .finally(() => setLoading(false));
   }, []);
 
-  // Solo se ofrecen los barberos que tienen fotos
+  const handleSelectBarber = (id: string) => {
+    setBarberId(id);
+    setCategory('Todas');
+    if (typeof window !== 'undefined') {
+      const url = new URL(window.location.href);
+      if (id) {
+        url.searchParams.set('barbero', id);
+      } else {
+        url.searchParams.delete('barbero');
+      }
+      window.history.replaceState(null, '', url.pathname + url.search);
+    }
+  };
+
+  // Si hay barberos con fotos, mostramos los que tienen fotos; si aún no hay fotos asignadas, mostramos los activos del equipo
   const withPhotos = barbers.filter((b) => items.some((i) => i.barberId === b.id));
+  const barbersToShow = withPhotos.length > 0 ? withPhotos : barbers.filter((b) => b.available);
   const byBarber = barberId ? items.filter((i) => i.barberId === barberId) : items;
   const categories = ['Todas', ...new Set(byBarber.map((i) => i.category))];
   const shown = category === 'Todas' ? byBarber : byBarber.filter((i) => i.category === category);
@@ -52,14 +72,14 @@ export default function Gallery({ onBookWith }: Props) {
         </div>
 
         {/* Barberos */}
-        {withPhotos.length > 0 && (
+        {barbersToShow.length > 0 && (
           <div className="flex gap-4 overflow-x-auto sm:justify-center pb-3 mb-6 -mx-4 px-4" style={{ scrollbarWidth: 'none' }}>
-            {[{ id: '', name: 'Todos' }, ...withPhotos.map((b) => ({ id: b.id, name: b.shortName }))].map((o) => {
+            {[{ id: '', name: 'Todos' }, ...barbersToShow.map((b) => ({ id: b.id, name: b.shortName }))].map((o) => {
               const active = barberId === o.id;
               const b = barbers.find((x) => x.id === o.id);
               const count = o.id ? items.filter((i) => i.barberId === o.id).length : items.length;
               return (
-                <button key={o.id || 'todos'} type="button" onClick={() => { setBarberId(o.id); setCategory('Todas'); }} aria-pressed={active} className="flex flex-col items-center gap-1.5 shrink-0 w-[84px]">
+                <button key={o.id || 'todos'} type="button" onClick={() => handleSelectBarber(o.id)} aria-pressed={active} className="flex flex-col items-center gap-1.5 shrink-0 w-[84px]">
                   <span className={`w-[72px] h-[72px] rounded-full p-[3px] transition-colors ${active ? 'bg-gold' : 'bg-white/10 hover:bg-gold/50'}`}>
                     {b ? (
                       <BarberAvatar barber={b} className="w-full h-full rounded-full text-lg" />
@@ -76,9 +96,9 @@ export default function Gallery({ onBookWith }: Props) {
         )}
 
         {selected && onBookWith && (
-          <div className="flex flex-col sm:flex-row items-center justify-center gap-3 mb-8 text-center">
+          <div className="flex flex-col sm:flex-row items-center justify-center gap-3 mb-8 text-center animate-fade-in">
             <p className="text-zinc-300">Trabajos de <span className="text-gold font-semibold">{selected.name}</span></p>
-            <button type="button" onClick={() => onBookWith(selected)} className="btn-gold px-6 min-h-[46px] rounded-full font-bold">
+            <button type="button" onClick={() => onBookWith(selected)} className="btn-gold px-6 min-h-[46px] rounded-full font-bold shadow-gold">
               <Scissors size={17} /> <span>Reservar con {selected.shortName}</span>
             </button>
           </div>
@@ -108,9 +128,19 @@ export default function Gallery({ onBookWith }: Props) {
             ))}
           </div>
         ) : shown.length === 0 ? (
-          <div className="text-center py-16 rounded-3xl border border-white/10 bg-white/[0.02]">
+          <div className="text-center py-16 rounded-3xl border border-white/10 bg-white/[0.02] max-w-lg mx-auto">
             <Camera size={36} className="mx-auto mb-3 text-zinc-600" />
-            <p className="text-zinc-400">Muy pronto subiremos fotos de nuestros trabajos.</p>
+            <p className="text-zinc-300 font-medium mb-1">
+              {selected ? `${selected.name} aún no ha subido fotos a la galería.` : 'Muy pronto subiremos fotos de nuestros trabajos.'}
+            </p>
+            {selected && onBookWith ? (
+              <>
+                <p className="text-zinc-400 text-sm mb-5">Pero puedes reservar tu turno con él ahora mismo.</p>
+                <button type="button" onClick={() => onBookWith(selected)} className="btn-gold px-6 py-2.5 rounded-full font-bold inline-flex items-center gap-2">
+                  <Scissors size={16} /> <span>Reservar con {selected.shortName}</span>
+                </button>
+              </>
+            ) : null}
           </div>
         ) : (
           <div className="columns-2 md:columns-3 lg:columns-4 gap-3 sm:gap-4">
@@ -147,10 +177,23 @@ export default function Gallery({ onBookWith }: Props) {
 
       {open !== null && (
         <Lightbox
-          items={shown.map((i) => ({ url: i.url, alt: i.alt, caption: nameOf(i.barberId) ? `${i.category} · por ${nameOf(i.barberId)}` : i.category }))}
+          items={shown.map((i) => {
+            const b = barbers.find((x) => x.id === i.barberId);
+            return {
+              url: i.url,
+              alt: i.alt,
+              caption: b ? `${i.category} · Realizado por ${b.name}` : i.category,
+              barber: b ?? null,
+            };
+          })}
           index={open}
           onClose={() => setOpen(null)}
           onNavigate={setOpen}
+          onBookWith={(barber) => {
+            if (barber) onBookWith?.(barber);
+            else if (selected) onBookWith?.(selected);
+            else if (onBookWith && barbers.length > 0) onBookWith(barbers[0]);
+          }}
         />
       )}
     </section>

@@ -1,12 +1,12 @@
 import { useState, useEffect } from 'react';
-import { Star, Calendar, Zap } from 'lucide-react';
+import { Star, Calendar, Zap, Images } from 'lucide-react';
 import { getBarbers } from '../../services/barbers';
 import { businessConfig } from '../../config/business';
 import type { Barber } from '../../types';
 import BarberAvatar from '../common/BarberAvatar';
 
 interface TeamProps {
-  onBooking: () => void;
+  onBooking: (barber?: Barber) => void;
 }
 
 export default function Team({ onBooking }: TeamProps) {
@@ -91,13 +91,23 @@ export default function Team({ onBooking }: TeamProps) {
 
               <p className="text-zinc-500 text-sm mb-6 leading-relaxed flex-1">{barber.bio}</p>
 
-              <button
-                onClick={onBooking}
-                className="w-full btn-outline-gold py-2.5 rounded-full text-sm font-semibold flex items-center justify-center gap-2"
-              >
-                <Calendar size={14} />
-                Ver disponibilidad
-              </button>
+              <div className="grid grid-cols-2 gap-2 mt-auto">
+                <a
+                  href={`/galeria?barbero=${barber.id}`}
+                  className="btn-outline-gold py-2.5 rounded-full text-xs font-semibold flex items-center justify-center gap-1.5 hover:bg-gold/10 transition-colors"
+                >
+                  <Images size={14} />
+                  Ver trabajos
+                </a>
+                <button
+                  type="button"
+                  onClick={() => onBooking(barber)}
+                  className="btn-gold py-2.5 rounded-full text-xs font-semibold flex items-center justify-center gap-1.5 shadow-gold"
+                >
+                  <Calendar size={14} />
+                  Reservar
+                </button>
+              </div>
             </div>
           ))}
         </div>
@@ -114,7 +124,8 @@ export default function Team({ onBooking }: TeamProps) {
             </div>
           </div>
           <button
-            onClick={onBooking}
+            type="button"
+            onClick={() => onBooking()}
             className="btn-gold px-6 py-2.5 rounded-full text-sm font-semibold whitespace-nowrap"
           >
             <span>Reservar ahora</span>

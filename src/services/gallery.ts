@@ -15,7 +15,20 @@ export async function getGallery(): Promise<GalleryItem[]> {
     .select('id, url, category, alt, barber_id')
     .order('sort_order', { ascending: true })
     .order('created_at', { ascending: false });
-  if (error) throw error;
+
+  if (error) {
+    // Si la columna barber_id aún no existe en la base de datos, reintenta sin ella para no romper la galería
+    if (error.message?.includes('barber_id') || error.code === '42703') {
+      const fallback = await supabase
+        .from('gallery')
+        .select('id, url, category, alt')
+        .order('sort_order', { ascending: true })
+        .order('created_at', { ascending: false });
+      if (fallback.error) throw fallback.error;
+      return (fallback.data as GalleryItem[]).map((item) => ({ ...item, barberId: null }));
+    }
+    throw error;
+  }
   return (data as (Omit<GalleryItem, 'barberId'> & { barber_id: string | null })[]).map(({ barber_id, ...rest }) => ({ ...rest, barberId: barber_id }));
 }
 

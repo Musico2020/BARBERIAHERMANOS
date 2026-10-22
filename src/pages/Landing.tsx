@@ -20,7 +20,7 @@ export default function LandingPage() {
         <>
           <Hero onBooking={() => openBooking()} />
           <Services onBooking={openBooking} />
-          <Team onBooking={() => openBooking()} />
+          <Team onBooking={(barber) => openBooking(undefined, barber)} />
           <WhyUs />
           <BookingCTA onBooking={() => openBooking()} />
           <Location />

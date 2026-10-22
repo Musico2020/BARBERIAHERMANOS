@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { Camera, Loader2, Trash2, ImagePlus } from 'lucide-react';
+import { Camera, Loader2, Trash2, ImagePlus, ExternalLink } from 'lucide-react';
 import { getGallery, GALLERY_CATEGORIES } from '../../services/gallery';
 import { uploadBarberWork, deleteBarberWork } from '../../services/barberPortal';
 import { IMAGE_ACCEPT } from '../../lib/imageFile';
@@ -35,20 +35,28 @@ export default function BarberWorks({ barber, pin }: Props) {
     setMessage(null);
     setUploading({ done: 0, total: list.length });
     let ok = 0;
+    let lastError = '';
     for (const file of list) {
       try {
         const item = await uploadBarberWork(barber.id, pin, file, category);
         setItems((prev) => [item, ...prev]);
         ok += 1;
-      } catch (err) {
+      } catch (err: unknown) {
         console.error('No se pudo subir la foto', err);
+        lastError = err instanceof Error ? err.message : 'UPLOAD_FAILED';
       }
       setUploading((u) => (u ? { ...u, done: u.done + 1 } : u));
     }
     setUploading(null);
-    setMessage(ok === list.length
-      ? { ok: true, text: ok === 1 ? 'Foto publicada en la Galería.' : `${ok} fotos publicadas en la Galería.` }
-      : { ok: false, text: `Se subieron ${ok} de ${list.length}. Usa fotos JPG, PNG o HEIC e intenta de nuevo.` });
+    if (ok === list.length) {
+      setMessage({ ok: true, text: ok === 1 ? 'Foto publicada en la Galería.' : `${ok} fotos publicadas en la Galería.` });
+    } else if (lastError === 'PIN_LOCKED') {
+      setMessage({ ok: false, text: 'PIN bloqueado temporalmente por seguridad. Espera 15 minutos.' });
+    } else if (lastError === 'INVALID_PIN') {
+      setMessage({ ok: false, text: 'PIN no válido. Cierra sesión y vuelve a ingresar.' });
+    } else {
+      setMessage({ ok: false, text: `Se subieron ${ok} de ${list.length}. Verifica que sean fotos válidas (JPG, PNG, HEIC) e intenta de nuevo.` });
+    }
   };
 
   const remove = async (item: GalleryItem) => {
@@ -83,7 +91,18 @@ export default function BarberWorks({ barber, pin }: Props) {
         {message && <p className={`text-sm ${message.ok ? 'text-emerald-300' : 'text-rose-300'}`}>{message.text}</p>}
       </div>
 
-      <h3 className="text-white font-semibold">Mis fotos en la Galería ({items.length})</h3>
+      <div className="flex items-center justify-between">
+        <h3 className="text-white font-semibold">Mis fotos en la Galería ({items.length})</h3>
+        <a
+          href={`/galeria?barbero=${barber.id}`}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="text-gold hover:text-gold/80 text-xs font-semibold inline-flex items-center gap-1.5"
+        >
+          <span>Ver mi galería pública</span>
+          <ExternalLink size={13} />
+        </a>
+      </div>
       {loading ? (
         <div className="flex justify-center py-10"><Loader2 size={22} className="animate-spin text-gold" /></div>
       ) : items.length === 0 ? (

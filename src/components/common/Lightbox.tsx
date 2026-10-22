@@ -1,5 +1,6 @@
 import { useEffect, useRef } from 'react';
-import { X, ChevronLeft, ChevronRight } from 'lucide-react';
+import { X, ChevronLeft, ChevronRight, Scissors } from 'lucide-react';
+import type { Barber } from '../../types';
 
 // Foto ampliada a pantalla completa. Flechas del teclado, Esc, o deslizar con el dedo en celular.
 
@@ -7,6 +8,7 @@ export interface LightboxItem {
   url: string;
   alt: string;
   caption?: string;
+  barber?: Barber | null;
 }
 
 interface Props {
@@ -14,9 +16,10 @@ interface Props {
   index: number;
   onClose: () => void;
   onNavigate: (index: number) => void;
+  onBookWith?: (barber?: Barber) => void;
 }
 
-export default function Lightbox({ items, index, onClose, onNavigate }: Props) {
+export default function Lightbox({ items, index, onClose, onNavigate, onBookWith }: Props) {
   const touchX = useRef<number | null>(null);
   const item = items[index];
   const go = (dir: number) => onNavigate((index + dir + items.length) % items.length);
@@ -88,12 +91,25 @@ export default function Lightbox({ items, index, onClose, onNavigate }: Props) {
         )}
       </div>
 
-      {(item.caption || items.length > 1) && (
-        <p className="text-center text-sm text-zinc-300 px-4 pb-[max(1rem,env(safe-area-inset-bottom))]" onClick={(e) => e.stopPropagation()}>
+      <div className="px-4 pb-[max(1rem,env(safe-area-inset-bottom))] flex flex-col sm:flex-row items-center justify-between gap-3 max-w-4xl mx-auto w-full" onClick={(e) => e.stopPropagation()}>
+        <p className="text-center sm:text-left text-sm text-zinc-300">
           {item.caption}
           {items.length > 1 && <span className="sm:hidden block text-xs text-zinc-500 mt-1">Desliza para ver más</span>}
         </p>
-      )}
+        {onBookWith && (
+          <button
+            type="button"
+            onClick={() => {
+              onClose();
+              onBookWith(item.barber ?? undefined);
+            }}
+            className="btn-gold px-5 py-2 rounded-full text-xs font-bold inline-flex items-center gap-1.5 shrink-0"
+          >
+            <Scissors size={14} />
+            <span>{item.barber ? `Reservar con ${item.barber.shortName}` : 'Reservar cita'}</span>
+          </button>
+        )}
+      </div>
     </div>
   );
 }
