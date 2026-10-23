@@ -248,16 +248,16 @@ export default function AdminInvoices() {
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4 sm:space-y-6">
       {/* Encabezado y Acciones */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-4">
         <div>
-          <h1 className="font-serif text-2xl sm:text-3xl font-bold text-white flex items-center gap-2.5">
-            <Receipt className="text-gold" size={28} />
-            <span>Facturas y Registro de Caja</span>
+          <h1 className="font-serif text-xl sm:text-3xl font-bold text-white flex items-center gap-2">
+            <Receipt className="text-gold shrink-0" size={24} />
+            <span>Facturas y Caja</span>
           </h1>
-          <p className="text-zinc-400 text-sm mt-1">
-            Control exacto de cada servicio: cuánto le corresponde al barbero y cuánto ingresa realmente a la administración.
+          <p className="text-zinc-400 text-xs sm:text-sm mt-0.5">
+            Registro de servicios: desglose de lo que ingresa a la administración vs comisiones de barberos.
           </p>
         </div>
 
@@ -266,95 +266,95 @@ export default function AdminInvoices() {
             type="button"
             onClick={handleRefresh}
             disabled={refreshing}
-            className="btn-dark-glass px-3.5 py-2 rounded-xl text-xs font-semibold flex items-center gap-1.5 hover:text-gold"
+            className="flex-1 sm:flex-initial btn-dark-glass px-3.5 py-2.5 sm:py-2 rounded-xl text-xs font-semibold flex items-center justify-center gap-1.5 hover:text-gold"
             title="Refrescar datos"
           >
             <RefreshCw size={14} className={refreshing ? 'animate-spin text-gold' : ''} />
-            <span className="hidden sm:inline">Refrescar</span>
+            <span>Actualizar</span>
           </button>
           <button
             type="button"
             onClick={handleExportExcel}
-            className="btn-gold px-4 py-2 rounded-xl text-xs font-bold flex items-center gap-2 shadow-gold"
+            className="flex-1 sm:flex-initial btn-gold px-4 py-2.5 sm:py-2 rounded-xl text-xs font-bold flex items-center justify-center gap-2 shadow-gold"
           >
             <FileSpreadsheet size={15} />
-            <span>Exportar Excel</span>
+            <span>Excel</span>
           </button>
         </div>
       </div>
 
-      {/* Tarjetas Principales de Caja */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+      {/* Tarjetas Principales de Caja (2 columnas en móvil, 4 en computador) */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-2.5 sm:gap-4">
         {/* Total Bruto */}
-        <div className="table-card p-5 rounded-2xl border border-gold/30 bg-gradient-to-br from-gold/10 via-transparent to-transparent">
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-semibold text-zinc-400 uppercase tracking-wider">Caja Total Cobrada</span>
-            <span className="w-8 h-8 rounded-full bg-gold/15 flex items-center justify-center text-gold">
-              <Wallet size={16} />
+        <div className="table-card p-3 sm:p-5 rounded-2xl border border-gold/30 bg-gradient-to-br from-gold/10 via-transparent to-transparent flex flex-col justify-between">
+          <div className="flex items-center justify-between gap-1">
+            <span className="text-[10px] sm:text-xs font-semibold text-zinc-400 uppercase tracking-wider line-clamp-1">Caja Cobrada</span>
+            <span className="w-6 h-6 sm:w-8 sm:h-8 rounded-full bg-gold/15 flex items-center justify-center text-gold shrink-0">
+              <Wallet size={14} />
             </span>
           </div>
-          <p className="font-mono text-2xl sm:text-3xl font-extrabold text-gold mt-2">
+          <p className="font-mono text-lg sm:text-3xl font-extrabold text-gold mt-1.5 sm:mt-2 truncate">
             {formatCOP(totals.grossTotal)}
           </p>
-          <p className="text-zinc-400 text-xs mt-1">
-            {totals.count} {totals.count === 1 ? 'servicio cobrado' : 'servicios cobrados'}
+          <p className="text-zinc-400 text-[10px] sm:text-xs mt-0.5 sm:mt-1 truncate">
+            {totals.count} {totals.count === 1 ? 'servicio' : 'servicios'}
           </p>
         </div>
 
         {/* Queda en Administración */}
-        <div className="table-card p-5 rounded-2xl border border-emerald-500/30 bg-emerald-500/[0.04]">
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-semibold text-emerald-300 uppercase tracking-wider">Queda en Administración</span>
-            <span className="w-8 h-8 rounded-full bg-emerald-500/15 flex items-center justify-center text-emerald-400">
-              <Building2 size={16} />
+        <div className="table-card p-3 sm:p-5 rounded-2xl border border-emerald-500/30 bg-emerald-500/[0.04] flex flex-col justify-between">
+          <div className="flex items-center justify-between gap-1">
+            <span className="text-[10px] sm:text-xs font-semibold text-emerald-300 uppercase tracking-wider line-clamp-1">Administración</span>
+            <span className="w-6 h-6 sm:w-8 sm:h-8 rounded-full bg-emerald-500/15 flex items-center justify-center text-emerald-400 shrink-0">
+              <Building2 size={14} />
             </span>
           </div>
-          <p className="font-mono text-2xl sm:text-3xl font-extrabold text-emerald-400 mt-2">
+          <p className="font-mono text-lg sm:text-3xl font-extrabold text-emerald-400 mt-1.5 sm:mt-2 truncate">
             {formatCOP(totals.adminTotal)}
           </p>
-          <p className="text-emerald-300/80 text-xs mt-1 font-medium">
-            100% de Walter + margen de otros barberos
+          <p className="text-emerald-300/80 text-[10px] sm:text-xs mt-0.5 sm:mt-1 truncate font-medium">
+            100% Walter + margen
           </p>
         </div>
 
         {/* A Pagar a Barberos */}
-        <div className="table-card p-5 rounded-2xl border border-sky-500/30 bg-sky-500/[0.04]">
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-semibold text-sky-300 uppercase tracking-wider">Comisiones a Barberos</span>
-            <span className="w-8 h-8 rounded-full bg-sky-500/15 flex items-center justify-center text-sky-400">
-              <Scissors size={16} />
+        <div className="table-card p-3 sm:p-5 rounded-2xl border border-sky-500/30 bg-sky-500/[0.04] flex flex-col justify-between">
+          <div className="flex items-center justify-between gap-1">
+            <span className="text-[10px] sm:text-xs font-semibold text-sky-300 uppercase tracking-wider line-clamp-1">A Barberos</span>
+            <span className="w-6 h-6 sm:w-8 sm:h-8 rounded-full bg-sky-500/15 flex items-center justify-center text-sky-400 shrink-0">
+              <Scissors size={14} />
             </span>
           </div>
-          <p className="font-mono text-2xl sm:text-3xl font-extrabold text-sky-300 mt-2">
+          <p className="font-mono text-lg sm:text-3xl font-extrabold text-sky-300 mt-1.5 sm:mt-2 truncate">
             {formatCOP(totals.barbersPayTotal)}
           </p>
-          <p className="text-sky-300/80 text-xs mt-1">
-            A liquidar a Nelson, Gerardo, etc.
+          <p className="text-sky-300/80 text-[10px] sm:text-xs mt-0.5 sm:mt-1 truncate">
+            Comisiones a pagar
           </p>
         </div>
 
         {/* Facturado por Walter */}
-        <div className="table-card p-5 rounded-2xl border border-amber-500/30 bg-amber-500/[0.04]">
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-semibold text-amber-300 uppercase tracking-wider">Producido por Walter (Dueño)</span>
-            <span className="w-8 h-8 rounded-full bg-amber-500/15 flex items-center justify-center text-amber-400">
-              <Crown size={16} />
+        <div className="table-card p-3 sm:p-5 rounded-2xl border border-amber-500/30 bg-amber-500/[0.04] flex flex-col justify-between">
+          <div className="flex items-center justify-between gap-1">
+            <span className="text-[10px] sm:text-xs font-semibold text-amber-300 uppercase tracking-wider line-clamp-1">Walter (Dueño)</span>
+            <span className="w-6 h-6 sm:w-8 sm:h-8 rounded-full bg-amber-500/15 flex items-center justify-center text-amber-400 shrink-0">
+              <Crown size={14} />
             </span>
           </div>
-          <p className="font-mono text-2xl sm:text-3xl font-extrabold text-amber-300 mt-2">
+          <p className="font-mono text-lg sm:text-3xl font-extrabold text-amber-300 mt-1.5 sm:mt-2 truncate">
             {formatCOP(totals.ownerProduction)}
           </p>
-          <p className="text-amber-300/80 text-xs mt-1">
-            Sin rendición de cuentas (100% Salón)
+          <p className="text-amber-300/80 text-[10px] sm:text-xs mt-0.5 sm:mt-1 truncate">
+            100% Salón Hermanos
           </p>
         </div>
       </div>
 
       {/* Filtros de Facturación */}
       <Panel>
-        <div className="flex flex-col lg:flex-row gap-4 items-stretch lg:items-center justify-between">
-          {/* Período */}
-          <div className="flex gap-1 overflow-x-auto pb-1" style={{ scrollbarWidth: 'none' }}>
+        <div className="space-y-3">
+          {/* Período (scroll horizontal en móvil) */}
+          <div className="flex gap-1.5 overflow-x-auto pb-1 -mx-1 px-1" style={{ scrollbarWidth: 'none' }}>
             {[
               { id: 'hoy', label: 'Hoy' },
               { id: 'ayer', label: 'Ayer' },
@@ -367,10 +367,10 @@ export default function AdminInvoices() {
                 key={id}
                 type="button"
                 onClick={() => setPeriod(id as PeriodFilter)}
-                className={`px-3 py-1.5 rounded-xl text-xs font-semibold whitespace-nowrap transition-colors ${
+                className={`px-3 py-1.5 rounded-xl text-xs font-semibold whitespace-nowrap transition-colors min-h-[36px] flex items-center justify-center ${
                   period === id
                     ? 'bg-gold text-dark font-bold'
-                    : 'text-zinc-400 hover:text-white hover:bg-white/5'
+                    : 'text-zinc-400 hover:text-white bg-white/[0.03] hover:bg-white/5 border border-white/5'
                 }`}
               >
                 {label}
@@ -378,13 +378,13 @@ export default function AdminInvoices() {
             ))}
           </div>
 
-          {/* Filtro por Barbero y Búsqueda */}
-          <div className="flex flex-col sm:flex-row gap-2.5">
+          {/* Filtro por Barbero, Estado y Búsqueda */}
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
             {/* Selector de barbero */}
             <select
               value={selectedBarberId}
               onChange={(e) => setSelectedBarberId(e.target.value)}
-              className="bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-white text-xs focus:outline-none focus:border-gold/50"
+              className="w-full bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-white text-xs focus:outline-none focus:border-gold/50 min-h-[38px]"
             >
               <option value="todos">Todos los barberos</option>
               {barbers.map((b) => (
@@ -398,28 +398,28 @@ export default function AdminInvoices() {
             <select
               value={statusFilter}
               onChange={(e) => setStatusFilter(e.target.value as 'completed' | 'all')}
-              className="bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-white text-xs focus:outline-none focus:border-gold/50"
+              className="w-full bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-white text-xs focus:outline-none focus:border-gold/50 min-h-[38px]"
             >
               <option value="completed">Solo cobradas / completadas</option>
               <option value="all">Todas las reservas</option>
             </select>
 
             {/* Buscador */}
-            <div className="relative min-w-[200px]">
+            <div className="relative">
               <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-500" />
               <input
                 type="text"
                 placeholder="Buscar cliente, servicio o factura..."
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
-                className="w-full bg-white/5 border border-white/10 rounded-xl pl-9 pr-3 py-2 text-white text-xs placeholder:text-zinc-600 focus:outline-none focus:border-gold/50"
+                className="w-full bg-white/5 border border-white/10 rounded-xl pl-9 pr-3 py-2 text-white text-xs placeholder:text-zinc-600 focus:outline-none focus:border-gold/50 min-h-[38px]"
               />
             </div>
           </div>
         </div>
       </Panel>
 
-      {/* Tabla de Facturas */}
+      {/* Lista de Facturas: Vista Móvil (Tarjetas) y Vista Escritorio (Tabla) */}
       <Panel
         title={`Facturas Emitidas (${invoices.length})`}
         subtitle="Desglose servicio por servicio con el porcentaje correspondiente a cada parte"
@@ -435,128 +435,277 @@ export default function AdminInvoices() {
             </p>
           </div>
         ) : (
-          <div className="overflow-x-auto -mx-5 sm:mx-0">
-            <table className="w-full text-left text-xs">
-              <thead>
-                <tr className="border-b border-white/10 text-zinc-400 font-semibold uppercase tracking-wider text-[10px]">
-                  <th className="py-3 px-4">Factura</th>
-                  <th className="py-3 px-4">Fecha y Hora</th>
-                  <th className="py-3 px-4">Cliente</th>
-                  <th className="py-3 px-4">Barbero</th>
-                  <th className="py-3 px-4">Servicio</th>
-                  <th className="py-3 px-4 text-right">Total Cobrado</th>
-                  <th className="py-3 px-4 text-right">Al Barbero</th>
-                  <th className="py-3 px-4 text-right">A Administración</th>
-                  <th className="py-3 px-4 text-center">Acciones</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-white/[0.04]">
-                {invoices.map((inv) => {
-                  const { booking, barber, split, invoiceNumber } = inv;
-                  const isOwner = split.isOwner;
+          <>
+            {/* VISTA MÓVIL: Tarjetas compactas adaptadas al teléfono */}
+            <div className="block md:hidden space-y-3">
+              {invoices.map((inv) => {
+                const { booking, barber, split, invoiceNumber } = inv;
+                const isOwner = split.isOwner;
 
-                  return (
-                    <tr key={booking.id} className="hover:bg-white/[0.02] transition-colors">
-                      {/* # Factura */}
-                      <td className="py-3.5 px-4 font-mono font-semibold text-zinc-300">
-                        {invoiceNumber}
-                      </td>
+                return (
+                  <div
+                    key={booking.id}
+                    className="table-card rounded-2xl p-4 border border-white/[0.08] hover:border-gold/30 transition-all space-y-3"
+                  >
+                    {/* Encabezado de la factura */}
+                    <div className="flex items-center justify-between gap-2 border-b border-white/[0.06] pb-2.5">
+                      <div className="min-w-0">
+                        <span className="font-mono font-bold text-gold text-xs block truncate">
+                          {invoiceNumber}
+                        </span>
+                        <span className="text-[11px] text-zinc-400 font-mono">
+                          {dayShort(booking.date)} {booking.date.slice(8, 10)} · {time12(booking.time)}
+                        </span>
+                      </div>
+                      <StatusBadge status={booking.status} />
+                    </div>
 
-                      {/* Fecha y Hora */}
-                      <td className="py-3.5 px-4 font-mono text-zinc-400 whitespace-nowrap">
-                        <span className="text-white font-medium">{dayShort(booking.date)} {booking.date.slice(8, 10)}</span>
-                        <span className="text-zinc-500 block text-[11px]">{time12(booking.time)}</span>
-                      </td>
-
-                      {/* Cliente */}
-                      <td className="py-3.5 px-4">
-                        <p className="font-semibold text-white">{booking.clientName}</p>
+                    {/* Cliente y Servicio */}
+                    <div className="grid grid-cols-2 gap-2 text-xs">
+                      <div>
+                        <span className="text-[10px] uppercase font-semibold text-zinc-500 block">Cliente</span>
+                        <p className="font-semibold text-white truncate">{booking.clientName}</p>
                         <a
                           href={`https://wa.me/57${booking.clientPhone.replace(/\D/g, '').slice(-10)}`}
                           target="_blank"
                           rel="noopener noreferrer"
-                          className="text-zinc-500 hover:text-emerald-400 text-[11px] font-mono inline-flex items-center gap-1"
+                          className="text-zinc-400 hover:text-emerald-400 text-[11px] font-mono inline-flex items-center gap-1 mt-0.5"
                         >
-                          <MessageCircle size={10} /> {booking.clientPhone}
+                          <MessageCircle size={11} className="text-emerald-400" />
+                          <span>{booking.clientPhone}</span>
                         </a>
-                      </td>
+                      </div>
 
-                      {/* Barbero */}
-                      <td className="py-3.5 px-4">
-                        <div className="flex items-center gap-2">
-                          {barber ? (
-                            <BarberAvatar barber={barber} className="w-7 h-7 rounded-full text-[10px]" />
-                          ) : (
-                            <Initials name={booking.barberName} className="w-7 h-7 rounded-full text-[10px]" />
-                          )}
-                          <div>
-                            <p className="font-medium text-white">{barber?.shortName || booking.barberName}</p>
-                            {isOwner ? (
-                              <span className="text-[10px] text-amber-400 font-bold flex items-center gap-0.5">
-                                <Crown size={10} /> Dueño
-                              </span>
-                            ) : (
-                              <span className="text-[10px] text-zinc-400 font-mono">
-                                Com: {split.barberPercent}%
-                              </span>
-                            )}
-                          </div>
-                        </div>
-                      </td>
+                      <div>
+                        <span className="text-[10px] uppercase font-semibold text-zinc-500 block">Servicio</span>
+                        <p className="font-medium text-zinc-200 line-clamp-2">{booking.serviceName}</p>
+                      </div>
+                    </div>
 
-                      {/* Servicio */}
-                      <td className="py-3.5 px-4">
-                        <span className="font-medium text-zinc-200">{booking.serviceName}</span>
-                      </td>
-
-                      {/* Total Cobrado */}
-                      <td className="py-3.5 px-4 text-right font-mono font-bold text-gold text-sm whitespace-nowrap">
-                        {formatCOP(split.price)}
-                      </td>
-
-                      {/* Al Barbero */}
-                      <td className="py-3.5 px-4 text-right whitespace-nowrap font-mono">
+                    {/* Barbero */}
+                    <div className="flex items-center justify-between gap-2 bg-white/[0.02] rounded-xl p-2 border border-white/5">
+                      <div className="flex items-center gap-2 min-w-0">
+                        {barber ? (
+                          <BarberAvatar barber={barber} className="w-7 h-7 rounded-full text-[10px]" />
+                        ) : (
+                          <Initials name={booking.barberName} className="w-7 h-7 rounded-full text-[10px]" />
+                        )}
+                        <span className="font-medium text-white text-xs truncate">
+                          {barber?.shortName || booking.barberName}
+                        </span>
+                      </div>
+                      <div>
                         {isOwner ? (
-                          <span className="text-amber-400 font-semibold text-xs">
-                            {formatCOP(split.barberProduction)}
-                            <span className="block text-[10px] text-zinc-500 font-sans">Producido dueño</span>
+                          <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-500/20 text-amber-300 border border-amber-500/30 flex items-center gap-1">
+                            <Crown size={10} /> Dueño
                           </span>
                         ) : (
-                          <span className="text-sky-300 font-semibold text-xs">
-                            {formatCOP(split.barberPay)}
-                            <span className="block text-[10px] text-zinc-500 font-sans">({split.barberPercent}%)</span>
+                          <span className="px-2 py-0.5 rounded-full text-[10px] font-mono bg-sky-500/15 text-sky-300 border border-sky-500/25">
+                            {split.barberPercent}% comisión
                           </span>
                         )}
-                      </td>
+                      </div>
+                    </div>
 
-                      {/* A Administración */}
-                      <td className="py-3.5 px-4 text-right whitespace-nowrap font-mono">
-                        <span className="text-emerald-400 font-bold text-xs">
-                          {formatCOP(split.adminKeep)}
+                    {/* Desglose de Caja Móvil */}
+                    <div className="rounded-xl bg-black/40 border border-white/10 p-3 space-y-2">
+                      <div className="flex items-center justify-between border-b border-white/10 pb-1.5">
+                        <span className="text-xs text-zinc-400 font-medium">Total Cobrado</span>
+                        <span className="font-mono text-base font-extrabold text-gold">
+                          {formatCOP(split.price)}
                         </span>
-                        <span className="block text-[10px] text-zinc-500 font-sans">
-                          {isOwner ? '100% Salón' : `(${split.adminPercent}% Salón)`}
-                        </span>
-                      </td>
+                      </div>
 
-                      {/* Acciones */}
-                      <td className="py-3.5 px-4 text-center whitespace-nowrap">
-                        <button
-                          type="button"
-                          onClick={() => setActiveInvoice(inv)}
-                          className="btn-dark-glass px-2.5 py-1.5 rounded-lg text-xs font-semibold inline-flex items-center gap-1.5 hover:text-gold hover:border-gold/40"
-                          title="Ver recibo / factura"
-                        >
-                          <Eye size={13} />
-                          <span>Ver</span>
-                        </button>
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
+                      <div className="grid grid-cols-2 gap-2 text-xs pt-0.5">
+                        <div className="border-r border-white/10 pr-2">
+                          <span className="text-[10px] uppercase font-semibold text-zinc-400 block">Al Barbero</span>
+                          {isOwner ? (
+                            <div>
+                              <span className="font-mono font-semibold text-amber-300 text-xs">
+                                {formatCOP(split.barberProduction)}
+                              </span>
+                              <span className="text-[10px] text-zinc-500 block">Producido dueño</span>
+                            </div>
+                          ) : (
+                            <div>
+                              <span className="font-mono font-semibold text-sky-300 text-xs">
+                                {formatCOP(split.barberPay)}
+                              </span>
+                              <span className="text-[10px] text-zinc-500 block">({split.barberPercent}%)</span>
+                            </div>
+                          )}
+                        </div>
+
+                        <div className="pl-1">
+                          <span className="text-[10px] uppercase font-semibold text-zinc-400 block">A Administración</span>
+                          <span className="font-mono font-bold text-emerald-400 text-xs">
+                            {formatCOP(split.adminKeep)}
+                          </span>
+                          <span className="text-[10px] text-zinc-500 block">
+                            {isOwner ? '100% Salón' : `(${split.adminPercent}% Salón)`}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Botones de acción móvil */}
+                    <div className="grid grid-cols-2 gap-2 pt-1">
+                      <button
+                        type="button"
+                        onClick={() => setActiveInvoice(inv)}
+                        className="btn-dark-glass py-2 rounded-xl text-xs font-semibold flex items-center justify-center gap-1.5 hover:text-gold min-h-[38px]"
+                      >
+                        <Eye size={14} />
+                        <span>Ver Recibo</span>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => sendWhatsAppReceipt(inv)}
+                        className="btn-gold py-2 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 shadow-gold min-h-[38px]"
+                      >
+                        <MessageCircle size={14} />
+                        <span>WhatsApp</span>
+                      </button>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+
+            {/* VISTA ESCRITORIO: Tabla completa para computadores y tablets */}
+            <div className="hidden md:block overflow-x-auto -mx-5 sm:mx-0">
+              <table className="w-full text-left text-xs">
+                <thead>
+                  <tr className="border-b border-white/10 text-zinc-400 font-semibold uppercase tracking-wider text-[10px]">
+                    <th className="py-3 px-4">Factura</th>
+                    <th className="py-3 px-4">Fecha y Hora</th>
+                    <th className="py-3 px-4">Cliente</th>
+                    <th className="py-3 px-4">Barbero</th>
+                    <th className="py-3 px-4">Servicio</th>
+                    <th className="py-3 px-4 text-right">Total Cobrado</th>
+                    <th className="py-3 px-4 text-right">Al Barbero</th>
+                    <th className="py-3 px-4 text-right">A Administración</th>
+                    <th className="py-3 px-4 text-center">Acciones</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-white/[0.04]">
+                  {invoices.map((inv) => {
+                    const { booking, barber, split, invoiceNumber } = inv;
+                    const isOwner = split.isOwner;
+
+                    return (
+                      <tr key={booking.id} className="hover:bg-white/[0.02] transition-colors">
+                        {/* # Factura */}
+                        <td className="py-3.5 px-4 font-mono font-semibold text-zinc-300">
+                          {invoiceNumber}
+                        </td>
+
+                        {/* Fecha y Hora */}
+                        <td className="py-3.5 px-4 font-mono text-zinc-400 whitespace-nowrap">
+                          <span className="text-white font-medium">{dayShort(booking.date)} {booking.date.slice(8, 10)}</span>
+                          <span className="text-zinc-500 block text-[11px]">{time12(booking.time)}</span>
+                        </td>
+
+                        {/* Cliente */}
+                        <td className="py-3.5 px-4">
+                          <p className="font-semibold text-white">{booking.clientName}</p>
+                          <a
+                            href={`https://wa.me/57${booking.clientPhone.replace(/\D/g, '').slice(-10)}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-zinc-500 hover:text-emerald-400 text-[11px] font-mono inline-flex items-center gap-1"
+                          >
+                            <MessageCircle size={10} /> {booking.clientPhone}
+                          </a>
+                        </td>
+
+                        {/* Barbero */}
+                        <td className="py-3.5 px-4">
+                          <div className="flex items-center gap-2">
+                            {barber ? (
+                              <BarberAvatar barber={barber} className="w-7 h-7 rounded-full text-[10px]" />
+                            ) : (
+                              <Initials name={booking.barberName} className="w-7 h-7 rounded-full text-[10px]" />
+                            )}
+                            <div>
+                              <p className="font-medium text-white">{barber?.shortName || booking.barberName}</p>
+                              {isOwner ? (
+                                <span className="text-[10px] text-amber-400 font-bold flex items-center gap-0.5">
+                                  <Crown size={10} /> Dueño
+                                </span>
+                              ) : (
+                                <span className="text-[10px] text-zinc-400 font-mono">
+                                  Com: {split.barberPercent}%
+                                </span>
+                              )}
+                            </div>
+                          </div>
+                        </td>
+
+                        {/* Servicio */}
+                        <td className="py-3.5 px-4">
+                          <span className="font-medium text-zinc-200">{booking.serviceName}</span>
+                        </td>
+
+                        {/* Total Cobrado */}
+                        <td className="py-3.5 px-4 text-right font-mono font-bold text-gold text-sm whitespace-nowrap">
+                          {formatCOP(split.price)}
+                        </td>
+
+                        {/* Al Barbero */}
+                        <td className="py-3.5 px-4 text-right whitespace-nowrap font-mono">
+                          {isOwner ? (
+                            <span className="text-amber-400 font-semibold text-xs">
+                              {formatCOP(split.barberProduction)}
+                              <span className="block text-[10px] text-zinc-500 font-sans">Producido dueño</span>
+                            </span>
+                          ) : (
+                            <span className="text-sky-300 font-semibold text-xs">
+                              {formatCOP(split.barberPay)}
+                              <span className="block text-[10px] text-zinc-500 font-sans">({split.barberPercent}%)</span>
+                            </span>
+                          )}
+                        </td>
+
+                        {/* A Administración */}
+                        <td className="py-3.5 px-4 text-right whitespace-nowrap font-mono">
+                          <span className="text-emerald-400 font-bold text-xs">
+                            {formatCOP(split.adminKeep)}
+                          </span>
+                          <span className="block text-[10px] text-zinc-500 font-sans">
+                            {isOwner ? '100% Salón' : `(${split.adminPercent}% Salón)`}
+                          </span>
+                        </td>
+
+                        {/* Acciones */}
+                        <td className="py-3.5 px-4 text-center whitespace-nowrap">
+                          <div className="inline-flex items-center gap-1.5">
+                            <button
+                              type="button"
+                              onClick={() => setActiveInvoice(inv)}
+                              className="btn-dark-glass px-2.5 py-1.5 rounded-lg text-xs font-semibold inline-flex items-center gap-1.5 hover:text-gold hover:border-gold/40"
+                              title="Ver recibo térmico"
+                            >
+                              <Eye size={13} />
+                              <span>Ver</span>
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => sendWhatsAppReceipt(inv)}
+                              className="btn-dark-glass px-2.5 py-1.5 rounded-lg text-xs font-semibold inline-flex items-center gap-1 text-emerald-400 hover:border-emerald-500/40"
+                              title="Enviar por WhatsApp"
+                            >
+                              <MessageCircle size={13} />
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          </>
         )}
       </Panel>
 
@@ -567,11 +716,11 @@ export default function AdminInvoices() {
             className="absolute inset-0 bg-black/80 backdrop-blur-sm"
             onClick={() => setActiveInvoice(null)}
           />
-          <div className="relative w-full max-w-md glass border border-gold/40 rounded-3xl p-6 sm:p-7 shadow-2xl animate-fade-in overflow-hidden">
+          <div className="relative w-full max-w-md max-h-[92vh] overflow-y-auto glass border border-gold/40 rounded-3xl p-5 sm:p-7 shadow-2xl animate-fade-in" style={{ scrollbarWidth: 'thin' }}>
             {/* Botón cerrar */}
             <button
               onClick={() => setActiveInvoice(null)}
-              className="absolute top-5 right-5 w-8 h-8 rounded-full glass border border-white/10 flex items-center justify-center text-zinc-400 hover:text-white"
+              className="sticky top-0 float-right -mt-1 -mr-1 z-10 w-8 h-8 rounded-full glass border border-white/10 flex items-center justify-center text-zinc-400 hover:text-white"
             >
               <X size={16} />
             </button>
