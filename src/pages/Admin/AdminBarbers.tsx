@@ -7,7 +7,7 @@ import BarberServicesModal from '../../components/admin/BarberServicesModal';
 import { formatCOP } from '../../data';
 import { todayKey, addDays } from '../../lib/dates';
 import { barberMonthStats } from '../../lib/stats';
-import { isBarberOwner } from '../../lib/earnings';
+import { isBarberOwner, getBarberOwnerKey, getOwnerBeneficiary } from '../../lib/earnings';
 import type { Barber, Booking, StaffRole, WorkHours } from '../../types';
 import { IMAGE_ACCEPT } from '../../lib/imageFile';
 import BarberAvatar from '../../components/common/BarberAvatar';
@@ -23,6 +23,8 @@ interface BarberForm {
   pin: string;
   workHours: WorkHours;
   isOwner: boolean;
+  ownerName: 'walter' | 'daniel';
+  ownerBeneficiary: 'walter' | 'daniel' | 'general';
 }
 
 const emptyForm: BarberForm = {
@@ -35,6 +37,8 @@ const emptyForm: BarberForm = {
   pin: '',
   workHours: {},
   isOwner: false,
+  ownerName: 'walter',
+  ownerBeneficiary: 'walter',
 };
 
 export default function AdminBarbers() {
@@ -157,6 +161,8 @@ export default function AdminBarbers() {
       pin: '',
       workHours: barber.workHours ?? {},
       isOwner: barber.isOwner ?? isBarberOwner(barber),
+      ownerName: barber.ownerName ?? (getBarberOwnerKey(barber) || 'walter'),
+      ownerBeneficiary: barber.ownerBeneficiary ?? getOwnerBeneficiary(barber),
     });
     setErrors({});
     setSaveError('');
@@ -208,6 +214,8 @@ export default function AdminBarbers() {
           commission: form.commission,
           workHours: form.workHours,
           isOwner: form.isOwner,
+          ownerName: form.isOwner ? form.ownerName : undefined,
+          ownerBeneficiary: !form.isOwner ? form.ownerBeneficiary : undefined,
         };
         if (form.pin) updates.pin = form.pin;
         await updateBarber(editTarget.id, updates);
@@ -240,6 +248,8 @@ export default function AdminBarbers() {
           pin: form.pin,
           workHours: form.workHours,
           isOwner: form.isOwner,
+          ownerName: form.isOwner ? form.ownerName : undefined,
+          ownerBeneficiary: !form.isOwner ? form.ownerBeneficiary : undefined,
         });
         setList((prev) => [...prev, newBarber]);
       }
@@ -306,9 +316,13 @@ export default function AdminBarbers() {
                   <div>
                     <div className="flex items-center gap-1.5 flex-wrap">
                       <p className="text-white font-semibold">{barber.name}</p>
-                      {isBarberOwner(barber) && (
+                      {isBarberOwner(barber) ? (
                         <span className="px-1.5 py-0.5 rounded text-[10px] font-bold bg-amber-500/20 text-amber-300 border border-amber-500/30">
-                          👑 Dueño
+                          👑 Dueño ({getBarberOwnerKey(barber) === 'daniel' ? 'Daniel' : 'Walter'})
+                        </span>
+                      ) : (
+                        <span className="px-1.5 py-0.5 rounded text-[10px] font-medium bg-white/5 text-zinc-300 border border-white/10">
+                          Rinde a {getOwnerBeneficiary(barber) === 'daniel' ? 'Daniel' : getOwnerBeneficiary(barber) === 'general' ? 'Caja General' : 'Walter'}
                         </span>
                       )}
                     </div>
@@ -380,7 +394,9 @@ export default function AdminBarbers() {
                     {isBarberOwner(barber) ? '100%' : `${100 - barber.commission}%`}
                   </p>
                   <p className="text-zinc-500 text-[10px] uppercase font-medium mt-0.5">
-                    {isBarberOwner(barber) ? '100% Salón' : 'Entrega al salón'}
+                    {isBarberOwner(barber) 
+                      ? `100% Salón (${getBarberOwnerKey(barber) === 'daniel' ? 'Daniel' : 'Walter'})` 
+                      : `Entrega a ${getOwnerBeneficiary(barber) === 'daniel' ? 'Daniel' : getOwnerBeneficiary(barber) === 'general' ? 'Caja General' : 'Walter'}`}
                   </p>
                 </div>
               </div>
@@ -554,8 +570,8 @@ export default function AdminBarbers() {
                 />
               </div>
 
-              {/* Dueño del salón vs Barbero / Empleado */}
-              <div className="p-3.5 rounded-2xl bg-gold/5 border border-gold/25 space-y-1.5">
+              {/* Dueño del salón vs Barbero / Colaborador */}
+              <div className="p-3.5 rounded-2xl bg-gold/5 border border-gold/25 space-y-2.5">
                 <label className="flex items-center gap-3 cursor-pointer select-none">
                   <input
                     type="checkbox"
@@ -564,43 +580,126 @@ export default function AdminBarbers() {
                     className="w-4 h-4 rounded text-gold focus:ring-gold/30 bg-black/40 border-white/20 accent-amber-500"
                   />
                   <span className="text-sm font-semibold text-white">
-                    👑 Es Dueño / Propietario del Salón (ej. Walter)
+                    👑 Es Dueño / Propietario del Salón (Walter o Daniel)
                   </span>
                 </label>
                 <p className="text-zinc-400 text-xs pl-7 leading-relaxed">
                   Al marcarlo como dueño, no rinde cuentas de comisión: el 100% de lo que produce entra directamente a la administración y no genera cuentas de nómina por pagar.
                 </p>
+
+                {form.isOwner && (
+                  <div className="pt-2 pl-7 space-y-1.5 border-t border-gold/20">
+                    <label className="text-zinc-300 text-xs font-semibold block">¿Cuál socio / dueño es?</label>
+                    <div className="grid grid-cols-2 gap-2">
+                      <button
+                        type="button"
+                        onClick={() => setForm({ ...form, ownerName: 'walter' })}
+                        className={`px-3 py-2 rounded-xl text-xs font-bold border transition-colors ${
+                          form.ownerName === 'walter'
+                            ? 'bg-amber-500/20 text-amber-300 border-amber-500/40'
+                            : 'bg-white/5 text-zinc-400 border-white/10 hover:text-white'
+                        }`}
+                      >
+                        👑 Walter (Dueño 1)
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setForm({ ...form, ownerName: 'daniel' })}
+                        className={`px-3 py-2 rounded-xl text-xs font-bold border transition-colors ${
+                          form.ownerName === 'daniel'
+                            ? 'bg-amber-500/20 text-amber-300 border-amber-500/40'
+                            : 'bg-white/5 text-zinc-400 border-white/10 hover:text-white'
+                        }`}
+                      >
+                        👑 Daniel (Dueño 2)
+                      </button>
+                    </div>
+                  </div>
+                )}
               </div>
 
-              {/* En la base se guarda lo que se queda el barbero (commission); aquí se escribe lo que entrega al salón */}
+              {/* Si es barbero colaborador (Gerardo, Nelson, etc.) */}
               {!form.isOwner && (
-                <div>
-                  <label htmlFor="barber-share" className="text-zinc-400 text-xs mb-1.5 block">
-                    Porcentaje que entrega al salón
-                  </label>
-                  <div className="flex items-center gap-3">
-                    <div className="relative w-28">
-                      <input
-                        id="barber-share"
-                        type="number"
-                        inputMode="numeric"
-                        min={0}
-                        max={100}
-                        step={1}
-                        value={100 - form.commission}
-                        onChange={(e) => {
-                          const toSalon = Math.min(100, Math.max(0, Math.round(Number(e.target.value) || 0)));
-                          setForm({ ...form, commission: 100 - toSalon });
-                        }}
-                        className="w-full bg-white/5 border border-white/10 rounded-xl pl-3 pr-8 py-2.5 text-white font-mono text-base focus:outline-none focus:border-gold/50"
-                      />
-                      <span className="absolute right-3 top-1/2 -translate-y-1/2 text-zinc-500 text-sm">%</span>
+                <div className="space-y-4">
+                  <div>
+                    <label htmlFor="barber-share" className="text-zinc-400 text-xs mb-1.5 block">
+                      Porcentaje que entrega al salón
+                    </label>
+                    <div className="flex items-center gap-3">
+                      <div className="relative w-28">
+                        <input
+                          id="barber-share"
+                          type="number"
+                          inputMode="numeric"
+                          min={0}
+                          max={100}
+                          step={1}
+                          value={100 - form.commission}
+                          onChange={(e) => {
+                            const toSalon = Math.min(100, Math.max(0, Math.round(Number(e.target.value) || 0)));
+                            setForm({ ...form, commission: 100 - toSalon });
+                          }}
+                          className="w-full bg-white/5 border border-white/10 rounded-xl pl-3 pr-8 py-2.5 text-white font-mono text-base focus:outline-none focus:border-gold/50"
+                        />
+                        <span className="absolute right-3 top-1/2 -translate-y-1/2 text-zinc-500 text-sm">%</span>
+                      </div>
+                      <p className="text-zinc-400 text-sm">
+                        El barbero se queda con <span className="text-emerald-400 font-mono font-bold">{form.commission}%</span>
+                      </p>
                     </div>
-                    <p className="text-zinc-400 text-sm">
-                      El barbero se queda con <span className="text-emerald-400 font-mono font-bold">{form.commission}%</span>
+                    <p className="text-zinc-600 text-xs mt-1.5">
+                      Entrega al salón: <span className="text-gold font-bold">{100 - form.commission}%</span>
                     </p>
                   </div>
-                  <p className="text-zinc-600 text-xs mt-1.5">Aplica a todos los servicios que no tengan porcentaje personalizado.</p>
+
+                  {/* Asignación de a qué dueño le rinde cuentas */}
+                  <div className="p-3.5 rounded-2xl bg-white/[0.03] border border-white/10 space-y-2">
+                    <label className="text-xs font-semibold text-white block">
+                      ¿A qué socio / dueño le entrega su porcentaje ({100 - form.commission}%)?
+                    </label>
+                    <div className="grid grid-cols-3 gap-2">
+                      <button
+                        type="button"
+                        onClick={() => setForm({ ...form, ownerBeneficiary: 'walter' })}
+                        className={`px-3 py-2 rounded-xl text-xs font-bold border transition-colors text-center ${
+                          form.ownerBeneficiary === 'walter'
+                            ? 'bg-amber-500/20 text-amber-300 border-amber-500/40'
+                            : 'bg-white/5 text-zinc-400 border-white/10 hover:text-white'
+                        }`}
+                      >
+                        A Walter
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setForm({ ...form, ownerBeneficiary: 'daniel' })}
+                        className={`px-3 py-2 rounded-xl text-xs font-bold border transition-colors text-center ${
+                          form.ownerBeneficiary === 'daniel'
+                            ? 'bg-amber-500/20 text-amber-300 border-amber-500/40'
+                            : 'bg-white/5 text-zinc-400 border-white/10 hover:text-white'
+                        }`}
+                      >
+                        A Daniel
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setForm({ ...form, ownerBeneficiary: 'general' })}
+                        className={`px-3 py-2 rounded-xl text-xs font-bold border transition-colors text-center ${
+                          form.ownerBeneficiary === 'general'
+                            ? 'bg-emerald-500/20 text-emerald-300 border-emerald-500/40'
+                            : 'bg-white/5 text-zinc-400 border-white/10 hover:text-white'
+                        }`}
+                      >
+                        Caja General
+                      </button>
+                    </div>
+                    <p className="text-zinc-400 text-xs leading-relaxed">
+                      {form.ownerBeneficiary === 'daniel'
+                        ? `El ${100 - form.commission}% retenido de este barbero (ej. Nelson) se acreditará a Daniel y quedará registrado en el sistema.`
+                        : form.ownerBeneficiary === 'walter'
+                        ? `El ${100 - form.commission}% retenido de este barbero (ej. Gerardo) se acreditará a Walter y quedará registrado en el sistema.`
+                        : `El ${100 - form.commission}% retenido ingresará a la Caja General de la administración.`}
+                    </p>
+                  </div>
                 </div>
               )}
 

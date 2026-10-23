@@ -125,20 +125,20 @@ export default function AdminInvoices() {
   // 3. Totales de Caja específicos
   const totals = useMemo(() => {
     let grossTotal = 0;       // Total facturado (bruto)
-    let adminTotal = 0;       // Lo que realmente queda en la administración
+    let adminTotal = 0;       // Lo que realmente queda en la administración / sistema
     let barbersPayTotal = 0;  // Total comisiones que se deben pagar a barberos empleados
-    let ownerProduction = 0;  // Total facturado por Walter (dueño)
+    let walterTotal = 0;      // Margen total que le corresponde a Walter (propio + 22% de Gerardo, etc.)
+    let danielTotal = 0;      // Margen total que le corresponde a Daniel (propio + 23% de Nelson, etc.)
 
     invoices.forEach(({ split }) => {
       grossTotal += split.price;
       adminTotal += split.adminKeep;
       barbersPayTotal += split.barberPay;
-      if (split.isOwner) {
-        ownerProduction += split.price;
-      }
+      walterTotal += split.walterAmount;
+      danielTotal += split.danielAmount;
     });
 
-    return { grossTotal, adminTotal, barbersPayTotal, ownerProduction, count: invoices.length };
+    return { grossTotal, adminTotal, barbersPayTotal, walterTotal, danielTotal, count: invoices.length };
   }, [invoices]);
 
   // 4. Exportar reporte de facturas a Excel
@@ -165,6 +165,9 @@ export default function AdminInvoices() {
         { header: 'Pago al Barbero', key: 'barberPay', width: 16 },
         { header: '% Salón', key: 'adminPercent', width: 12 },
         { header: 'Queda a Administración', key: 'adminKeep', width: 22 },
+        { header: 'Beneficiario Dueño', key: 'beneficiary', width: 20 },
+        { header: 'Para Walter', key: 'walterAmount', width: 16 },
+        { header: 'Para Daniel', key: 'danielAmount', width: 16 },
         { header: 'Estado', key: 'status', width: 14 },
       ];
 
@@ -184,12 +187,19 @@ export default function AdminInvoices() {
           phone: booking.clientPhone,
           service: booking.serviceName,
           barber: barber?.name || booking.barberName,
-          barberType: isOwner ? 'Dueño (Sin rendición)' : 'Barbero empleado',
+          barberType: isOwner
+            ? `Dueño (${split.ownerKey === 'daniel' ? 'Daniel' : 'Walter'})`
+            : 'Barbero empleado',
           price: split.price,
           barberPercent: isOwner ? '100% (Dueño)' : `${split.barberPercent}%`,
           barberPay: split.barberPay,
           adminPercent: `${split.adminPercent}%`,
           adminKeep: split.adminKeep,
+          beneficiary: isOwner
+            ? (split.ownerKey === 'daniel' ? 'Daniel (Dueño)' : 'Walter (Dueño)')
+            : (split.beneficiary === 'daniel' ? 'Daniel' : split.beneficiary === 'walter' ? 'Walter' : 'Caja General'),
+          walterAmount: split.walterAmount,
+          danielAmount: split.danielAmount,
           status: booking.status,
         });
       });
@@ -209,6 +219,9 @@ export default function AdminInvoices() {
         barberPay: totals.barbersPayTotal,
         adminPercent: '',
         adminKeep: totals.adminTotal,
+        beneficiary: 'TOTALES DUEÑOS',
+        walterAmount: totals.walterTotal,
+        danielAmount: totals.danielTotal,
         status: `${totals.count} facturas`,
       });
       totalRow.font = { bold: true };
@@ -283,8 +296,8 @@ export default function AdminInvoices() {
         </div>
       </div>
 
-      {/* Tarjetas Principales de Caja (2 columnas en móvil, 4 en computador) */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-2.5 sm:gap-4">
+      {/* Tarjetas Principales de Caja (2 columnas en móvil, 5 en computador) */}
+      <div className="grid grid-cols-2 lg:grid-cols-5 gap-2.5 sm:gap-4">
         {/* Total Bruto */}
         <div className="table-card p-3 sm:p-5 rounded-2xl border border-gold/30 bg-gradient-to-br from-gold/10 via-transparent to-transparent flex flex-col justify-between">
           <div className="flex items-center justify-between gap-1">
@@ -293,7 +306,7 @@ export default function AdminInvoices() {
               <Wallet size={14} />
             </span>
           </div>
-          <p className="font-mono text-lg sm:text-3xl font-extrabold text-gold mt-1.5 sm:mt-2 truncate">
+          <p className="font-mono text-lg sm:text-2xl font-extrabold text-gold mt-1.5 sm:mt-2 truncate">
             {formatCOP(totals.grossTotal)}
           </p>
           <p className="text-zinc-400 text-[10px] sm:text-xs mt-0.5 sm:mt-1 truncate">
@@ -301,51 +314,67 @@ export default function AdminInvoices() {
           </p>
         </div>
 
-        {/* Queda en Administración */}
+        {/* Queda en el Sistema (Administración Total) */}
         <div className="table-card p-3 sm:p-5 rounded-2xl border border-emerald-500/30 bg-emerald-500/[0.04] flex flex-col justify-between">
           <div className="flex items-center justify-between gap-1">
-            <span className="text-[10px] sm:text-xs font-semibold text-emerald-300 uppercase tracking-wider line-clamp-1">Administración</span>
+            <span className="text-[10px] sm:text-xs font-semibold text-emerald-300 uppercase tracking-wider line-clamp-1">En el Sistema</span>
             <span className="w-6 h-6 sm:w-8 sm:h-8 rounded-full bg-emerald-500/15 flex items-center justify-center text-emerald-400 shrink-0">
               <Building2 size={14} />
             </span>
           </div>
-          <p className="font-mono text-lg sm:text-3xl font-extrabold text-emerald-400 mt-1.5 sm:mt-2 truncate">
+          <p className="font-mono text-lg sm:text-2xl font-extrabold text-emerald-400 mt-1.5 sm:mt-2 truncate">
             {formatCOP(totals.adminTotal)}
           </p>
           <p className="text-emerald-300/80 text-[10px] sm:text-xs mt-0.5 sm:mt-1 truncate font-medium">
-            100% Walter + margen
+            Walter + Daniel (Salón)
+          </p>
+        </div>
+
+        {/* Margen para Walter (Dueño 1) */}
+        <div className="table-card p-3 sm:p-5 rounded-2xl border border-amber-500/30 bg-amber-500/[0.04] flex flex-col justify-between">
+          <div className="flex items-center justify-between gap-1">
+            <span className="text-[10px] sm:text-xs font-semibold text-amber-300 uppercase tracking-wider line-clamp-1">Para Walter</span>
+            <span className="w-6 h-6 sm:w-8 sm:h-8 rounded-full bg-amber-500/15 flex items-center justify-center text-amber-400 shrink-0">
+              <Crown size={14} />
+            </span>
+          </div>
+          <p className="font-mono text-lg sm:text-2xl font-extrabold text-amber-300 mt-1.5 sm:mt-2 truncate">
+            {formatCOP(totals.walterTotal)}
+          </p>
+          <p className="text-amber-300/80 text-[10px] sm:text-xs mt-0.5 sm:mt-1 truncate">
+            Propio + 22% Gerardo
+          </p>
+        </div>
+
+        {/* Margen para Daniel (Dueño 2) */}
+        <div className="table-card p-3 sm:p-5 rounded-2xl border border-purple-500/30 bg-purple-500/[0.04] flex flex-col justify-between">
+          <div className="flex items-center justify-between gap-1">
+            <span className="text-[10px] sm:text-xs font-semibold text-purple-300 uppercase tracking-wider line-clamp-1">Para Daniel</span>
+            <span className="w-6 h-6 sm:w-8 sm:h-8 rounded-full bg-purple-500/15 flex items-center justify-center text-purple-400 shrink-0">
+              <Crown size={14} />
+            </span>
+          </div>
+          <p className="font-mono text-lg sm:text-2xl font-extrabold text-purple-300 mt-1.5 sm:mt-2 truncate">
+            {formatCOP(totals.danielTotal)}
+          </p>
+          <p className="text-purple-300/80 text-[10px] sm:text-xs mt-0.5 sm:mt-1 truncate">
+            Propio + 23% Nelson
           </p>
         </div>
 
         {/* A Pagar a Barberos */}
-        <div className="table-card p-3 sm:p-5 rounded-2xl border border-sky-500/30 bg-sky-500/[0.04] flex flex-col justify-between">
+        <div className="table-card p-3 sm:p-5 rounded-2xl border border-sky-500/30 bg-sky-500/[0.04] col-span-2 lg:col-span-1 flex flex-col justify-between">
           <div className="flex items-center justify-between gap-1">
             <span className="text-[10px] sm:text-xs font-semibold text-sky-300 uppercase tracking-wider line-clamp-1">A Barberos</span>
             <span className="w-6 h-6 sm:w-8 sm:h-8 rounded-full bg-sky-500/15 flex items-center justify-center text-sky-400 shrink-0">
               <Scissors size={14} />
             </span>
           </div>
-          <p className="font-mono text-lg sm:text-3xl font-extrabold text-sky-300 mt-1.5 sm:mt-2 truncate">
+          <p className="font-mono text-lg sm:text-2xl font-extrabold text-sky-300 mt-1.5 sm:mt-2 truncate">
             {formatCOP(totals.barbersPayTotal)}
           </p>
           <p className="text-sky-300/80 text-[10px] sm:text-xs mt-0.5 sm:mt-1 truncate">
             Comisiones a pagar
-          </p>
-        </div>
-
-        {/* Facturado por Walter */}
-        <div className="table-card p-3 sm:p-5 rounded-2xl border border-amber-500/30 bg-amber-500/[0.04] flex flex-col justify-between">
-          <div className="flex items-center justify-between gap-1">
-            <span className="text-[10px] sm:text-xs font-semibold text-amber-300 uppercase tracking-wider line-clamp-1">Walter (Dueño)</span>
-            <span className="w-6 h-6 sm:w-8 sm:h-8 rounded-full bg-amber-500/15 flex items-center justify-center text-amber-400 shrink-0">
-              <Crown size={14} />
-            </span>
-          </div>
-          <p className="font-mono text-lg sm:text-3xl font-extrabold text-amber-300 mt-1.5 sm:mt-2 truncate">
-            {formatCOP(totals.ownerProduction)}
-          </p>
-          <p className="text-amber-300/80 text-[10px] sm:text-xs mt-0.5 sm:mt-1 truncate">
-            100% Salón Hermanos
           </p>
         </div>
       </div>
@@ -497,11 +526,11 @@ export default function AdminInvoices() {
                       <div>
                         {isOwner ? (
                           <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-500/20 text-amber-300 border border-amber-500/30 flex items-center gap-1">
-                            <Crown size={10} /> Dueño
+                            <Crown size={10} /> Dueño ({split.ownerKey === 'daniel' ? 'Daniel' : 'Walter'})
                           </span>
                         ) : (
                           <span className="px-2 py-0.5 rounded-full text-[10px] font-mono bg-sky-500/15 text-sky-300 border border-sky-500/25">
-                            {split.barberPercent}% comisión
+                            {split.barberPercent}% comisión · Rinde {split.adminPercent}% a {split.beneficiary === 'daniel' ? 'Daniel' : split.beneficiary === 'walter' ? 'Walter' : 'General'}
                           </span>
                         )}
                       </div>
@@ -541,8 +570,10 @@ export default function AdminInvoices() {
                           <span className="font-mono font-bold text-emerald-400 text-xs">
                             {formatCOP(split.adminKeep)}
                           </span>
-                          <span className="text-[10px] text-zinc-500 block">
-                            {isOwner ? '100% Salón' : `(${split.adminPercent}% Salón)`}
+                          <span className="text-[10px] text-zinc-500 block truncate">
+                            {isOwner
+                              ? `100% Salón (${split.ownerKey === 'daniel' ? 'Daniel' : 'Walter'})`
+                              : `(${split.adminPercent}% → ${split.beneficiary === 'daniel' ? 'Daniel' : split.beneficiary === 'walter' ? 'Walter' : 'General'})`}
                           </span>
                         </div>
                       </div>
@@ -631,11 +662,11 @@ export default function AdminInvoices() {
                               <p className="font-medium text-white">{barber?.shortName || booking.barberName}</p>
                               {isOwner ? (
                                 <span className="text-[10px] text-amber-400 font-bold flex items-center gap-0.5">
-                                  <Crown size={10} /> Dueño
+                                  <Crown size={10} /> Dueño ({split.ownerKey === 'daniel' ? 'Daniel' : 'Walter'})
                                 </span>
                               ) : (
                                 <span className="text-[10px] text-zinc-400 font-mono">
-                                  Com: {split.barberPercent}%
+                                  Com: {split.barberPercent}% · Rinde {split.adminPercent}% a {split.beneficiary === 'daniel' ? 'Daniel' : split.beneficiary === 'walter' ? 'Walter' : 'General'}
                                 </span>
                               )}
                             </div>
@@ -673,7 +704,9 @@ export default function AdminInvoices() {
                             {formatCOP(split.adminKeep)}
                           </span>
                           <span className="block text-[10px] text-zinc-500 font-sans">
-                            {isOwner ? '100% Salón' : `(${split.adminPercent}% Salón)`}
+                            {isOwner
+                              ? `100% Salón (${split.ownerKey === 'daniel' ? 'Daniel' : 'Walter'})`
+                              : `(${split.adminPercent}% → ${split.beneficiary === 'daniel' ? 'Daniel' : split.beneficiary === 'walter' ? 'Walter' : 'General'})`}
                           </span>
                         </td>
 
@@ -789,16 +822,29 @@ export default function AdminInvoices() {
                   <span>Liquidación Interna de Caja</span>
                 </p>
                 <div className="flex justify-between items-center text-zinc-300">
-                  <span>Queda en la Administración:</span>
+                  <span>Queda en Administración:</span>
                   <span className="font-mono font-bold text-emerald-400 text-sm">
                     {formatCOP(activeInvoice.split.adminKeep)} ({activeInvoice.split.adminPercent}%)
                   </span>
                 </div>
-                <div className="flex justify-between items-center text-zinc-300">
+                {/* Desglose de a qué dueño le corresponde */}
+                {activeInvoice.split.walterAmount > 0 && (
+                  <div className="flex justify-between items-center text-[11px] text-amber-300/90 pl-3 border-l-2 border-amber-400/40">
+                    <span>↳ Corresponde a Walter (Dueño):</span>
+                    <span className="font-mono font-semibold">{formatCOP(activeInvoice.split.walterAmount)}</span>
+                  </div>
+                )}
+                {activeInvoice.split.danielAmount > 0 && (
+                  <div className="flex justify-between items-center text-[11px] text-sky-300/90 pl-3 border-l-2 border-sky-400/40">
+                    <span>↳ Corresponde a Daniel (Dueño):</span>
+                    <span className="font-mono font-semibold">{formatCOP(activeInvoice.split.danielAmount)}</span>
+                  </div>
+                )}
+                <div className="flex justify-between items-center text-zinc-300 pt-1 border-t border-white/5">
                   <span>Corresponde a Barbero:</span>
                   {activeInvoice.split.isOwner ? (
                     <span className="font-mono text-amber-300 font-medium">
-                      {formatCOP(activeInvoice.split.barberProduction)} (Dueño)
+                      {formatCOP(activeInvoice.split.barberProduction)} (Dueño - {activeInvoice.split.ownerKey === 'daniel' ? 'Daniel' : 'Walter'})
                     </span>
                   ) : (
                     <span className="font-mono text-sky-300 font-medium">

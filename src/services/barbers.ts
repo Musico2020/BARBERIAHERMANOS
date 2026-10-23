@@ -20,12 +20,42 @@ interface BarberRow {
   photo_url: string;
   work_hours?: Barber['workHours'] | null;
   is_owner?: boolean | null;
+  owner_name?: string | null;
+  owner_beneficiary?: string | null;
 }
 
 function rowToBarber(row: BarberRow): Barber {
-  const isWalter =
-    (row.short_name?.toLowerCase().trim() === 'walter') ||
-    (row.name?.toLowerCase().includes('walter'));
+  const shortLower = (row.short_name || '').toLowerCase().trim();
+  const nameLower = (row.name || '').toLowerCase().trim();
+  const isWalter = shortLower === 'walter' || nameLower.includes('walter');
+  const isDaniel = shortLower === 'daniel' || shortLower === 'dani' || nameLower.includes('daniel') || nameLower.includes('dani');
+
+  const isOwner = row.is_owner !== undefined && row.is_owner !== null
+    ? Boolean(row.is_owner)
+    : (isWalter || isDaniel);
+
+  const ownerName: 'walter' | 'daniel' | undefined = (row.owner_name === 'walter' || row.owner_name === 'daniel')
+    ? row.owner_name
+    : isDaniel
+      ? 'daniel'
+      : isOwner
+        ? 'walter'
+        : undefined;
+
+  // Beneficiario por defecto según la regla de negocio:
+  // - Gerardo entrega su 22% a Walter
+  // - Nelson entrega su 23% a Daniel
+  let defaultBeneficiary: 'walter' | 'daniel' | 'general' = 'walter';
+  if (nameLower.includes('nelson') || shortLower === 'nelson') {
+    defaultBeneficiary = 'daniel';
+  } else if (nameLower.includes('gerardo') || shortLower === 'gerardo') {
+    defaultBeneficiary = 'walter';
+  }
+
+  const ownerBeneficiary = (row.owner_beneficiary === 'walter' || row.owner_beneficiary === 'daniel' || row.owner_beneficiary === 'general')
+    ? row.owner_beneficiary
+    : defaultBeneficiary;
+
   return {
     id: row.id,
     name: row.name,
@@ -43,7 +73,9 @@ function rowToBarber(row: BarberRow): Barber {
     avatar: row.avatar,
     photoUrl: row.photo_url ?? '',
     workHours: row.work_hours ?? {},
-    isOwner: row.is_owner !== undefined && row.is_owner !== null ? Boolean(row.is_owner) : isWalter,
+    isOwner,
+    ownerName,
+    ownerBeneficiary,
   };
 }
 
@@ -52,7 +84,20 @@ const BARBER_COLUMNS =
   'id, name, short_name, role, phone, bio, specialties, rating, review_count, available, commission, total_services_month, earnings_month, avatar, photo_url, work_hours';
 
 export async function getBarbers(): Promise<Barber[]> {
-  // 1. Intentar con is_owner y todas las columnas extendidas
+  // 1. Intentar con columnas de dueño y beneficiario
+  try {
+    const { data, error } = await supabase
+      .from('barbers')
+      .select(`${BARBER_COLUMNS}, is_owner, owner_name, owner_beneficiary`)
+      .order('name');
+    if (!error && data && data.length > 0) {
+      return (data as BarberRow[]).map(rowToBarber);
+    }
+  } catch {
+    // Continuar a fallback
+  }
+
+  // 2. Fallback con solo is_owner
   try {
     const { data, error } = await supabase
       .from('barbers')
@@ -65,7 +110,7 @@ export async function getBarbers(): Promise<Barber[]> {
     // Continuar a fallback
   }
 
-  // 2. Fallback sin is_owner (rowToBarber detecta a Walter por nombre automáticamente)
+  // 3. Fallback estándar sin is_owner (rowToBarber detecta a Walter por nombre automáticamente)
   try {
     const { data, error } = await supabase
       .from('barbers')
@@ -78,7 +123,7 @@ export async function getBarbers(): Promise<Barber[]> {
     // Continuar a fallback mínimo
   }
 
-  // 3. Fallback mínimo asegurado con solo las columnas esenciales
+  // 4. Fallback mínimo asegurado con solo las columnas esenciales
   const minimalCols = 'id, name, short_name, role, phone, bio, specialties, rating, review_count, available, commission, total_services_month, earnings_month, avatar';
   const { data, error } = await supabase
     .from('barbers')
@@ -98,7 +143,11 @@ export async function updateBarberAvailability(id: string, available: boolean): 
 
 export async function createBarber(barber: Omit<Barber, 'id' | 'reviewCount' | 'totalServicesMonth' | 'earningsMonth' | 'photoUrl'>): Promise<Barber> {
   const isWalter = barber.shortName.toLowerCase().includes('walter') || barber.name.toLowerCase().includes('walter');
-  const isOwner = barber.isOwner ?? isWalter;
+  const isDaniel = barber.shortName.toLowerCase().includes('daniel') || barber.shortName.toLowerCase().includes('dani');
+  const isOwner = barber.isOwner ?? (isWalter || isDaniel);
+  const ownerName = barber.ownerName ?? (isDaniel ? 'daniel' : isOwner ? 'walter' : undefined);
+  const ownerBeneficiary = barber.ownerBeneficiary ?? (barber.shortName.toLowerCase().includes('nelson') ? 'daniel' : 'walter');
+
   const insertData: Record<string, unknown> = {
     name: barber.name,
     short_name: barber.shortName,
@@ -116,6 +165,8 @@ export async function createBarber(barber: Omit<Barber, 'id' | 'reviewCount' | '
     avatar: barber.avatar,
     work_hours: barber.workHours ?? {},
     is_owner: isOwner,
+    owner_name: ownerName,
+    owner_beneficiary: ownerBeneficiary,
   };
 
   const { data, error } = await supabase
@@ -125,8 +176,10 @@ export async function createBarber(barber: Omit<Barber, 'id' | 'reviewCount' | '
     .single();
 
   if (error) {
-    if (error.message?.includes('is_owner') || error.code === '42703' || error.code === '42501' || error.message?.toLowerCase().includes('permission')) {
+    if (error.message?.includes('owner') || error.code === '42703' || error.code === '42501' || error.message?.toLowerCase().includes('permission')) {
       delete insertData.is_owner;
+      delete insertData.owner_name;
+      delete insertData.owner_beneficiary;
       const retry = await supabase.from('barbers').insert(insertData).select(BARBER_COLUMNS).single();
       if (retry.error) throw retry.error;
       return rowToBarber(retry.data as BarberRow);
@@ -149,6 +202,8 @@ export async function updateBarber(id: string, updates: Partial<Barber>): Promis
   if (updates.commission !== undefined) dbUpdates.commission = updates.commission;
   if (updates.workHours !== undefined) dbUpdates.work_hours = updates.workHours;
   if (updates.isOwner !== undefined) dbUpdates.is_owner = updates.isOwner;
+  if (updates.ownerName !== undefined) dbUpdates.owner_name = updates.ownerName;
+  if (updates.ownerBeneficiary !== undefined) dbUpdates.owner_beneficiary = updates.ownerBeneficiary;
 
   const { error } = await supabase
     .from('barbers')
@@ -156,8 +211,10 @@ export async function updateBarber(id: string, updates: Partial<Barber>): Promis
     .eq('id', id);
 
   if (error) {
-    if (error.message?.includes('is_owner') || error.code === '42703' || error.code === '42501' || error.message?.toLowerCase().includes('permission')) {
+    if (error.message?.includes('owner') || error.code === '42703' || error.code === '42501' || error.message?.toLowerCase().includes('permission')) {
       delete dbUpdates.is_owner;
+      delete dbUpdates.owner_name;
+      delete dbUpdates.owner_beneficiary;
       const retry = await supabase.from('barbers').update(dbUpdates).eq('id', id);
       if (retry.error) throw retry.error;
       return;

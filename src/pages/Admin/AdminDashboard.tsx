@@ -21,7 +21,10 @@ import TodayChairs from '../../components/admin/TodayChairs';
 import NewClientModal from '../../components/admin/NewClientModal';
 import PushCard from '../../components/admin/PushCard';
 import MobileHome from '../../components/admin/MobileHome';
-import { barberEarnings, isBarberOwner, totalAdminNetKept, totalBarberCommissionToPay } from '../../lib/earnings';
+import {
+  barberEarnings, isBarberOwner, getBarberOwnerKey, getOwnerBeneficiary,
+  totalAdminNetKept, totalBarberCommissionToPay, totalWalterEarnings, totalDanielEarnings,
+} from '../../lib/earnings';
 
 /** Del 1 del mes a hoy, y el mismo tramo del mes anterior, para comparar en igualdad de días. */
 function monthToDate(today: string) {
@@ -126,6 +129,8 @@ export default function AdminDashboard({ onNavigate, onLogout }: { onNavigate?: 
   const todayRevenue = revenueOf(todayList);
   const todayCompleted = todayList.filter(isCompleted);
   const todayAdminNet = totalAdminNetKept(todayCompleted, barbers);
+  const todayWalter = totalWalterEarnings(todayCompleted, barbers);
+  const todayDaniel = totalDanielEarnings(todayCompleted, barbers);
   const todayBarbersPay = totalBarberCommissionToPay(todayCompleted, barbers);
   const lunch = lunchFor(today);
 
@@ -201,8 +206,15 @@ export default function AdminDashboard({ onNavigate, onLogout }: { onNavigate?: 
               <DayStat label="Caja de hoy" value={formatCOP(todayRevenue)} tone="text-gold" />
               {todayCompleted.length > 0 && (
                 <div className="mt-1.5 text-[11px] font-mono leading-tight space-y-0.5">
-                  <p className="text-zinc-300">Admin: <span className="text-gold font-bold">{formatCOP(todayAdminNet)}</span></p>
-                  <p className="text-zinc-400">Barberos: <span className="text-emerald-400 font-bold">{formatCOP(todayBarbersPay)}</span></p>
+                  <p className="text-zinc-300">
+                    Sistema: <span className="text-gold font-bold">{formatCOP(todayAdminNet)}</span>
+                  </p>
+                  <p className="text-[10px] text-zinc-400 font-sans">
+                    Walter: <span className="text-amber-300 font-mono font-medium">{formatCOP(todayWalter)}</span> · Daniel: <span className="text-amber-300 font-mono font-medium">{formatCOP(todayDaniel)}</span>
+                  </p>
+                  <p className="text-zinc-400">
+                    Barberos: <span className="text-emerald-400 font-bold">{formatCOP(todayBarbersPay)}</span>
+                  </p>
                 </div>
               )}
             </div>
@@ -304,6 +316,8 @@ export default function AdminDashboard({ onNavigate, onLogout }: { onNavigate?: 
             <ul className="space-y-4">
               {barberRows.map(({ barber, revenue, services: count, earnings }, i) => {
                 const owner = isBarberOwner(barber);
+                const ownerKey = getBarberOwnerKey(barber);
+                const beneficiary = getOwnerBeneficiary(barber);
                 const adminKept = owner ? revenue : revenue - earnings;
                 return (
                   <li key={barber.id}>
@@ -317,9 +331,13 @@ export default function AdminDashboard({ onNavigate, onLogout }: { onNavigate?: 
                       <div className="min-w-0 flex-1">
                         <div className="flex items-center gap-1.5 flex-wrap">
                           <p className="text-white text-sm font-semibold truncate">{barber.name}</p>
-                          {owner && (
+                          {owner ? (
                             <span className="px-1.5 py-0.5 rounded text-[10px] font-bold bg-amber-500/20 text-amber-300 border border-amber-500/30">
-                              👑 Dueño
+                              👑 Dueño ({ownerKey === 'daniel' ? 'Daniel' : 'Walter'})
+                            </span>
+                          ) : (
+                            <span className="px-1.5 py-0.5 rounded text-[10px] font-medium bg-white/5 text-zinc-400 border border-white/10">
+                              Rinde a {beneficiary === 'daniel' ? 'Daniel' : beneficiary === 'general' ? 'Caja General' : 'Walter'}
                             </span>
                           )}
                         </div>
@@ -330,7 +348,7 @@ export default function AdminDashboard({ onNavigate, onLogout }: { onNavigate?: 
                             </>
                           ) : (
                             <>
-                              {count} servicios · entrega al salón <span className="text-gold font-semibold">{formatCOP(adminKept)}</span> ({100 - barber.commission}%)
+                              {count} servicios · entrega a {beneficiary === 'daniel' ? 'Daniel' : beneficiary === 'general' ? 'Caja General' : 'Walter'} <span className="text-gold font-semibold">{formatCOP(adminKept)}</span> ({100 - barber.commission}%)
                               {' '}· se queda <span className="text-emerald-400 font-semibold">{formatCOP(earnings)}</span> ({barber.commission}%)
                             </>
                           )}

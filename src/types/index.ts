@@ -36,6 +36,10 @@ export interface Barber {
   workHours?: WorkHours;
   /** ¿Es dueño / socio? No rinde cuentas de comisión, su facturación entra 100% a la administración */
   isOwner?: boolean;
+  /** Identificador de cuál dueño es: 'walter' o 'daniel' */
+  ownerName?: 'walter' | 'daniel';
+  /** Si es barbero colaborador: a qué dueño le rinde cuentas / entrega su porcentaje ('walter', 'daniel' o 'general') */
+  ownerBeneficiary?: 'walter' | 'daniel' | 'general';
 }
 
 export type WorkDay = { off: true } | { off?: false; open: string; close: string };

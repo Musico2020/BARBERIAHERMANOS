@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { FileText, FileSpreadsheet, ChevronLeft, ChevronRight, Wallet, CheckCircle2, Receipt, XCircle, Loader2, Clock, CalendarDays } from 'lucide-react';
+import { FileText, FileSpreadsheet, ChevronLeft, ChevronRight, Wallet, Loader2, Clock, CalendarDays, Building2, Crown, Users } from 'lucide-react';
 import { getBookingsByMonth, getBookingsByYear, getBookingsInRange } from '../../services/bookings';
 import { getBarbers } from '../../services/barbers';
 import { getAllServices } from '../../services/services';
@@ -16,7 +16,7 @@ import type { ReportData } from '../../lib/report';
 import DateRangePicker from '../../components/admin/DateRangePicker';
 import { quincenaOf, rangeLabel, type DateRange } from '../../lib/dateRange';
 import type { Booking, Barber } from '../../types';
-import { barberShare, isBarberOwner } from '../../lib/earnings';
+import { calculateSplit, type OwnerKey } from '../../lib/earnings';
 import { Panel, KpiCard, Trend, Segmented, Initials } from '../../components/admin/ui';
 import { RevenueTrendChart, GoldBarChart, DonutChart } from '../../components/admin/charts';
 import DataTable, { type Column } from '../../components/admin/DataTable';
@@ -117,12 +117,8 @@ export default function AdminReports() {
   // Cifras del período
   const revenue = revenueOf(current);
   const done = current.filter(isCompleted).length;
-  const cancelled = current.filter((b) => b.status === 'cancelled').length;
   const avgTicket = done ? Math.round(revenue / done) : 0;
   const prevRevenue = revenueOf(previous);
-  const prevDone = previous.filter(isCompleted).length;
-  const prevCancelled = previous.filter((b) => b.status === 'cancelled').length;
-  const prevAvg = prevDone ? Math.round(prevRevenue / prevDone) : 0;
   const compareLabel = viewMode === 'range' ? 'Frente al período anterior' : viewMode === 'month' ? 'Frente al mes anterior' : 'Frente al año anterior';
 
   const barberName = (b: Booking) => barbers.find((x) => x.id === b.barberId)?.name ?? b.barberName;
@@ -160,41 +156,77 @@ export default function AdminReports() {
 
   const periodLabel = viewMode === 'range' ? rangeLabel(range) : viewMode === 'month' ? `${MONTHS[month - 1]} ${year}` : String(year);
 
-  // Liquidación: ingresos de cada barbero × su comisión
-  // Walter (dueño) no rinde cuentas: 100% queda en administración.
-  const barberRows = (() => {
-    const map = new Map<string, { name: string; services: number; revenue: number; commission: number | null; pay: number | null; isOwner: boolean }>();
+  // Liquidación: ingresos de cada barbero × su comisión y reparto a Walter / Daniel
+  const barberCalculations = (() => {
+    const map = new Map<string, {
+      name: string;
+      rawName: string;
+      services: number;
+      revenue: number;
+      commission: number | null;
+      pay: number | null;
+      adminKeep: number;
+      walterAmount: number;
+      danielAmount: number;
+      isOwner: boolean;
+      ownerKey: OwnerKey | null;
+      beneficiary: 'walter' | 'daniel' | 'general';
+    }>();
+
     for (const b of current) {
       if (!isCompleted(b)) continue;
       const barber = barbers.find((x) => x.id === b.barberId);
-      const isOwner = isBarberOwner(barber);
+      const split = calculateSplit(b, barber);
       const id = barber?.id ?? `nombre:${b.barberName}`;
       const baseName = barber?.name ?? (b.barberName || 'Sin asignar');
-      const row = map.get(id) ?? {
-        name: isOwner ? `${baseName} (👑 Dueño)` : baseName,
+
+      const existing = map.get(id) ?? {
+        name: baseName,
+        rawName: baseName,
         services: 0,
         revenue: 0,
-        commission: isOwner ? null : (barber ? barber.commission : null),
-        pay: null,
-        isOwner,
+        commission: split.isOwner ? null : split.barberPercent,
+        pay: 0,
+        adminKeep: 0,
+        walterAmount: 0,
+        danielAmount: 0,
+        isOwner: split.isOwner,
+        ownerKey: split.ownerKey,
+        beneficiary: split.beneficiary,
       };
-      row.services += 1;
-      row.revenue += b.price;
-      if (barber && !isOwner) {
-        row.pay = (row.pay ?? 0) + barberShare(b, barber);
-      }
-      map.set(id, row);
+
+      existing.services += 1;
+      existing.revenue += split.price;
+      existing.pay = (existing.pay ?? 0) + split.barberPay;
+      existing.adminKeep += split.adminKeep;
+      existing.walterAmount += split.walterAmount;
+      existing.danielAmount += split.danielAmount;
+
+      map.set(id, existing);
     }
+
     return [...map.values()]
-      // % efectivo: si hay servicios con porcentaje propio, el del barbero no aplica a todo
-      .map((r) => ({
-        ...r,
-        commission: r.isOwner ? null : (r.commission === null || !r.revenue ? r.commission : Math.round(((r.pay ?? 0) * 100) / r.revenue)),
-      }))
+      .map((r) => {
+        let labelName = r.rawName;
+        if (r.isOwner) {
+          labelName = `${r.rawName} (👑 Dueño · ${r.ownerKey === 'daniel' ? 'Daniel' : 'Walter'})`;
+        } else {
+          const ownerTarget = r.beneficiary === 'daniel' ? 'Daniel' : r.beneficiary === 'walter' ? 'Walter' : 'Caja General';
+          labelName = `${r.rawName} (Rinde ${100 - (r.commission ?? 75)}% a ${ownerTarget})`;
+        }
+        return {
+          ...r,
+          name: labelName,
+          pay: r.isOwner ? null : r.pay,
+        };
+      })
       .sort((a, b) => b.revenue - a.revenue);
   })();
-  const totalPay = barberRows.reduce((sum, r) => sum + (r.pay ?? 0), 0);
-  const totalAdminKeep = revenue - totalPay;
+
+  const totalPay = barberCalculations.reduce((sum, r) => sum + (r.pay ?? 0), 0);
+  const totalAdminKeep = barberCalculations.reduce((sum, r) => sum + r.adminKeep, 0);
+  const totalWalter = barberCalculations.reduce((sum, r) => sum + r.walterAmount, 0);
+  const totalDaniel = barberCalculations.reduce((sum, r) => sum + r.danielAmount, 0);
 
   const buildReport = (): ReportData => {
     const [y, m, d] = todayKey().split('-');
@@ -213,12 +245,20 @@ export default function AdminReports() {
       generatedAt: `${d}/${m}/${y}`,
       business: { name: businessConfig.name, address: businessConfig.address.trim(), phone: businessConfig.phone },
       kpis: [
-        { label: 'Ingresos', value: formatCOP(revenue), note: `${done} servicios completados` },
-        { label: 'Queda en Administración', value: formatCOP(totalAdminKeep), note: 'Incluye 100% dueño + margen' },
-        { label: 'Pago a Barberos', value: formatCOP(totalPay), note: 'Liquidación de comisiones a empleados' },
+        { label: 'Ingresos Totales', value: formatCOP(revenue), note: `${done} servicios completados` },
+        { label: 'En el Sistema (Admin)', value: formatCOP(totalAdminKeep), note: `Walter: ${formatCOP(totalWalter)} · Daniel: ${formatCOP(totalDaniel)}` },
+        { label: 'Para Walter (Dueño)', value: formatCOP(totalWalter), note: 'Propio 100% + entregas de barberos' },
+        { label: 'Para Daniel (Dueño)', value: formatCOP(totalDaniel), note: 'Propio 100% + entregas de barberos' },
+        { label: 'Pago a Barberos', value: formatCOP(totalPay), note: 'Liquidación a empleados colaboradores' },
         { label: 'Ticket promedio', value: formatCOP(avgTicket), note: 'por servicio' },
       ],
-      barbers: barberRows,
+      barbers: barberCalculations.map((r) => ({
+        name: r.name,
+        services: r.services,
+        revenue: r.revenue,
+        commission: r.commission,
+        pay: r.pay,
+      })),
       services: byService.map((x) => ({ name: x.name, count: x.count, revenue: x.revenue })),
       breakdown: {
         title: viewMode === 'year' ? `Movimiento por mes · ${year}` : 'Movimiento por día',
@@ -310,16 +350,122 @@ export default function AdminReports() {
         </div>
       ) : (
         <>
-          <div className="grid grid-cols-2 xl:grid-cols-4 gap-3 sm:gap-4">
-            <KpiCard label="Ingresos" value={formatCOP(revenue)} sub={`${done} servicios completados`} icon={Wallet}
-              trend={<Trend value={percentChange(revenue, prevRevenue)} label={compareLabel} />} />
-            <KpiCard label="Completadas" value={done} sub={`de ${current.length} reservas`} icon={CheckCircle2} accent="emerald"
-              trend={<Trend value={percentChange(done, prevDone)} label={compareLabel} />} />
-            <KpiCard label="Ticket promedio" value={formatCOP(avgTicket)} sub="por servicio" icon={Receipt} accent="blue"
-              trend={<Trend value={percentChange(avgTicket, prevAvg)} label={compareLabel} />} />
-            <KpiCard label="Cancelaciones" value={cancelled} sub={current.length ? `${Math.round((cancelled / current.length) * 100)}% de las reservas` : 'sin reservas'} icon={XCircle} accent="rose"
-              trend={<Trend value={percentChange(cancelled, prevCancelled)} inverse label={compareLabel} />} />
+          <div className="grid grid-cols-2 lg:grid-cols-5 gap-3 sm:gap-4">
+            <KpiCard
+              label="Ingresos Totales"
+              value={formatCOP(revenue)}
+              sub={`${done} citas cobradas`}
+              icon={Wallet}
+              trend={<Trend value={percentChange(revenue, prevRevenue)} label={compareLabel} />}
+            />
+            <KpiCard
+              label="En el Sistema (Admin)"
+              value={formatCOP(totalAdminKeep)}
+              sub="Queda en administración"
+              icon={Building2}
+              accent="emerald"
+            />
+            <KpiCard
+              label="Para Walter (Dueño)"
+              value={formatCOP(totalWalter)}
+              sub="100% propio + entregas"
+              icon={Crown}
+              accent="gold"
+            />
+            <KpiCard
+              label="Para Daniel (Dueño)"
+              value={formatCOP(totalDaniel)}
+              sub="100% propio + entregas"
+              icon={Crown}
+              accent="violet"
+            />
+            <KpiCard
+              label="Pago a Barberos"
+              value={formatCOP(totalPay)}
+              sub="Comisiones a pagar"
+              icon={Users}
+              accent="blue"
+            />
           </div>
+
+          {/* Liquidación por Barbero y Asignación a Dueños */}
+          <Panel
+            title="Liquidación de Caja y Reparto a Dueños"
+            subtitle="Cálculo exacto de lo producido por cada barbero, sus comisiones y los márgenes retenidos para Walter y Daniel"
+          >
+            <div className="overflow-x-auto -mx-5 sm:mx-0">
+              <table className="w-full text-left text-xs">
+                <thead>
+                  <tr className="border-b border-white/10 text-zinc-400 font-semibold uppercase tracking-wider text-[10px]">
+                    <th className="py-3 px-4">Barbero</th>
+                    <th className="py-3 px-4">Rol / Asignación</th>
+                    <th className="py-3 px-4 text-center">Servicios</th>
+                    <th className="py-3 px-4 text-right">Total Facturado</th>
+                    <th className="py-3 px-4 text-right">Pago al Barbero</th>
+                    <th className="py-3 px-4 text-right">Margen Sistema</th>
+                    <th className="py-3 px-4 text-right">Para Walter</th>
+                    <th className="py-3 px-4 text-right">Para Daniel</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-white/[0.04]">
+                  {barberCalculations.map((bc) => (
+                    <tr key={bc.rawName} className="hover:bg-white/[0.02] transition-colors">
+                      <td className="py-3 px-4 font-semibold text-white">
+                        {bc.rawName}
+                      </td>
+                      <td className="py-3 px-4">
+                        {bc.isOwner ? (
+                          <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-500/20 text-amber-300 border border-amber-500/30 inline-flex items-center gap-1">
+                            <Crown size={10} /> Dueño ({bc.ownerKey === 'daniel' ? 'Daniel' : 'Walter'})
+                          </span>
+                        ) : (
+                          <span className="px-2 py-0.5 rounded-full text-[10px] font-mono bg-sky-500/15 text-sky-300 border border-sky-500/25">
+                            {bc.commission}% com. · Entrega a {bc.beneficiary === 'daniel' ? 'Daniel' : bc.beneficiary === 'walter' ? 'Walter' : 'General'}
+                          </span>
+                        )}
+                      </td>
+                      <td className="py-3 px-4 text-center font-mono text-zinc-300">
+                        {bc.services}
+                      </td>
+                      <td className="py-3 px-4 text-right font-mono font-bold text-gold">
+                        {formatCOP(bc.revenue)}
+                      </td>
+                      <td className="py-3 px-4 text-right font-mono text-sky-300">
+                        {bc.isOwner ? '— (Dueño)' : formatCOP(bc.pay ?? 0)}
+                      </td>
+                      <td className="py-3 px-4 text-right font-mono font-bold text-emerald-400">
+                        {formatCOP(bc.adminKeep)}
+                      </td>
+                      <td className="py-3 px-4 text-right font-mono text-amber-300 font-semibold">
+                        {bc.walterAmount > 0 ? formatCOP(bc.walterAmount) : '—'}
+                      </td>
+                      <td className="py-3 px-4 text-right font-mono text-sky-300 font-semibold">
+                        {bc.danielAmount > 0 ? formatCOP(bc.danielAmount) : '—'}
+                      </td>
+                    </tr>
+                  ))}
+                  {barberCalculations.length === 0 ? (
+                    <tr>
+                      <td colSpan={8} className="py-6 text-center text-zinc-500">
+                        No hay servicios completados en este período.
+                      </td>
+                    </tr>
+                  ) : (
+                    <tr className="bg-white/[0.03] font-bold border-t border-white/10">
+                      <td className="py-3 px-4 text-gold">TOTALES</td>
+                      <td className="py-3 px-4 text-zinc-400 text-[11px]">Caja y Sistema</td>
+                      <td className="py-3 px-4 text-center font-mono text-white">{done}</td>
+                      <td className="py-3 px-4 text-right font-mono text-gold">{formatCOP(revenue)}</td>
+                      <td className="py-3 px-4 text-right font-mono text-sky-300">{formatCOP(totalPay)}</td>
+                      <td className="py-3 px-4 text-right font-mono text-emerald-400">{formatCOP(totalAdminKeep)}</td>
+                      <td className="py-3 px-4 text-right font-mono text-amber-300">{formatCOP(totalWalter)}</td>
+                      <td className="py-3 px-4 text-right font-mono text-sky-300">{formatCOP(totalDaniel)}</td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </Panel>
 
           {viewMode !== 'year' ? (
             <Panel title={`Ingresos por día · ${periodLabel}`} subtitle="Área dorada: ingresos · línea azul: citas">
