@@ -99,7 +99,8 @@ export default function AdminDashboard({ onNavigate, onLogout }: { onNavigate?: 
       })
       .catch((err) => {
         console.error('No se pudo cargar el dashboard', err);
-        setLoadError('No se pudieron cargar los datos. Se reintentará automáticamente.');
+        const detail = err?.message || err?.error_description || (typeof err === 'string' ? err : '');
+        setLoadError(detail ? `No se pudieron cargar los datos: ${detail}. Se reintentará automáticamente.` : 'No se pudieron cargar los datos. Se reintentará automáticamente.');
       });
   };
   useAutoRefresh(load, []);

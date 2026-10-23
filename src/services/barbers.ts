@@ -52,18 +52,39 @@ const BARBER_COLUMNS =
   'id, name, short_name, role, phone, bio, specialties, rating, review_count, available, commission, total_services_month, earnings_month, avatar, photo_url, work_hours';
 
 export async function getBarbers(): Promise<Barber[]> {
+  // 1. Intentar con is_owner y todas las columnas extendidas
+  try {
+    const { data, error } = await supabase
+      .from('barbers')
+      .select(`${BARBER_COLUMNS}, is_owner`)
+      .order('name');
+    if (!error && data && data.length > 0) {
+      return (data as BarberRow[]).map(rowToBarber);
+    }
+  } catch {
+    // Continuar a fallback
+  }
+
+  // 2. Fallback sin is_owner (rowToBarber detecta a Walter por nombre automáticamente)
+  try {
+    const { data, error } = await supabase
+      .from('barbers')
+      .select(BARBER_COLUMNS)
+      .order('name');
+    if (!error && data && data.length > 0) {
+      return (data as BarberRow[]).map(rowToBarber);
+    }
+  } catch {
+    // Continuar a fallback mínimo
+  }
+
+  // 3. Fallback mínimo asegurado con solo las columnas esenciales
+  const minimalCols = 'id, name, short_name, role, phone, bio, specialties, rating, review_count, available, commission, total_services_month, earnings_month, avatar';
   const { data, error } = await supabase
     .from('barbers')
-    .select(`${BARBER_COLUMNS}, is_owner`)
+    .select(minimalCols)
     .order('name');
-  if (error) {
-    if (error.message?.includes('is_owner') || error.code === '42703') {
-      const fallback = await supabase.from('barbers').select(BARBER_COLUMNS).order('name');
-      if (fallback.error) throw fallback.error;
-      return (fallback.data as BarberRow[]).map(rowToBarber);
-    }
-    throw error;
-  }
+  if (error) throw error;
   return (data as BarberRow[]).map(rowToBarber);
 }
 
@@ -104,7 +125,7 @@ export async function createBarber(barber: Omit<Barber, 'id' | 'reviewCount' | '
     .single();
 
   if (error) {
-    if (error.message?.includes('is_owner') || error.code === '42703') {
+    if (error.message?.includes('is_owner') || error.code === '42703' || error.code === '42501' || error.message?.toLowerCase().includes('permission')) {
       delete insertData.is_owner;
       const retry = await supabase.from('barbers').insert(insertData).select(BARBER_COLUMNS).single();
       if (retry.error) throw retry.error;
@@ -135,7 +156,7 @@ export async function updateBarber(id: string, updates: Partial<Barber>): Promis
     .eq('id', id);
 
   if (error) {
-    if (error.message?.includes('is_owner') || error.code === '42703') {
+    if (error.message?.includes('is_owner') || error.code === '42703' || error.code === '42501' || error.message?.toLowerCase().includes('permission')) {
       delete dbUpdates.is_owner;
       const retry = await supabase.from('barbers').update(dbUpdates).eq('id', id);
       if (retry.error) throw retry.error;

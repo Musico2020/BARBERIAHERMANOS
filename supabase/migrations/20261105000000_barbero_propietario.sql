@@ -1,4 +1,4 @@
--- Migración: Barbero Dueño / Propietario (Walter)
+-- Migración: Barbero Dueño / Propietario (Walter) + Permisos
 -- El dueño no rinde cuentas a la administración (100% Salón).
 
 ALTER TABLE public.barbers 
@@ -8,5 +8,8 @@ UPDATE public.barbers
 SET is_owner = true 
 WHERE lower(name) LIKE '%walter%' 
    OR lower(short_name) LIKE '%walter%';
+
+GRANT SELECT ON public.barbers TO anon, authenticated;
+GRANT ALL ON public.barbers TO authenticated;
 
 COMMENT ON COLUMN public.barbers.is_owner IS 'Indica si el barbero es dueño/propietario. El dueño no rinde cuentas: el 100% de lo producido entra íntegramente a la caja de la administración.';
