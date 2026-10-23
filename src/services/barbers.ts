@@ -19,9 +19,13 @@ interface BarberRow {
   avatar: string;
   photo_url: string;
   work_hours?: Barber['workHours'] | null;
+  is_owner?: boolean | null;
 }
 
 function rowToBarber(row: BarberRow): Barber {
+  const isWalter =
+    (row.short_name?.toLowerCase().trim() === 'walter') ||
+    (row.name?.toLowerCase().includes('walter'));
   return {
     id: row.id,
     name: row.name,
@@ -39,6 +43,7 @@ function rowToBarber(row: BarberRow): Barber {
     avatar: row.avatar,
     photoUrl: row.photo_url ?? '',
     workHours: row.work_hours ?? {},
+    isOwner: row.is_owner !== undefined && row.is_owner !== null ? Boolean(row.is_owner) : isWalter,
   };
 }
 
@@ -49,9 +54,16 @@ const BARBER_COLUMNS =
 export async function getBarbers(): Promise<Barber[]> {
   const { data, error } = await supabase
     .from('barbers')
-    .select(BARBER_COLUMNS)
+    .select(`${BARBER_COLUMNS}, is_owner`)
     .order('name');
-  if (error) throw error;
+  if (error) {
+    if (error.message?.includes('is_owner') || error.code === '42703') {
+      const fallback = await supabase.from('barbers').select(BARBER_COLUMNS).order('name');
+      if (fallback.error) throw fallback.error;
+      return (fallback.data as BarberRow[]).map(rowToBarber);
+    }
+    throw error;
+  }
   return (data as BarberRow[]).map(rowToBarber);
 }
 
@@ -64,28 +76,42 @@ export async function updateBarberAvailability(id: string, available: boolean): 
 }
 
 export async function createBarber(barber: Omit<Barber, 'id' | 'reviewCount' | 'totalServicesMonth' | 'earningsMonth' | 'photoUrl'>): Promise<Barber> {
+  const isWalter = barber.shortName.toLowerCase().includes('walter') || barber.name.toLowerCase().includes('walter');
+  const isOwner = barber.isOwner ?? isWalter;
+  const insertData: Record<string, unknown> = {
+    name: barber.name,
+    short_name: barber.shortName,
+    role: barber.role,
+    phone: barber.phone,
+    bio: barber.bio,
+    specialties: barber.specialties,
+    rating: barber.rating,
+    review_count: 0,
+    available: barber.available,
+    pin: barber.pin,
+    commission: barber.commission,
+    total_services_month: 0,
+    earnings_month: 0,
+    avatar: barber.avatar,
+    work_hours: barber.workHours ?? {},
+    is_owner: isOwner,
+  };
+
   const { data, error } = await supabase
     .from('barbers')
-    .insert({
-      name: barber.name,
-      short_name: barber.shortName,
-      role: barber.role,
-      phone: barber.phone,
-      bio: barber.bio,
-      specialties: barber.specialties,
-      rating: barber.rating,
-      review_count: 0,
-      available: barber.available,
-      pin: barber.pin,
-      commission: barber.commission,
-      total_services_month: 0,
-      earnings_month: 0,
-      avatar: barber.avatar,
-      work_hours: barber.workHours ?? {},
-    })
+    .insert(insertData)
     .select(BARBER_COLUMNS)
     .single();
-  if (error) throw error;
+
+  if (error) {
+    if (error.message?.includes('is_owner') || error.code === '42703') {
+      delete insertData.is_owner;
+      const retry = await supabase.from('barbers').insert(insertData).select(BARBER_COLUMNS).single();
+      if (retry.error) throw retry.error;
+      return rowToBarber(retry.data as BarberRow);
+    }
+    throw error;
+  }
   return rowToBarber(data as BarberRow);
 }
 
@@ -101,12 +127,22 @@ export async function updateBarber(id: string, updates: Partial<Barber>): Promis
   if (updates.pin !== undefined) dbUpdates.pin = updates.pin;
   if (updates.commission !== undefined) dbUpdates.commission = updates.commission;
   if (updates.workHours !== undefined) dbUpdates.work_hours = updates.workHours;
+  if (updates.isOwner !== undefined) dbUpdates.is_owner = updates.isOwner;
 
   const { error } = await supabase
     .from('barbers')
     .update(dbUpdates)
     .eq('id', id);
-  if (error) throw error;
+
+  if (error) {
+    if (error.message?.includes('is_owner') || error.code === '42703') {
+      delete dbUpdates.is_owner;
+      const retry = await supabase.from('barbers').update(dbUpdates).eq('id', id);
+      if (retry.error) throw retry.error;
+      return;
+    }
+    throw error;
+  }
 }
 
 export async function deleteBarber(id: string): Promise<void> {

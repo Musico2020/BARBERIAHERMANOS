@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import {
   CalendarDays, ClipboardList, CalendarClock, Banknote, Users, UserCircle, MessageCircle, ShoppingBag, Images,
-  BarChart2, Settings, ExternalLink, LogOut, UserPlus, Star, CalendarCheck, Wallet,
+  BarChart2, Settings, ExternalLink, LogOut, UserPlus, Star, CalendarCheck, Wallet, Receipt,
 } from 'lucide-react';
 import { ClipperIcon } from '../common/BarberIcons';
 import { currentAdminEmail } from '../../services/adminAuth';
@@ -130,6 +130,7 @@ export default function MobileHome({ greeting, barbers, clientsCount, todayCount
         tiles={[
           { label: 'Agenda', icon: CalendarDays, onClick: go('calendar') },
           { label: 'Reservas', icon: ClipboardList, onClick: go('bookings') },
+          { label: 'Facturas', icon: Receipt, onClick: go('invoices') },
           { label: 'Turnos', icon: CalendarClock, onClick: go('shifts') },
           { label: 'Pagos', icon: Banknote, onClick: go('payments'), badge: toReview },
           { label: 'Servicios', icon: ClipperIcon, onClick: go('services') },

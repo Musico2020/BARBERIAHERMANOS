@@ -84,3 +84,4 @@ export async function syncAutoStatusToDb(bookings: Booking[]): Promise<void> {
     console.warn('No se pudieron sincronizar los estados automáticos en la base', err);
   }
 }
+

@@ -7,6 +7,7 @@ import BarberServicesModal from '../../components/admin/BarberServicesModal';
 import { formatCOP } from '../../data';
 import { todayKey, addDays } from '../../lib/dates';
 import { barberMonthStats } from '../../lib/stats';
+import { isBarberOwner } from '../../lib/earnings';
 import type { Barber, Booking, StaffRole, WorkHours } from '../../types';
 import { IMAGE_ACCEPT } from '../../lib/imageFile';
 import BarberAvatar from '../../components/common/BarberAvatar';
@@ -21,6 +22,7 @@ interface BarberForm {
   commission: number;
   pin: string;
   workHours: WorkHours;
+  isOwner: boolean;
 }
 
 const emptyForm: BarberForm = {
@@ -32,6 +34,7 @@ const emptyForm: BarberForm = {
   commission: 77,
   pin: '',
   workHours: {},
+  isOwner: false,
 };
 
 export default function AdminBarbers() {
@@ -153,6 +156,7 @@ export default function AdminBarbers() {
       commission: barber.commission,
       pin: '',
       workHours: barber.workHours ?? {},
+      isOwner: barber.isOwner ?? isBarberOwner(barber),
     });
     setErrors({});
     setSaveError('');
@@ -203,6 +207,7 @@ export default function AdminBarbers() {
           specialties,
           commission: form.commission,
           workHours: form.workHours,
+          isOwner: form.isOwner,
         };
         if (form.pin) updates.pin = form.pin;
         await updateBarber(editTarget.id, updates);
@@ -234,6 +239,7 @@ export default function AdminBarbers() {
           commission: form.commission,
           pin: form.pin,
           workHours: form.workHours,
+          isOwner: form.isOwner,
         });
         setList((prev) => [...prev, newBarber]);
       }
@@ -298,7 +304,14 @@ export default function AdminBarbers() {
                     <span className="text-[11px] font-semibold text-gold">{barber.photoUrl ? 'Cambiar foto' : 'Subir foto'}</span>
                   </button>
                   <div>
-                    <p className="text-white font-semibold">{barber.name}</p>
+                    <div className="flex items-center gap-1.5 flex-wrap">
+                      <p className="text-white font-semibold">{barber.name}</p>
+                      {isBarberOwner(barber) && (
+                        <span className="px-1.5 py-0.5 rounded text-[10px] font-bold bg-amber-500/20 text-amber-300 border border-amber-500/30">
+                          👑 Dueño
+                        </span>
+                      )}
+                    </div>
                     <span className={`inline-block text-[10px] font-semibold uppercase tracking-wider px-2 py-0.5 rounded-full mt-0.5 ${barber.role === 'manicurista' ? 'bg-pink-500/15 text-pink-300' : 'bg-gold/15 text-gold'}`}>{barber.role === 'manicurista' ? 'Manicurista' : 'Barbero'}</span>
                     <div className="flex items-center gap-1.5 mt-0.5">
                       <Star size={12} className="text-gold fill-gold" />
@@ -363,8 +376,12 @@ export default function AdminBarbers() {
                   <p className="text-gold text-[10px] uppercase font-semibold mt-0.5 underline decoration-dotted underline-offset-2">Ingresos</p>
                 </button>
                 <div className="bg-white/[0.03] border border-white/[0.06] rounded-xl p-2.5 text-center">
-                  <p className="font-mono text-base font-bold text-gold">{100 - barber.commission}%</p>
-                  <p className="text-zinc-500 text-[10px] uppercase font-medium mt-0.5">Entrega al salón</p>
+                  <p className="font-mono text-base font-bold text-gold">
+                    {isBarberOwner(barber) ? '100%' : `${100 - barber.commission}%`}
+                  </p>
+                  <p className="text-zinc-500 text-[10px] uppercase font-medium mt-0.5">
+                    {isBarberOwner(barber) ? '100% Salón' : 'Entrega al salón'}
+                  </p>
                 </div>
               </div>
 
@@ -537,35 +554,55 @@ export default function AdminBarbers() {
                 />
               </div>
 
-              {/* En la base se guarda lo que se queda el barbero (commission); aquí se escribe lo que entrega al salón */}
-              <div>
-                <label htmlFor="barber-share" className="text-zinc-400 text-xs mb-1.5 block">
-                  Porcentaje que entrega al salón
+              {/* Dueño del salón vs Barbero / Empleado */}
+              <div className="p-3.5 rounded-2xl bg-gold/5 border border-gold/25 space-y-1.5">
+                <label className="flex items-center gap-3 cursor-pointer select-none">
+                  <input
+                    type="checkbox"
+                    checked={form.isOwner}
+                    onChange={(e) => setForm({ ...form, isOwner: e.target.checked })}
+                    className="w-4 h-4 rounded text-gold focus:ring-gold/30 bg-black/40 border-white/20 accent-amber-500"
+                  />
+                  <span className="text-sm font-semibold text-white">
+                    👑 Es Dueño / Propietario del Salón (ej. Walter)
+                  </span>
                 </label>
-                <div className="flex items-center gap-3">
-                  <div className="relative w-28">
-                    <input
-                      id="barber-share"
-                      type="number"
-                      inputMode="numeric"
-                      min={0}
-                      max={100}
-                      step={1}
-                      value={100 - form.commission}
-                      onChange={(e) => {
-                        const toSalon = Math.min(100, Math.max(0, Math.round(Number(e.target.value) || 0)));
-                        setForm({ ...form, commission: 100 - toSalon });
-                      }}
-                      className="w-full bg-white/5 border border-white/10 rounded-xl pl-3 pr-8 py-2.5 text-white font-mono text-base focus:outline-none focus:border-gold/50"
-                    />
-                    <span className="absolute right-3 top-1/2 -translate-y-1/2 text-zinc-500 text-sm">%</span>
-                  </div>
-                  <p className="text-zinc-400 text-sm">
-                    El barbero se queda con <span className="text-emerald-400 font-mono font-bold">{form.commission}%</span>
-                  </p>
-                </div>
-                <p className="text-zinc-600 text-xs mt-1.5">Para el dueño del salón: 0 % (se queda con todo).</p>
+                <p className="text-zinc-400 text-xs pl-7 leading-relaxed">
+                  Al marcarlo como dueño, no rinde cuentas de comisión: el 100% de lo que produce entra directamente a la administración y no genera cuentas de nómina por pagar.
+                </p>
               </div>
+
+              {/* En la base se guarda lo que se queda el barbero (commission); aquí se escribe lo que entrega al salón */}
+              {!form.isOwner && (
+                <div>
+                  <label htmlFor="barber-share" className="text-zinc-400 text-xs mb-1.5 block">
+                    Porcentaje que entrega al salón
+                  </label>
+                  <div className="flex items-center gap-3">
+                    <div className="relative w-28">
+                      <input
+                        id="barber-share"
+                        type="number"
+                        inputMode="numeric"
+                        min={0}
+                        max={100}
+                        step={1}
+                        value={100 - form.commission}
+                        onChange={(e) => {
+                          const toSalon = Math.min(100, Math.max(0, Math.round(Number(e.target.value) || 0)));
+                          setForm({ ...form, commission: 100 - toSalon });
+                        }}
+                        className="w-full bg-white/5 border border-white/10 rounded-xl pl-3 pr-8 py-2.5 text-white font-mono text-base focus:outline-none focus:border-gold/50"
+                      />
+                      <span className="absolute right-3 top-1/2 -translate-y-1/2 text-zinc-500 text-sm">%</span>
+                    </div>
+                    <p className="text-zinc-400 text-sm">
+                      El barbero se queda con <span className="text-emerald-400 font-mono font-bold">{form.commission}%</span>
+                    </p>
+                  </div>
+                  <p className="text-zinc-600 text-xs mt-1.5">Aplica a todos los servicios que no tengan porcentaje personalizado.</p>
+                </div>
+              )}
 
               <div>
                 <span className="text-zinc-400 text-xs mb-1.5 block">Horario de trabajo</span>

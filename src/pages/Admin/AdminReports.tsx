@@ -16,7 +16,7 @@ import type { ReportData } from '../../lib/report';
 import DateRangePicker from '../../components/admin/DateRangePicker';
 import { quincenaOf, rangeLabel, type DateRange } from '../../lib/dateRange';
 import type { Booking, Barber } from '../../types';
-import { barberShare } from '../../lib/earnings';
+import { barberShare, isBarberOwner } from '../../lib/earnings';
 import { Panel, KpiCard, Trend, Segmented, Initials } from '../../components/admin/ui';
 import { RevenueTrendChart, GoldBarChart, DonutChart } from '../../components/admin/charts';
 import DataTable, { type Column } from '../../components/admin/DataTable';
@@ -161,24 +161,40 @@ export default function AdminReports() {
   const periodLabel = viewMode === 'range' ? rangeLabel(range) : viewMode === 'month' ? `${MONTHS[month - 1]} ${year}` : String(year);
 
   // Liquidación: ingresos de cada barbero × su comisión
+  // Walter (dueño) no rinde cuentas: 100% queda en administración.
   const barberRows = (() => {
-    const map = new Map<string, { name: string; services: number; revenue: number; commission: number | null; pay: number | null }>();
+    const map = new Map<string, { name: string; services: number; revenue: number; commission: number | null; pay: number | null; isOwner: boolean }>();
     for (const b of current) {
       if (!isCompleted(b)) continue;
       const barber = barbers.find((x) => x.id === b.barberId);
+      const isOwner = isBarberOwner(barber);
       const id = barber?.id ?? `nombre:${b.barberName}`;
-      const row = map.get(id) ?? { name: barber?.name ?? (b.barberName || 'Sin asignar'), services: 0, revenue: 0, commission: barber ? barber.commission : null, pay: null };
+      const baseName = barber?.name ?? (b.barberName || 'Sin asignar');
+      const row = map.get(id) ?? {
+        name: isOwner ? `${baseName} (👑 Dueño)` : baseName,
+        services: 0,
+        revenue: 0,
+        commission: isOwner ? null : (barber ? barber.commission : null),
+        pay: null,
+        isOwner,
+      };
       row.services += 1;
       row.revenue += b.price;
-      if (barber) row.pay = (row.pay ?? 0) + barberShare(b, barber);
+      if (barber && !isOwner) {
+        row.pay = (row.pay ?? 0) + barberShare(b, barber);
+      }
       map.set(id, row);
     }
     return [...map.values()]
       // % efectivo: si hay servicios con porcentaje propio, el del barbero no aplica a todo
-      .map((r) => ({ ...r, commission: r.commission === null || !r.revenue ? r.commission : Math.round(((r.pay ?? 0) * 100) / r.revenue) }))
+      .map((r) => ({
+        ...r,
+        commission: r.isOwner ? null : (r.commission === null || !r.revenue ? r.commission : Math.round(((r.pay ?? 0) * 100) / r.revenue)),
+      }))
       .sort((a, b) => b.revenue - a.revenue);
   })();
   const totalPay = barberRows.reduce((sum, r) => sum + (r.pay ?? 0), 0);
+  const totalAdminKeep = revenue - totalPay;
 
   const buildReport = (): ReportData => {
     const [y, m, d] = todayKey().split('-');
@@ -198,9 +214,9 @@ export default function AdminReports() {
       business: { name: businessConfig.name, address: businessConfig.address.trim(), phone: businessConfig.phone },
       kpis: [
         { label: 'Ingresos', value: formatCOP(revenue), note: `${done} servicios completados` },
-        { label: 'Servicios completados', value: String(done), note: `de ${current.length} reservas` },
+        { label: 'Queda en Administración', value: formatCOP(totalAdminKeep), note: 'Incluye 100% dueño + margen' },
+        { label: 'Pago a Barberos', value: formatCOP(totalPay), note: 'Liquidación de comisiones a empleados' },
         { label: 'Ticket promedio', value: formatCOP(avgTicket), note: 'por servicio' },
-        { label: 'Pago a barberos', value: formatCOP(totalPay), note: `queda al negocio ${formatCOP(revenue - totalPay)}` },
       ],
       barbers: barberRows,
       services: byService.map((x) => ({ name: x.name, count: x.count, revenue: x.revenue })),

@@ -34,6 +34,8 @@ export interface Barber {
   earningsMonth: number;
   /** Horario de trabajo por día de la semana ("0" = domingo … "6" = sábado); el día que falta sigue el horario del salón */
   workHours?: WorkHours;
+  /** ¿Es dueño / socio? No rinde cuentas de comisión, su facturación entra 100% a la administración */
+  isOwner?: boolean;
 }
 
 export type WorkDay = { off: true } | { off?: false; open: string; close: string };

@@ -13,12 +13,13 @@ import AdminGallery from './AdminGallery';
 import AdminCalendar from './AdminCalendar';
 import AdminShifts from './AdminShifts';
 import AdminPayments from './AdminPayments';
+import AdminInvoices from './AdminInvoices';
 import AdminClients from './AdminClients';
 import AdminReports from './AdminReports';
 import AdminSettings from './AdminSettings';
 import { hasAdminSession, signOutAdmin } from '../../services/adminAuth';
 
-const TABS: AdminTab[] = ['dashboard', 'calendar', 'shifts', 'payments', 'bookings', 'messages', 'barbers', 'services', 'products', 'gallery', 'clients', 'reports', 'settings'];
+const TABS: AdminTab[] = ['dashboard', 'calendar', 'shifts', 'payments', 'bookings', 'invoices', 'messages', 'barbers', 'services', 'products', 'gallery', 'clients', 'reports', 'settings'];
 const asTab = (value: unknown): AdminTab | null => (TABS.includes(value as AdminTab) ? (value as AdminTab) : null);
 
 /** /admin?tab=payments abre esa sección (lo usan los avisos al teléfono) */
@@ -95,6 +96,7 @@ export default function AdminPage() {
       case 'shifts': return <AdminShifts />;
       case 'payments': return <AdminPayments />;
       case 'bookings': return <AdminBookings />;
+      case 'invoices': return <AdminInvoices />;
       case 'messages': return <AdminMessages />;
       case 'barbers': return <AdminBarbers />;
       case 'services': return <AdminServices />;

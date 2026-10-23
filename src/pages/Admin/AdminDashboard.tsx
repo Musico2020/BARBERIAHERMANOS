@@ -21,7 +21,7 @@ import TodayChairs from '../../components/admin/TodayChairs';
 import NewClientModal from '../../components/admin/NewClientModal';
 import PushCard from '../../components/admin/PushCard';
 import MobileHome from '../../components/admin/MobileHome';
-import { barberEarnings } from '../../lib/earnings';
+import { barberEarnings, isBarberOwner, totalAdminNetKept, totalBarberCommissionToPay } from '../../lib/earnings';
 
 /** Del 1 del mes a hoy, y el mismo tramo del mes anterior, para comparar en igualdad de días. */
 function monthToDate(today: string) {
@@ -123,6 +123,9 @@ export default function AdminDashboard({ onNavigate, onLogout }: { onNavigate?: 
   const todayActive = todayList.filter((b) => b.status !== 'cancelled');
   const todayPending = todayList.filter((b) => b.status === 'pending').length;
   const todayRevenue = revenueOf(todayList);
+  const todayCompleted = todayList.filter(isCompleted);
+  const todayAdminNet = totalAdminNetKept(todayCompleted, barbers);
+  const todayBarbersPay = totalBarberCommissionToPay(todayCompleted, barbers);
   const lunch = lunchFor(today);
 
   const last30 = Array.from({ length: 30 }, (_, i) => addDays(today, i - 29));
@@ -143,6 +146,7 @@ export default function AdminDashboard({ onNavigate, onLogout }: { onNavigate?: 
 
   const quickActions: { label: string; icon: React.ElementType; onClick: () => void; primary?: boolean }[] = [
     { label: 'Cliente nuevo', icon: UserPlus, onClick: () => setShowNewClient(true), primary: true },
+    { label: 'Facturas y Caja', icon: Receipt, onClick: () => onNavigate?.('invoices') },
     { label: 'Calendario', icon: CalendarDays, onClick: () => onNavigate?.('calendar') },
     { label: 'Reservas', icon: ClipboardList, onClick: () => onNavigate?.('bookings') },
     { label: 'Mensajes', icon: MessageCircle, onClick: () => onNavigate?.('messages') },
@@ -192,7 +196,15 @@ export default function AdminDashboard({ onNavigate, onLogout }: { onNavigate?: 
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-5 sm:gap-8 xl:border-l xl:border-gold/20 xl:pl-10">
             <DayStat label="Turnos hoy" value={todayActive.length} />
             <DayStat label="Por confirmar" value={todayPending} tone={todayPending ? 'text-amber-300' : 'text-white'} />
-            <DayStat label="Caja de hoy" value={formatCOP(todayRevenue)} tone="text-gold" />
+            <div>
+              <DayStat label="Caja de hoy" value={formatCOP(todayRevenue)} tone="text-gold" />
+              {todayCompleted.length > 0 && (
+                <div className="mt-1.5 text-[11px] font-mono leading-tight space-y-0.5">
+                  <p className="text-zinc-300">Admin: <span className="text-gold font-bold">{formatCOP(todayAdminNet)}</span></p>
+                  <p className="text-zinc-400">Barberos: <span className="text-emerald-400 font-bold">{formatCOP(todayBarbersPay)}</span></p>
+                </div>
+              )}
+            </div>
             <DayStat label="Clientes" value={clientsCount} />
           </div>
         </div>
@@ -289,29 +301,48 @@ export default function AdminDashboard({ onNavigate, onLogout }: { onNavigate?: 
 
           <Panel title="Rendimiento de barberos" subtitle={`Ingresos de ${monthName}`}>
             <ul className="space-y-4">
-              {barberRows.map(({ barber, revenue, services: count, earnings }, i) => (
-                <li key={barber.id}>
-                  <div className="flex items-center gap-3">
-                    <div className="relative">
-                      <BarberAvatar barber={barber} className="w-11 h-11 rounded-full text-sm border border-gold/30" />
-                      {i === 0 && revenue > 0 && (
-                        <Crown size={15} className="absolute -top-2 -right-1 text-gold fill-gold drop-shadow" aria-label="Más ingresos del mes" />
-                      )}
+              {barberRows.map(({ barber, revenue, services: count, earnings }, i) => {
+                const owner = isBarberOwner(barber);
+                const adminKept = owner ? revenue : revenue - earnings;
+                return (
+                  <li key={barber.id}>
+                    <div className="flex items-center gap-3">
+                      <div className="relative">
+                        <BarberAvatar barber={barber} className="w-11 h-11 rounded-full text-sm border border-gold/30" />
+                        {i === 0 && revenue > 0 && (
+                          <Crown size={15} className="absolute -top-2 -right-1 text-gold fill-gold drop-shadow" aria-label="Más ingresos del mes" />
+                        )}
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <div className="flex items-center gap-1.5 flex-wrap">
+                          <p className="text-white text-sm font-semibold truncate">{barber.name}</p>
+                          {owner && (
+                            <span className="px-1.5 py-0.5 rounded text-[10px] font-bold bg-amber-500/20 text-amber-300 border border-amber-500/30">
+                              👑 Dueño
+                            </span>
+                          )}
+                        </div>
+                        <p className="text-zinc-500 text-xs mt-0.5">
+                          {owner ? (
+                            <>
+                              {count} servicios · <span className="text-gold font-semibold">100% Salón</span> · No rinde cuentas
+                            </>
+                          ) : (
+                            <>
+                              {count} servicios · entrega al salón <span className="text-gold font-semibold">{formatCOP(adminKept)}</span> ({100 - barber.commission}%)
+                              {' '}· se queda <span className="text-emerald-400 font-semibold">{formatCOP(earnings)}</span> ({barber.commission}%)
+                            </>
+                          )}
+                        </p>
+                      </div>
+                      <span className="font-mono text-gold text-sm font-bold">{formatCOP(revenue)}</span>
                     </div>
-                    <div className="min-w-0 flex-1">
-                      <p className="text-white text-sm font-semibold truncate">{barber.name}</p>
-                      <p className="text-zinc-500 text-xs">
-                        {count} servicios · entrega al salón <span className="text-gold font-semibold">{formatCOP(revenue - earnings)}</span> ({100 - barber.commission}%)
-                        {' '}· se queda <span className="text-emerald-400 font-semibold">{formatCOP(earnings)}</span> ({barber.commission}%)
-                      </p>
+                    <div className="h-1.5 rounded-full bg-white/5 mt-2.5 overflow-hidden">
+                      <div className="h-full rounded-full bg-gradient-to-r from-[#8C6A2A] to-[#E6C27A] transition-all duration-700" style={{ width: `${(revenue / topRevenue) * 100}%` }} />
                     </div>
-                    <span className="font-mono text-gold text-sm font-bold">{formatCOP(revenue)}</span>
-                  </div>
-                  <div className="h-1.5 rounded-full bg-white/5 mt-2.5 overflow-hidden">
-                    <div className="h-full rounded-full bg-gradient-to-r from-[#8C6A2A] to-[#E6C27A] transition-all duration-700" style={{ width: `${(revenue / topRevenue) * 100}%` }} />
-                  </div>
-                </li>
-              ))}
+                  </li>
+                );
+              })}
             </ul>
           </Panel>
         </div>

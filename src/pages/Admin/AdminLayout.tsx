@@ -2,7 +2,7 @@ import { useState, useRef, useEffect } from 'react';
 import {
   LayoutDashboard, Calendar, ClipboardList, Users,
   UserCircle, BarChart2, Settings, LogOut, ExternalLink, Menu, Bell,
-  CheckCheck, AlertCircle, CalendarCheck, MessageCircle, BellRing, ShoppingBag, Images, CalendarClock, Banknote, ArrowLeft,
+  CheckCheck, AlertCircle, CalendarCheck, MessageCircle, BellRing, ShoppingBag, Images, CalendarClock, Banknote, ArrowLeft, Receipt,
 } from 'lucide-react';
 import { ClipperIcon } from '../../components/common/BarberIcons';
 import ThemeToggle from '../../components/common/ThemeToggle';
@@ -10,7 +10,7 @@ import { useAdminNotifications, relativeTime, type AdminNotificationType } from 
 import { useAutoRefresh } from '../../hooks/useAutoRefresh';
 import { countDepositsToReview } from '../../services/deposits';
 
-export type AdminTab = 'dashboard' | 'calendar' | 'shifts' | 'payments' | 'bookings' | 'messages' | 'barbers' | 'services' | 'products' | 'gallery' | 'clients' | 'reports' | 'settings';
+export type AdminTab = 'dashboard' | 'calendar' | 'shifts' | 'payments' | 'bookings' | 'invoices' | 'messages' | 'barbers' | 'services' | 'products' | 'gallery' | 'clients' | 'reports' | 'settings';
 
 interface Props {
   activeTab: AdminTab;
@@ -41,6 +41,7 @@ const navItems: { id: AdminTab; label: string; icon: React.ElementType; group: s
   { id: 'shifts', label: 'Turnos', icon: CalendarClock, group: 'Día a día', description: 'Abrir o cerrar horas de un día' },
   { id: 'payments', label: 'Pagos', icon: Banknote, group: 'Día a día', description: 'Anticipos por verificar' },
   { id: 'bookings', label: 'Reservas', icon: ClipboardList, group: 'Día a día', description: 'Todas las citas y su estado' },
+  { id: 'invoices', label: 'Facturas y Caja', icon: Receipt, group: 'Día a día', description: 'Caja detallada, facturas por servicio y comisiones' },
   { id: 'messages', label: 'Mensajes', icon: MessageCircle, group: 'Día a día', description: 'Lo que escriben desde la web' },
   { id: 'barbers', label: 'Barberos', icon: Users, group: 'Negocio', description: 'Equipo, fotos, PIN y porcentajes' },
   { id: 'services', label: 'Servicios', icon: ClipperIcon, group: 'Negocio', description: 'Precios y duración de cada servicio' },

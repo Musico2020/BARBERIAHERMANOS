@@ -83,3 +83,4 @@ BEGIN
     (SELECT json_agg(b ORDER BY b.date DESC, b.time ASC) FROM bookings b WHERE b.barber_id = p_barber_id),
     '[]'::json));
 END $$;
+
