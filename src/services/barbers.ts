@@ -1,6 +1,6 @@
 import { supabase } from '../lib/supabase';
 import { toDrawableImage, isSupportedImage } from '../lib/imageFile';
-import type { Barber } from '../types';
+import type { Barber, BarberServiceRule } from '../types';
 
 interface BarberRow {
   id: string;
@@ -84,7 +84,38 @@ function rowToBarber(row: BarberRow): Barber {
 const BARBER_COLUMNS =
   'id, name, short_name, role, phone, bio, specialties, rating, review_count, available, commission, total_services_month, earnings_month, avatar, photo_url, work_hours';
 
+/** Reglas de servicios por barbero; si la tabla no responde, nadie tiene reglas (todo como antes) */
+async function getServiceRules(): Promise<Map<string, Record<string, BarberServiceRule>>> {
+  const byBarber = new Map<string, Record<string, BarberServiceRule>>();
+  const { data, error } = await supabase.from('barber_services').select('barber_id, service_id, enabled, price');
+  if (error) { console.warn('No se pudieron cargar los servicios por barbero', error); return byBarber; }
+  for (const r of data as { barber_id: string; service_id: string; enabled: boolean; price: number | null }[]) {
+    const rules = byBarber.get(r.barber_id) ?? {};
+    rules[r.service_id] = { enabled: r.enabled, price: r.price };
+    byBarber.set(r.barber_id, rules);
+  }
+  return byBarber;
+}
+
 export async function getBarbers(): Promise<Barber[]> {
+  const [list, rules] = await Promise.all([getBarberRows(), getServiceRules()]);
+  return list.map((b) => ({ ...b, services: rules.get(b.id) ?? {} }));
+}
+
+/** Guarda qué servicios hace un barbero y lo que cobra (solo administradores). Reemplaza sus reglas. */
+export async function saveBarberServices(barberId: string, rules: Record<string, BarberServiceRule>): Promise<void> {
+  const rows = Object.entries(rules)
+    .filter(([, r]) => !r.enabled || r.price !== null)
+    .map(([serviceId, r]) => ({ barber_id: barberId, service_id: serviceId, enabled: r.enabled, price: r.price, updated_at: new Date().toISOString() }));
+  const { error: delError } = await supabase.from('barber_services').delete().eq('barber_id', barberId);
+  if (delError) throw delError;
+  if (rows.length) {
+    const { error } = await supabase.from('barber_services').insert(rows);
+    if (error) throw error;
+  }
+}
+
+async function getBarberRows(): Promise<Barber[]> {
   // 1. Intentar con columnas de dueño y beneficiario
   try {
     const { data, error } = await supabase

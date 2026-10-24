@@ -209,3 +209,9 @@ export function barberEarnings(
 
 /** ¿Algún servicio tiene porcentaje propio? (para avisar que el % del barbero no aplica a todo) */
 export const hasServicePercents = () => servicePercents.size > 0;
+
+/** A quién le entrega cuentas el barbero, en palabras: «Walter», «Daniel» o «la administración» */
+export function bossName(barber?: Parameters<typeof getOwnerBeneficiary>[0]): string {
+  const key = getOwnerBeneficiary(barber);
+  return key === 'walter' ? 'Walter' : key === 'daniel' ? 'Daniel' : 'la administración';
+}

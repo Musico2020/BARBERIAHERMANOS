@@ -40,6 +40,14 @@ export interface Barber {
   ownerName?: 'walter' | 'daniel';
   /** Si es barbero colaborador: a qué dueño le rinde cuentas / entrega su porcentaje ('walter', 'daniel' o 'general') */
   ownerBeneficiary?: 'walter' | 'daniel' | 'general';
+  /** Excepciones por servicio (Panel → Configuración → Barberos): si no lo hace y lo que cobra. Sin dato = lo hace al precio general. */
+  services?: Record<string, BarberServiceRule>;
+}
+
+export interface BarberServiceRule {
+  enabled: boolean;
+  /** Lo que cobra este barbero; null = el precio general del servicio */
+  price: number | null;
 }
 
 /** lunch: su almuerzo ese día; false = trabaja de corrido; sin lunch = el almuerzo del salón */

@@ -20,7 +20,8 @@ import ThemeToggle from '../../components/common/ThemeToggle';
 import NewClientModal from '../../components/admin/NewClientModal';
 import BarberHome from './BarberHome';
 import BarberWorks from './BarberWorks';
-import { barberEarnings, barberShare } from '../../lib/earnings';
+import { barberEarnings, bossName, isBarberOwner } from '../../lib/earnings';
+import { InvoiceList, splitTotals } from '../../components/admin/ServiceSplit';
 import AgendaBoard from '../../components/admin/AgendaBoard';
 import { getAllServices } from '../../services/services';
 import { Panel, KpiCard, StatusBadge, Initials, EmptyState } from '../../components/admin/ui';
@@ -248,20 +249,19 @@ function AgendaTab({ appts, barber, onStatus, busyId, onNewClient, onEdit, onDel
 
 // ---------------------------------------------------------------------------
 
-/** Cuentas del mes: lo facturado, lo que se entrega al salón y lo que le queda al barbero */
+/** Cuentas del mes: lo facturado, lo que se le entrega al jefe y lo que le queda al barbero */
 function MonthSettlement({ done, barber, monthName }: { done: Booking[]; barber: Barber; monthName: string }) {
-  const billed = done.reduce((s, b) => s + b.price, 0);
-  const mine = barberEarnings(done, barber);
-  const toSalon = billed - mine;
+  const { billed, mine, boss: toSalon } = splitTotals(done, barber);
+  const owner = isBarberOwner(barber);
   return (
-    <Panel title={`Cuentas de ${monthName}`} subtitle="Lo que te corresponde a ti y lo que le corresponde al administrador">
+    <Panel title={`Cuentas de ${monthName}`} subtitle={owner ? 'Eres dueño: todo lo que haces es tuyo' : `Lo que te corresponde a ti y lo que le entregas a ${bossName(barber)}`}>
       <dl className="grid grid-cols-1 sm:grid-cols-3 gap-4">
         <div className="rounded-xl border border-white/10 bg-white/[0.03] p-4">
           <dt className="text-zinc-400 text-xs uppercase tracking-wider">Facturado</dt>
           <dd className="font-serif text-2xl font-extrabold text-white mt-1">{formatCOP(billed)}</dd>
         </div>
         <div className="rounded-xl border border-gold/30 bg-gold/[0.06] p-4">
-          <dt className="text-zinc-400 text-xs uppercase tracking-wider">Para el administrador</dt>
+          <dt className="text-zinc-400 text-xs uppercase tracking-wider">{owner ? 'Para entregar' : `Para ${bossName(barber)}`}</dt>
           <dd className="font-serif text-2xl font-extrabold text-gold mt-1">{formatCOP(toSalon)}</dd>
         </div>
         <div className="rounded-xl border border-emerald-500/30 bg-emerald-500/[0.06] p-4">
@@ -274,6 +274,7 @@ function MonthSettlement({ done, barber, monthName }: { done: Booking[]; barber:
 }
 
 function EarningsTab({ appts, barber }: { appts: Booking[]; barber: Barber }) {
+  const [period, setPeriod] = useState<'hoy' | 'semana' | 'mes'>('hoy');
   const today = todayKey();
   const commission = (list: Booking[]) => barberEarnings(list, barber);
   const done = appts.filter((b) => b.status === 'completed');
@@ -298,23 +299,41 @@ function EarningsTab({ appts, barber }: { appts: Booking[]; barber: Barber }) {
       <Panel title="Lo que has ganado" subtitle={`Lo que te queda por día · últimos 14 días`}>
         <GoldBarChart data={series} dataKey="revenue" nameKey="name" height={230} emptyText="Todavía no tienes servicios completados en estos días." />
       </Panel>
-      <Panel title="Servicios completados hoy" subtitle={`${doneToday.length} servicios`} bodyClassName="p-3 sm:p-4">
-        {doneToday.length === 0 ? (
-          <EmptyState icon={Scissors}>Aún no has completado servicios hoy.</EmptyState>
-        ) : (
-          <ul className="divide-y divide-white/[0.06]">
-            {doneToday.sort((a, b) => a.time.localeCompare(b.time)).map((b) => (
-              <li key={b.id} className="flex items-center gap-3 px-2 py-3">
-                <span className="font-mono text-sm text-zinc-400 w-[4.5rem] whitespace-nowrap">{time12(b.time)}</span>
-                <div className="flex-1 min-w-0">
-                  <p className="text-white text-sm font-medium truncate">{b.clientName}</p>
-                  <p className="text-zinc-500 text-xs truncate">{b.serviceName} · {formatCOP(b.price)}</p>
-                </div>
-                <span className="font-mono text-emerald-400 text-sm font-semibold">+{formatCOP(barberShare(b, barber))}</span>
-              </li>
+      <Panel
+        title="Mis facturas"
+        subtitle={isBarberOwner(barber) ? 'Cada servicio que hiciste y lo que cobraste' : `Cada servicio: lo que se cobró, lo que ganaste y lo que le toca a ${bossName(barber)}`}
+        action={
+          <div className="flex gap-1 p-1 rounded-xl bg-white/[0.04] border border-white/10">
+            {([['hoy', 'Hoy'], ['semana', '7 días'], ['mes', monthLong(today)]] as const).map(([v, label]) => (
+              <button key={v} type="button" onClick={() => setPeriod(v)} aria-pressed={period === v} className={`px-2.5 py-1 rounded-lg text-xs font-semibold capitalize ${period === v ? 'bg-gold text-dark' : 'text-zinc-300'}`}>{label}</button>
             ))}
-          </ul>
-        )}
+          </div>
+        }
+        bodyClassName="p-3 sm:p-4"
+      >
+        {(() => {
+          const list = period === 'hoy' ? doneToday : period === 'semana' ? doneWeek : doneMonth;
+          const t = splitTotals(list, barber);
+          return (
+            <div className="space-y-4">
+              <div className="grid grid-cols-3 gap-2 text-center">
+                <div className="rounded-xl bg-white/[0.03] border border-white/[0.06] p-2.5">
+                  <p className="font-mono text-sm font-bold text-white">{formatCOP(t.billed)}</p>
+                  <p className="text-[10px] uppercase text-zinc-500">Se hizo · {list.length}</p>
+                </div>
+                <div className="rounded-xl bg-emerald-500/[0.06] border border-emerald-500/20 p-2.5">
+                  <p className="font-mono text-sm font-bold text-emerald-300">{formatCOP(t.mine)}</p>
+                  <p className="text-[10px] uppercase text-zinc-500">Tu ganancia</p>
+                </div>
+                <div className="rounded-xl bg-gold/[0.06] border border-gold/25 p-2.5">
+                  <p className="font-mono text-sm font-bold text-gold">{formatCOP(t.boss)}</p>
+                  <p className="text-[10px] uppercase text-zinc-500">Para {bossName(barber)}</p>
+                </div>
+              </div>
+              <InvoiceList list={list} barber={barber} you />
+            </div>
+          );
+        })()}
       </Panel>
     </div>
   );

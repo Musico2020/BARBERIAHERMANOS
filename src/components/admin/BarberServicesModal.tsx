@@ -6,11 +6,13 @@ import { getAllServices } from '../../services/services';
 import { todayKey, formatDateLong, time12, monthLong } from '../../lib/dates';
 import { STATUS_LABEL, type BookingStatus } from '../../lib/stats';
 import type { Barber, Booking } from '../../types';
-import { barberEarnings } from '../../lib/earnings';
+import { bossName, isBarberOwner } from '../../lib/earnings';
+import { InvoiceList, ServiceSplitLine, splitTotals } from './ServiceSplit';
 
-// Panel → Barberos → «Servicios»: los servicios de un barbero en el mes, para revisarlos y
-// administrarlos (cambiar el estado, corregir el valor cobrado o eliminar). Solo los completados
-// cuentan en «Servicios» e «Ingresos».
+// Panel → Barberos → «Servicios»: los servicios de un barbero en el mes.
+//   · Facturas: cada servicio completado con lo cobrado, lo que gana el barbero y lo que le entrega a su jefe.
+//   · Administrar: cambiar el estado, corregir el valor cobrado o eliminar.
+// Solo los completados cuentan en «Ingresos».
 
 interface Props {
   barber: Barber;
@@ -43,6 +45,7 @@ export default function BarberServicesModal({ barber, onClose, onChanged }: Prop
   const [busyId, setBusyId] = useState<string | null>(null);
   const [prices, setPrices] = useState<Record<string, string>>({});
   const [filter, setFilter] = useState<BookingStatus | 'todos'>('completed');
+  const [view, setView] = useState<'facturas' | 'administrar'>('facturas');
 
   useEffect(() => {
     let alive = true;
@@ -64,8 +67,8 @@ export default function BarberServicesModal({ barber, onClose, onChanged }: Prop
   }, [onClose]);
 
   const done = list.filter((b) => b.status === 'completed');
-  const revenue = done.reduce((s, b) => s + b.price, 0);
-  const keeps = barberEarnings(done, barber);
+  const totals = splitTotals(done, barber);
+  const owner = isBarberOwner(barber);
   const shown = list
     .filter((b) => filter === 'todos' || b.status === filter)
     .sort((a, b) => b.date.localeCompare(a.date) || b.time.localeCompare(a.time));
@@ -128,21 +131,30 @@ export default function BarberServicesModal({ barber, onClose, onChanged }: Prop
             <p className="text-white font-semibold capitalize">{monthLong(`${month}-01`)} {month.slice(0, 4)}</p>
             <button onClick={() => setMonth(shiftMonth(month, 1))} disabled={month >= monthKeyOf(todayKey())} aria-label="Mes siguiente" className="w-9 h-9 rounded-full border border-white/10 text-zinc-300 hover:text-gold hover:border-gold/50 flex items-center justify-center disabled:opacity-30"><ChevronRight size={16} /></button>
           </div>
-          <div className="grid grid-cols-3 gap-2 text-center">
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-center">
             <div className="rounded-xl bg-white/[0.03] border border-white/[0.06] p-2">
               <p className="font-mono text-base font-bold text-white">{done.length}</p>
               <p className="text-[10px] uppercase text-zinc-500">Completados</p>
             </div>
             <div className="rounded-xl bg-white/[0.03] border border-white/[0.06] p-2">
-              <p className="font-mono text-sm font-bold text-gold">{formatCOP(revenue)}</p>
-              <p className="text-[10px] uppercase text-zinc-500">Ingresos</p>
+              <p className="font-mono text-sm font-bold text-white">{formatCOP(totals.billed)}</p>
+              <p className="text-[10px] uppercase text-zinc-500">Cobrado</p>
             </div>
-            <div className="rounded-xl bg-white/[0.03] border border-white/[0.06] p-2">
-              <p className="font-mono text-sm font-bold text-emerald-300">{formatCOP(keeps)}</p>
-              <p className="text-[10px] uppercase text-zinc-500">Se queda</p>
+            <div className="rounded-xl bg-emerald-500/[0.06] border border-emerald-500/20 p-2">
+              <p className="font-mono text-sm font-bold text-emerald-300">{formatCOP(totals.mine)}</p>
+              <p className="text-[10px] uppercase text-zinc-500">Gana {barber.shortName}</p>
+            </div>
+            <div className="rounded-xl bg-gold/[0.06] border border-gold/25 p-2">
+              <p className="font-mono text-sm font-bold text-gold">{formatCOP(totals.boss)}</p>
+              <p className="text-[10px] uppercase text-zinc-500">{owner ? 'Es dueño' : `Para ${bossName(barber)}`}</p>
             </div>
           </div>
-          <div className="flex gap-1.5 overflow-x-auto pb-1 -mx-1 px-1" style={{ scrollbarWidth: 'none' }}>
+          <div className="grid grid-cols-2 gap-1 p-1 rounded-xl bg-white/[0.04] border border-white/10">
+            {([['facturas', 'Facturas'], ['administrar', 'Administrar']] as const).map(([v, label]) => (
+              <button key={v} type="button" onClick={() => setView(v)} aria-pressed={view === v} className={`py-2 rounded-lg text-sm font-semibold ${view === v ? 'bg-gold text-dark' : 'text-zinc-300'}`}>{label}</button>
+            ))}
+          </div>
+          <div className={`flex gap-1.5 overflow-x-auto pb-1 -mx-1 px-1 ${view === 'facturas' ? 'hidden' : ''}`} style={{ scrollbarWidth: 'none' }}>
             {(['completed', 'todos', 'pending', 'confirmed', 'no-show', 'cancelled'] as const).map((s) => (
               <button
                 key={s}
@@ -161,6 +173,8 @@ export default function BarberServicesModal({ barber, onClose, onChanged }: Prop
           {error && <div className="mb-3 p-3 rounded-xl bg-red-500/10 border border-red-500/20 text-red-400 text-sm">{error}</div>}
           {loading ? (
             <div className="flex justify-center py-12"><Loader2 size={22} className="animate-spin text-gold" /></div>
+          ) : view === 'facturas' ? (
+            <InvoiceList list={done} barber={barber} />
           ) : shown.length === 0 ? (
             <p className="text-zinc-500 text-sm text-center py-12">No hay servicios {filter === 'todos' ? '' : `«${STATUS_LABEL[filter]}» `}en este mes.</p>
           ) : (
@@ -175,6 +189,7 @@ export default function BarberServicesModal({ barber, onClose, onChanged }: Prop
                         <p className="text-white text-sm font-semibold truncate">{b.serviceName}</p>
                         <p className="text-zinc-400 text-xs truncate">{b.clientName}{b.clientPhone ? ` · ${b.clientPhone}` : ''}</p>
                         <p className="text-zinc-500 text-[11px] capitalize">{formatDateLong(b.date)} · {time12(b.time)}</p>
+                        {b.status === 'completed' && <ServiceSplitLine booking={b} barber={barber} />}
                       </div>
                       <button onClick={() => remove(b)} disabled={busyId === b.id} title="Eliminar" aria-label={`Eliminar el servicio de ${b.clientName}`} className="btn-danger-glass p-2 rounded-lg shrink-0">
                         <Trash2 size={13} />

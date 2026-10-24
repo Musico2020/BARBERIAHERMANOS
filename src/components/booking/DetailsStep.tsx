@@ -5,7 +5,8 @@ import { ClipperIcon } from '../common/BarberIcons';
 import { formatCOP } from '../../data';
 import { formatDateLong, timeToMinutes, minutesToTime, time12 } from '../../lib/dates';
 import { isValidName, isValidPhone, type ClientContact } from '../../lib/clientContact';
-import { cartUnits, cartDuration, cartPrice } from '../../lib/bookingCart';
+import { cartUnits, cartDuration } from '../../lib/bookingCart';
+import { priceFor, cartPriceFor } from '../../lib/barberServices';
 import type { Appointment } from './AppointmentStep';
 
 interface Props {
@@ -55,7 +56,7 @@ export default function DetailsStep({ appointment, contact, loading, onChange, o
               {items.map(({ service, qty }) => (
                 <li key={service.id} className="flex justify-between gap-3 text-sm">
                   <span className="text-white font-medium">{qty} × {service.name}</span>
-                  <span className="font-mono text-zinc-400 shrink-0">{formatCOP(qty * service.price)}</span>
+                  <span className="font-mono text-zinc-400 shrink-0">{formatCOP(qty * priceFor(barber, service))}</span>
                 </li>
               ))}
             </ul>
@@ -69,7 +70,7 @@ export default function DetailsStep({ appointment, contact, loading, onChange, o
           ))}
           <div className="border-t border-white/10 mt-3 pt-3 flex justify-between items-center">
             <span className="text-zinc-400 text-sm">Total · pagas en la barbería</span>
-            <span className="font-mono text-xl font-bold gold-text">{formatCOP(cartPrice(items))}</span>
+            <span className="font-mono text-xl font-bold gold-text">{formatCOP(cartPriceFor(items, barber))}</span>
           </div>
         </div>
 

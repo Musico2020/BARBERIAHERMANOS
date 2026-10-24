@@ -11,7 +11,8 @@ import { formatCOP } from '../../data';
 import BarberAvatar from '../common/BarberAvatar';
 import { CategoryIcon } from '../common/BarberIcons';
 import { businessConfig } from '../../config/business';
-import { MAX_CART_UNITS, roleFor, cartRole, cartUnits, cartDuration, cartPrice, changeQty, type CartItem } from '../../lib/bookingCart';
+import { MAX_CART_UNITS, roleFor, cartRole, cartUnits, cartDuration, changeQty, type CartItem } from '../../lib/bookingCart';
+import { doesAll, priceFor, cartPriceFor } from '../../lib/barberServices';
 import type { Service, Barber } from '../../types';
 
 export interface Appointment {
@@ -100,7 +101,8 @@ export default function AppointmentStep({ value, onChange, onContinue }: Props) 
   const items = value.items;
   const hasItems = items.length > 0;
   const units = cartUnits(items);
-  const total = cartPrice(items);
+  // Con barbero elegido, sus precios; si no, los generales (el que atienda puede cobrar distinto)
+  const total = cartPriceFor(items, value.barber);
   // Los servicios se atienden uno detrás de otro: se busca un hueco del largo de todos
   const duration = cartDuration(items) || 30;
   const role = cartRole(items) ?? 'barbero';
@@ -111,9 +113,11 @@ export default function AppointmentStep({ value, onChange, onContinue }: Props) 
   const freeTimes = (day: string, barberIds: string[]) =>
     busyByDate[day] ? generateSlots(day, busyByDate[day], barberIds, duration, step, workHoursOf).map((s) => s.time) : [];
 
-  // Solo se ofrece el equipo que hace el servicio elegido
-  const team = barbers.filter((b) => b.role === role);
-  const teamAway = awayBarbers.filter((b) => b.role === role);
+  // Solo se ofrece el equipo que hace los servicios elegidos (Panel → Configuración → Barberos)
+  const team = barbers.filter((b) => b.role === role && doesAll(b, items));
+  const teamAway = awayBarbers.filter((b) => b.role === role && doesAll(b, items));
+  // Sin barbero elegido, ¿alguno cobra distinto del precio general?
+  const pricesVary = !value.barber && team.some((b) => cartPriceFor(items, b) !== cartPriceFor(items, null));
   // «El primero que esté libre» se puede apagar en Panel → Configuración → Reglas
   const allowAny = businessConfig.allowAnyBarber;
   const allIds = team.map((b) => b.id);
@@ -141,9 +145,9 @@ export default function AppointmentStep({ value, onChange, onContinue }: Props) 
   const changeService = (service: Service, delta: number) => {
     const next = changeQty(items, service, delta);
     const nextRole = cartRole(next);
-    const candidates = barbers.filter((b) => b.role === nextRole);
+    const candidates = barbers.filter((b) => b.role === nextRole && doesAll(b, next));
     // Si el profesional elegido no hace estos servicios, se quita; si hay que elegir y solo hay uno, se elige solo
-    const keep = value.barber && value.barber.role === nextRole ? value.barber : null;
+    const keep = value.barber && value.barber.role === nextRole && doesAll(value.barber, next) ? value.barber : null;
     const barber = keep ?? (!allowAny && candidates.length === 1 ? candidates[0] : null);
     update({ items: next, barber, time: '' });
   };
@@ -250,14 +254,14 @@ export default function AppointmentStep({ value, onChange, onContinue }: Props) 
                       </div>
                       <div className="flex items-center justify-between mt-1.5">
                         <span className="flex items-center gap-1 text-zinc-500 text-xs"><Clock size={11} />{service.duration} min</span>
-                        <span className="font-mono text-sm font-bold gold-text">{formatCOP(service.price)}</span>
+                        <span className="font-mono text-sm font-bold gold-text">{formatCOP(priceFor(value.barber, service))}</span>
                       </div>
                     </button>
                     <div className="flex items-center justify-between gap-2 px-3.5 pb-3">
                       {otherRole ? (
                         <span className="text-[11px] text-zinc-500">Se reserva aparte</span>
                       ) : selected ? (
-                        <span className="text-[11px] font-semibold text-gold">{formatCOP(qty * service.price)}</span>
+                        <span className="text-[11px] font-semibold text-gold">{formatCOP(qty * priceFor(value.barber, service))}</span>
                       ) : (
                         <span className="text-[11px] text-zinc-500">Toca para agregar</span>
                       )}
@@ -300,7 +304,7 @@ export default function AppointmentStep({ value, onChange, onContinue }: Props) 
                     <li key={service.id} className="flex items-center gap-3 text-sm">
                       <span className="font-mono font-bold text-gold w-8 shrink-0">{qty} ×</span>
                       <span className="flex-1 min-w-0 text-white truncate">{service.name}</span>
-                      <span className="font-mono text-zinc-300 shrink-0">{formatCOP(qty * service.price)}</span>
+                      <span className="font-mono text-zinc-300 shrink-0">{formatCOP(qty * priceFor(value.barber, service))}</span>
                       <button
                         type="button"
                         onClick={() => changeService(service, -qty)}
@@ -316,6 +320,7 @@ export default function AppointmentStep({ value, onChange, onContinue }: Props) 
                   <div>
                     <p className="text-zinc-400 text-xs">{units} {units === 1 ? 'servicio' : 'servicios'} · {duration} min en total</p>
                     {units >= MAX_CART_UNITS && <p className="text-amber-400 text-[11px] mt-0.5">Máximo {MAX_CART_UNITS} servicios por reserva.</p>}
+                    {pricesVary && <p className="text-zinc-500 text-[11px] mt-0.5">El valor puede cambiar según el barbero que te atienda.</p>}
                   </div>
                   <div className="text-right">
                     <p className="text-zinc-500 text-[11px] uppercase tracking-wider">Total</p>

@@ -12,11 +12,12 @@ import { todayKey, addDays, formatDateLong } from '../../lib/dates';
 import { Panel, Segmented } from '../../components/admin/ui';
 import type { Barber, BusinessHours, SpecialDay } from '../../types';
 import PushCard from '../../components/admin/PushCard';
+import BarberServicesSettings from '../../components/admin/BarberServicesSettings';
 
 // Configuración editable del negocio. Se guarda en la base de datos (tabla business_settings)
 // y la web la usa apenas se recarga: horarios, días especiales, contacto y redes.
 
-type Tab = 'negocio' | 'qr' | 'horario' | 'dias' | 'seguridad' | 'reglas';
+type Tab = 'negocio' | 'qr' | 'horario' | 'barberos' | 'dias' | 'seguridad' | 'reglas';
 type Status = { kind: 'ok' | 'error'; text: string } | null;
 
 const inputClass =
@@ -900,6 +901,7 @@ const TABS: { value: Tab; label: string; icon: React.ElementType }[] = [
   { value: 'negocio', label: 'Negocio', icon: Store },
   { value: 'qr', label: 'Código QR', icon: QrCode },
   { value: 'horario', label: 'Horario', icon: Clock },
+  { value: 'barberos', label: 'Barberos', icon: Users },
   { value: 'dias', label: 'Días especiales', icon: CalendarX },
   { value: 'seguridad', label: 'Seguridad', icon: ShieldCheck },
   { value: 'reglas', label: 'Reglas', icon: ListChecks },
@@ -919,6 +921,7 @@ export default function AdminSettings() {
       {tab === 'negocio' && <BusinessTab />}
       {tab === 'qr' && <QrTab />}
       {tab === 'horario' && <HoursTab />}
+      {tab === 'barberos' && <BarberServicesSettings />}
       {tab === 'dias' && <SpecialDaysTab />}
       {tab === 'seguridad' && <SecurityTab />}
       {tab === 'reglas' && <RulesTab />}

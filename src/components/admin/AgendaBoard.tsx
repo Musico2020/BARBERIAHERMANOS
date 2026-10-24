@@ -9,6 +9,7 @@ import { todayKey, nowMinutes, minutesToTime, time12, timeToMinutes, formatDateL
 import { waNumber } from '../../lib/whatsapp';
 import { STATUS_LABEL } from '../../lib/stats';
 import { changeMessage } from './EditBookingModal';
+import { doesService } from '../../lib/barberServices';
 import type { Barber, Booking } from '../../types';
 
 // Agenda del día en columnas, una por barbero, con la línea de tiempo de cada uno:
@@ -151,7 +152,9 @@ export default function AgendaBoard({
       if (Math.abs(t - g.start) <= 10) { t = g.start; break; }
       if (Math.abs(t + d - g.end) <= 10 && g.end - d >= g.start) { t = g.end - d; break; }
     }
-    const sameRole = (barbers.find((b) => b.id === booking.barberId)?.role ?? col.barber.role) === col.barber.role;
+    // Otro barbero solo si es del mismo rol y hace ese servicio
+    const sameRole = (barbers.find((b) => b.id === booking.barberId)?.role ?? col.barber.role) === col.barber.role
+      && (col.barber.id === booking.barberId || doesService(col.barber, booking.serviceId));
     const unchanged = col.barber.id === booking.barberId && minutesToTime(t) === booking.time;
     return { t, valid: sameRole && !unchanged && isFree(col, t, d, booking.id) };
   };

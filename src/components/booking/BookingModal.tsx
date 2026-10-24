@@ -9,7 +9,8 @@ import DetailsStep from './DetailsStep';
 import BookingTicket, { type TicketData } from './BookingTicket';
 import DepositStep from './DepositStep';
 import { timeToMinutes, minutesToTime, time12 } from '../../lib/dates';
-import { cartSchedule, cartDuration, cartPrice } from '../../lib/bookingCart';
+import { cartSchedule, cartDuration } from '../../lib/bookingCart';
+import { priceFor } from '../../lib/barberServices';
 import { notifyPush } from '../../services/push';
 
 interface BookingModalProps {
@@ -100,7 +101,7 @@ export default function BookingModal({ isOpen, onClose, preselectedService, pres
     const schedule = cartSchedule(items, time);
     setLoading(true);
     setError('');
-    const created: { bookingId: string; barberName: string; depositAmount: number; depositExpiresAt: string | null }[] = [];
+    const created: { bookingId: string; barberName: string; price?: number; depositAmount: number; depositExpiresAt: string | null }[] = [];
     try {
       // Cada servicio es una cita, uno detrás de otro y con el mismo barbero
       let barberId = barber?.id ?? '';
@@ -125,11 +126,15 @@ export default function BookingModal({ isOpen, onClose, preselectedService, pres
       setTicket({
         bookingId: created[0].bookingId,
         clientName: contact.name.trim(),
-        items: items.map(({ service, qty }) => ({ name: service.name, qty, price: service.price * qty })),
+        // Con el precio del barbero que quedó (el que devolvió la base para cada servicio)
+        items: items.map(({ service, qty }) => {
+          const charged = created.find((_, i) => schedule[i]?.service.id === service.id)?.price ?? priceFor(barber, service);
+          return { name: service.name, qty, price: charged * qty };
+        }),
         barberName: created[0].barberName,
         date,
         time,
-        price: cartPrice(items),
+        price: created.reduce((s, b, i) => s + (b.price ?? priceFor(barber, schedule[i].service)), 0),
         endTime: minutesToTime(timeToMinutes(time) + cartDuration(items)),
         deposit: depositTotal > 0 ? depositTotal : undefined,
       });

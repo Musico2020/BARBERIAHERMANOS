@@ -8,6 +8,7 @@ import { businessConfig } from '../../config/business';
 import { formatCOP } from '../../data';
 import { todayKey, addDays, formatDateLong, time12 } from '../../lib/dates';
 import { waNumber } from '../../lib/whatsapp';
+import { doesService, priceFor } from '../../lib/barberServices';
 import { barberEditBooking, type EditBookingResult } from '../../services/barberPortal';
 import type { Barber, Booking, Service } from '../../types';
 
@@ -76,7 +77,12 @@ export default function EditBookingModal({ booking, onClose, onSaved, barberSess
 
   useEffect(() => {
     Promise.all([getServices(), getBarbers()])
-      .then(([s, b]) => { setServices(s); setBarbers(barberSession ? [barberSession.barber] : b); })
+      .then(([s, b]) => {
+        const me = barberSession ? b.find((x) => x.id === barberSession.barber.id) ?? barberSession.barber : null;
+        // El barbero solo puede cambiar a servicios que hace
+        setServices(me ? s.filter((x) => x.id === booking.serviceId || doesService(me, x.id)) : s);
+        setBarbers(me ? [me] : b);
+      })
       .catch((err) => { console.error('No se pudieron cargar servicios y barberos', err); setError('No se pudieron cargar los servicios. Cierra y vuelve a intentar.'); });
   }, []);
 
@@ -115,7 +121,14 @@ export default function EditBookingModal({ booking, onClose, onSaved, barberSess
     setServiceId(id);
     const s = services.find((x) => x.id === id);
     // El barbero cobra el precio del servicio; si vuelve al servicio que tenía, se conserva su valor
-    if (s) setPrice(String(barberSession && id === booking.serviceId ? booking.price : s.price));
+    if (s) setPrice(String(id === booking.serviceId && barberId === booking.barberId ? booking.price : priceFor(barber, s)));
+  };
+
+  // Otro barbero puede cobrar distinto: se propone su precio (si vuelve al de la cita, el valor que tenía)
+  const changeBarber = (id: string) => {
+    setBarberId(id);
+    const next = barbers.find((b) => b.id === id);
+    if (service && !barberSession) setPrice(String(id === booking.barberId && serviceId === booking.serviceId ? booking.price : priceFor(next, service)));
   };
 
   const save = async () => {
@@ -197,8 +210,8 @@ export default function EditBookingModal({ booking, onClose, onSaved, barberSess
               <div className="grid grid-cols-2 gap-3">
                 <label className="block">
                   <span className={label}>Barbero</span>
-                  <select className={inputClass} value={barberId} onChange={(e) => setBarberId(e.target.value)}>
-                    {barbers.filter((b) => b.role === (service?.category === 'manicura' ? 'manicurista' : 'barbero')).map((b) => <option key={b.id} value={b.id}>{b.name}</option>)}
+                  <select className={inputClass} value={barberId} onChange={(e) => changeBarber(e.target.value)}>
+                    {barbers.filter((b) => b.id === barberId || (b.role === (service?.category === 'manicura' ? 'manicurista' : 'barbero') && doesService(b, serviceId))).map((b) => <option key={b.id} value={b.id}>{b.name}</option>)}
                   </select>
                 </label>
                 <label className="block">

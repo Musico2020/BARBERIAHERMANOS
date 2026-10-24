@@ -11,6 +11,7 @@ import { todayKey, nowMinutes, minutesToTime, timeToMinutes, formatDateLong, add
 import { isValidName, isValidPhone } from '../../lib/clientContact';
 import { MAX_CART_UNITS, roleFor, cartRole, cartUnits, changeQty, type CartItem } from '../../lib/bookingCart';
 import BarberAvatar from '../common/BarberAvatar';
+import { doesAll, doesService, priceFor } from '../../lib/barberServices';
 import { CategoryIcon } from '../common/BarberIcons';
 import type { Service, Barber } from '../../types';
 
@@ -81,9 +82,10 @@ export default function NewClientModal({ onClose, onSaved, barberSession, preset
     Promise.all([getServices(), getBarbers()])
       .then(([s, b]) => {
         // El barbero solo ve los servicios de su rol
-        const mine = barberSession ? s.filter((x) => roleFor(x) === barberSession.barber.role) : s;
+        const me = barberSession ? b.find((x) => x.id === barberSession.barber.id) ?? barberSession.barber : null;
+        const mine = me ? s.filter((x) => roleFor(x) === me.role && doesService(me, x.id)) : s;
         setServices([...mine].sort((x, y) => Number(!!y.popular) - Number(!!x.popular)));
-        setTeam(barberSession ? [barberSession.barber] : b);
+        setTeam(me ? [me] : b);
       })
       .catch((err) => {
         console.error('No se pudieron cargar servicios y equipo', err);
@@ -100,13 +102,16 @@ export default function NewClientModal({ onClose, onSaved, barberSession, preset
   const hasItems = items.length > 0;
   const role = cartRole(items) ?? 'barbero';
   // Todo el equipo de ese rol, incluso quien está «no disponible» para la web
-  const staff = team.filter((b) => b.role === role);
+  // … que haga todos los servicios elegidos (Panel → Configuración → Barberos)
+  const staff = team.filter((b) => b.role === role && doesAll(b, items));
   const barber = staff.find((b) => b.id === barberId) ?? (staff.length === 1 ? staff[0] : undefined);
 
+  // El precio de ese barbero (o el general); el administrador lo puede cambiar
   const unitPrice = (s: Service) => {
-    if (barberSession) return s.price;
+    const base = priceFor(barber, s);
+    if (barberSession) return base;
     const raw = prices[s.id];
-    return raw === undefined ? s.price : Number(raw.replace(/\D/g, '')) || 0;
+    return raw === undefined ? base : Number(raw.replace(/\D/g, '')) || 0;
   };
   const total = items.reduce((sum, i) => sum + i.qty * unitPrice(i.service), 0);
   const units = cartUnits(items);
@@ -149,7 +154,7 @@ export default function NewClientModal({ onClose, onSaved, barberSession, preset
   const change = (service: Service, delta: number) => {
     const next = changeQty(items, service, delta);
     setItems(next);
-    if (barber && barber.role !== (cartRole(next) ?? 'barbero')) setBarberId('');
+    if (barber && (barber.role !== (cartRole(next) ?? 'barbero') || !doesAll(barber, next))) setBarberId('');
     setError('');
   };
 
@@ -308,7 +313,7 @@ export default function NewClientModal({ onClose, onSaved, barberSession, preset
                           <input
                             inputMode="numeric"
                             aria-label={`Valor cobrado por ${service.name}`}
-                            value={barberSession ? String(service.price) : (prices[service.id] ?? String(service.price))}
+                            value={barberSession ? String(unitPrice(service)) : (prices[service.id] ?? String(unitPrice(service)))}
                             readOnly={!!barberSession}
                             onChange={(e) => setPrices({ ...prices, [service.id]: e.target.value.replace(/\D/g, '') })}
                             className="w-full pl-6 pr-2 py-1.5 rounded-lg bg-black/30 border border-white/10 text-right font-mono text-sm text-white focus:outline-none focus:border-gold/60 read-only:opacity-70"

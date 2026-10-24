@@ -262,6 +262,8 @@ export interface CreatedBooking {
   barberId: string;
   barberName: string;
   barberShortName: string;
+  /** Lo que cobra el barbero asignado por este servicio (puede no venir si la base es vieja) */
+  price?: number;
   /** Anticipo de esta cita (0 si no aplica) */
   depositAmount: number;
   /** Hasta cuándo hay plazo para pagarlo (ISO) */
@@ -282,12 +284,13 @@ export async function createBooking(booking: NewBooking): Promise<CreatedBooking
     const code = KNOWN_CODES.find((c) => error.message === c) ?? 'UNKNOWN';
     throw new BookingError(code, error);
   }
-  const result = data as { booking_id: string; barber_id: string; barber_name: string; barber_short_name: string; deposit_amount?: number; deposit_expires_at?: string | null };
+  const result = data as { booking_id: string; barber_id: string; barber_name: string; barber_short_name: string; price?: number; deposit_amount?: number; deposit_expires_at?: string | null };
   return {
     bookingId: result.booking_id,
     barberId: result.barber_id,
     barberName: result.barber_name,
     barberShortName: result.barber_short_name,
+    price: result.price,
     depositAmount: result.deposit_amount ?? 0,
     depositExpiresAt: result.deposit_expires_at ?? null,
   };
