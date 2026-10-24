@@ -19,6 +19,8 @@ import type { Service, Barber } from '../../types';
 //   · «Atendido ahora»: queda hoy, a la hora actual, como servicio completado (entra a la contabilidad).
 //   · «Agendar cita»: se escoge el día y la hora; queda como cita confirmada en la agenda del barbero.
 //     No deja escoger una hora que se cruce con otra cita de ese barbero.
+// Desde la Agenda (preset) el día y la hora ya vienen del espacio tocado: solo se pide servicio, barbero,
+// nombre y celular, y se cobra el precio del servicio (el de ese barbero si tiene uno propio).
 
 interface Props {
   onClose: () => void;
@@ -77,6 +79,19 @@ export default function NewClientModal({ onClose, onSaved, barberSession, preset
   const [withLunch, setWithLunch] = useState(false);
   const [busy, setBusy] = useState<BusySlot[]>([]);
   const [loadingBusy, setLoadingBusy] = useState(false);
+  // Desde la Agenda: ventana corta, con el día y la hora fijos
+  const quick = !!preset;
+  // Citas y horas cerradas de todo el equipo ese día, para saber quién está libre a esa hora
+  const [busyAll, setBusyAll] = useState<BusySlot[] | null>(null);
+  const presetDate = preset?.date;
+  useEffect(() => {
+    if (!presetDate) return;
+    let alive = true;
+    getBusySlots(presetDate)
+      .then((list) => { if (alive) setBusyAll(list); })
+      .catch((err) => { console.error('No se pudo revisar quién está libre', err); if (alive) setBusyAll([]); });
+    return () => { alive = false; };
+  }, [presetDate]);
 
   useEffect(() => {
     Promise.all([getServices(), getBarbers()])
@@ -148,7 +163,11 @@ export default function NewClientModal({ onClose, onSaved, barberSession, preset
   const slots = extra.length
     ? [...generated, ...extra.map((t) => ({ time: t, available: true, recommended: false }))].sort((a, b) => a.time.localeCompare(b.time))
     : generated;
-  const timeOk = when === 'now' || (!!time && slots.some((s) => s.time === time));
+  // Desde la Agenda: ¿ese barbero está libre a la hora tocada para todo lo elegido?
+  const freeAt = (b: Barber) => !!preset && busyAll !== null && isBarberFree(busyAll, b.id, timeToMinutes(preset.time), Math.max(minutes, 5));
+  const timeOk = quick
+    ? presetPast || (!!barber && freeAt(barber))
+    : when === 'now' || (!!time && slots.some((s) => s.time === time));
 
   // Cada elección baja sola a la siguiente pregunta
   const barberRef = useRef<HTMLElement>(null);
@@ -172,6 +191,7 @@ export default function NewClientModal({ onClose, onSaved, barberSession, preset
   // El botón de abajo: con todo listo guarda; si falta algo, lleva a ese paso
   const nextStep = (): { label: string; go: () => void } | null => {
     if (!barber) return { label: role === 'manicurista' ? 'Elige la manicurista' : 'Elige quién lo atiende', go: () => scrollTo(barberRef) };
+    if (quick && !timeOk) return { label: busyAll === null ? 'Revisando quién está libre…' : `${barber.shortName} está ocupado a esa hora: elige otro`, go: () => scrollTo(barberRef) };
     if (when === 'later' && !timeOk) return { label: 'Escoge la hora de la cita', go: () => scrollTo(timeRef) };
     if (!nameOk || !phoneOk) {
       return {
@@ -189,7 +209,7 @@ export default function NewClientModal({ onClose, onSaved, barberSession, preset
     setError('');
     try {
       // Ahora: hoy, desde la hora actual. Agendada: el día y la hora escogidos. Un servicio detrás de otro.
-      const scheduled = when === 'later' ? { date, time } : null;
+      const scheduled = quick ? (presetPast ? null : { date: preset!.date, time: preset!.time }) : when === 'later' ? { date, time } : null;
       let start = scheduled ? timeToMinutes(scheduled.time) : pastAt ? timeToMinutes(pastAt.time) : Math.floor(nowMinutes() / 5) * 5;
       const lines = items.flatMap(({ service, qty }) =>
         Array.from({ length: qty }, () => {
@@ -240,7 +260,7 @@ export default function NewClientModal({ onClose, onSaved, barberSession, preset
               <UserPlus size={16} className="text-gold" />
             </div>
             <div>
-              <p className="text-[11px] uppercase tracking-[0.2em] text-gold">{when === 'now' ? `${pastAt ? `Atendido a las ${time12(pastAt.time)}` : 'Atendido ahora'} · ${formatDateLong(pastAt?.date ?? todayKey())}` : 'Cita agendada desde el panel · sin anticipo'}</p>
+              <p className="text-[11px] uppercase tracking-[0.2em] text-gold">{quick && preset ? `${presetPast ? 'Ya atendido' : 'Cita'} · ${formatDateLong(preset.date)} · ${time12(preset.time)}` : when === 'now' ? `${pastAt ? `Atendido a las ${time12(pastAt.time)}` : 'Atendido ahora'} · ${formatDateLong(pastAt?.date ?? todayKey())}` : 'Cita agendada desde el panel · sin anticipo'}</p>
               <h2 className="font-serif text-xl font-bold text-white">Cliente nuevo</h2>
             </div>
           </div>
@@ -253,7 +273,7 @@ export default function NewClientModal({ onClose, onSaved, barberSession, preset
           {error && <div className="p-3 rounded-xl bg-red-500/10 border border-red-500/20 text-red-400 text-sm">{error}</div>}
 
           <section>
-            <SectionTitle number={1} hint="Puedes elegir varios y la cantidad de cada uno">¿Qué se hizo?</SectionTitle>
+            <SectionTitle number={1} hint="Puedes elegir varios y la cantidad de cada uno">{quick && !presetPast ? "¿Qué servicio?" : "¿Qué se hizo?"}</SectionTitle>
             {loading ? (
               <div className="flex justify-center py-8"><Loader2 size={22} className="animate-spin text-gold" /></div>
             ) : (
@@ -307,6 +327,7 @@ export default function NewClientModal({ onClose, onSaved, barberSession, preset
 
           {hasItems && (
             <>
+              {!quick && (
               <section>
                 <SectionTitle number={2} hint={barberSession ? "Precio del servicio" : "Cambia el valor si se cobró distinto"}>Lo que se cobra</SectionTitle>
                 <div className="rounded-2xl border border-gold/25 bg-gold/[0.05] p-4">
@@ -342,23 +363,27 @@ export default function NewClientModal({ onClose, onSaved, barberSession, preset
                 </div>
               </section>
 
+              )}
+
               <section ref={barberRef} className="scroll-mt-4">
-                <SectionTitle number={3}>{role === 'manicurista' ? '¿Qué manicurista lo atiende?' : '¿Quién lo atiende?'}</SectionTitle>
+                <SectionTitle number={quick ? 2 : 3} hint={quick && preset && !presetPast ? `Libres a las ${time12(preset.time)}` : undefined}>{role === 'manicurista' ? '¿Qué manicurista lo atiende?' : '¿Quién lo atiende?'}</SectionTitle>
                 <div className="grid sm:grid-cols-2 gap-2">
                   {staff.map((b) => {
                     const selected = barber?.id === b.id;
+                    const busyThen = quick && !presetPast && busyAll !== null && !freeAt(b);
                     return (
                       <button
                         key={b.id}
                         type="button"
-                        onClick={() => { setBarberId(b.id); setTime(''); scrollTo(whenRef); }}
+                        disabled={busyThen}
+                        onClick={() => { setBarberId(b.id); if (!quick) setTime(''); scrollTo(quick ? clientRef : whenRef); }}
                         aria-pressed={selected}
-                        className={`flex items-center gap-3 p-3 rounded-xl border text-left transition-all ${selected ? 'border-gold bg-gold/10' : 'border-white/10 bg-white/[0.03] hover:border-gold/40'}`}
+                        className={`flex items-center gap-3 p-3 rounded-xl border text-left transition-all ${selected ? 'border-gold bg-gold/10' : 'border-white/10 bg-white/[0.03] hover:border-gold/40'} disabled:opacity-40 disabled:cursor-not-allowed`}
                       >
                         <BarberAvatar barber={b} className={`w-11 h-11 rounded-full text-sm shrink-0 border-2 ${selected ? 'border-gold' : 'border-transparent'}`} />
                         <span className="flex-1 min-w-0">
                           <span className={`block text-sm font-semibold truncate ${selected ? 'text-gold' : 'text-white'}`}>{b.name}</span>
-                          <span className="block text-xs text-zinc-500">{b.available ? 'Disponible' : 'No disponible en la web'}</span>
+                          <span className={`block text-xs ${busyThen ? 'text-rose-300' : 'text-zinc-500'}`}>{busyThen ? 'Ocupado a esa hora' : b.available ? 'Disponible' : 'No disponible en la web'}</span>
                         </span>
                         {selected && <Check size={16} className="text-gold shrink-0" />}
                       </button>
@@ -367,6 +392,7 @@ export default function NewClientModal({ onClose, onSaved, barberSession, preset
                 </div>
               </section>
 
+              {!quick && (
               <section ref={whenRef} className="scroll-mt-4">
                 <SectionTitle number={4} hint={when === 'later' ? 'No pide anticipo' : undefined}>¿Cuándo?</SectionTitle>
                 <div className="grid grid-cols-2 gap-2">
@@ -447,8 +473,10 @@ export default function NewClientModal({ onClose, onSaved, barberSession, preset
                 )}
               </section>
 
+              )}
+
               <section ref={clientRef} className="space-y-3 scroll-mt-4">
-                <SectionTitle number={5}>Datos del cliente</SectionTitle>
+                <SectionTitle number={quick ? 3 : 5}>Datos del cliente</SectionTitle>
                 <div className="grid sm:grid-cols-2 gap-3">
                   <label className="block">
                     <span className="text-xs text-zinc-400 uppercase tracking-wider block mb-2">Nombre</span>

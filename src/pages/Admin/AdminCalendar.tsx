@@ -6,7 +6,7 @@ import { getAllServices } from '../../services/services';
 import AgendaBoard from '../../components/admin/AgendaBoard';
 import NewClientModal from '../../components/admin/NewClientModal';
 import EditBookingModal from '../../components/admin/EditBookingModal';
-import { todayKey, addDays, startOfWeek, dayOfMonth, dayShort, monthShort, time12, time12Parts } from '../../lib/dates';
+import { todayKey, addDays, startOfWeek, dayOfMonth, dayShort, monthShort, time12, time12Parts, nowMinutes, timeToMinutes, minutesToTime } from '../../lib/dates';
 import MobileAgenda from '../../components/admin/MobileAgenda';
 import { useAutoRefresh } from '../../hooks/useAutoRefresh';
 import { businessConfig } from '../../config/business';
@@ -113,6 +113,24 @@ export default function AdminCalendar() {
       });
   }, [rangeStart, rangeEnd, reload]);
 
+  // Semana: al tocar un espacio, la primera hora de esa franja (cada 15 min, o «ya» si es la hora actual)
+  // en que algún barbero está libre; en la ventana se escoge quién lo atiende.
+  const addInWeek = (d: string, hour: string) => {
+    const base = timeToMinutes(hour);
+    const now = nowMinutes();
+    const isNow = d === todayKey() && now > base && now < base + 60;
+    const candidates = [...(isNow ? [Math.ceil(now / 5) * 5] : []), base, base + 15, base + 30, base + 45]
+      .filter((t) => t < base + 60 && (!isNow || t >= now));
+    const holding = bookings.filter((b) => b.date === d && b.status !== 'cancelled' && b.status !== 'no-show');
+    const freeAt = (t: number) => barbers.some((barber) => !holding.some((b) => {
+      const s = timeToMinutes(b.time);
+      return b.barberId === barber.id && s < t + 15 && s + (durations.get(b.serviceId) ?? 30) > t;
+    }));
+    const t = candidates.find(freeAt) ?? candidates[0] ?? base;
+    setSaved('');
+    setAdding({ barberId: '', date: d, time: minutesToTime(t) });
+  };
+
   const navigateDate = (delta: number) => {
     setCurrentDate((d) => addDays(d, view === 'week' ? delta * 7 : delta));
   };
@@ -214,15 +232,21 @@ export default function AdminCalendar() {
                     const isToday = d === today;
                     const daySlots = sortForDisplay(bookings.filter((b) => b.date === d && inHour(b, hour)));
                     return (
-                      <div key={d} className={`border-l border-white/5 p-1 space-y-1 ${isToday ? 'bg-gold/3' : ''} ${isLunchHour(d, hour) ? LUNCH_BG : ''}`}>
+                      <div
+                        key={d}
+                        onClick={() => addInWeek(d, hour)}
+                        title="Toca para agregar un cliente"
+                        className={`group border-l border-white/5 p-1 space-y-1 cursor-pointer hover:bg-gold/[0.06] transition-colors ${isToday ? 'bg-gold/3' : ''} ${isLunchHour(d, hour) ? LUNCH_BG : ''}`}
+                      >
                         {isLunchHour(d, hour) && daySlots.length === 0 && <p className="text-[10px] text-gold/50 text-center pt-1">Almuerzo</p>}
                         {daySlots.map((slot) => (
-                          <div key={slot.id} className={`rounded border px-1.5 py-1 text-[10px] ${statusColors[slot.status] || 'border-white/20 text-zinc-300'}`}>
+                          <div key={slot.id} onClick={(e) => { e.stopPropagation(); setEditing(slot); }} className={`rounded border px-1.5 py-1 text-[10px] cursor-pointer hover:brightness-125 ${statusColors[slot.status] || 'border-white/20 text-zinc-300'}`}>
                             <p className="font-semibold truncate leading-tight">{time12(slot.time)} {slot.clientName}</p>
                             <p className="opacity-60 truncate leading-tight">{slot.barberName}</p>
                             {slot.clientPhone && <p className="opacity-80 truncate leading-tight font-mono">{slot.clientPhone}</p>}
                           </div>
                         ))}
+                        <p className="hidden group-hover:block text-center text-[10px] text-gold/80 pt-0.5">+ Agregar</p>
                       </div>
                     );
                   })}
