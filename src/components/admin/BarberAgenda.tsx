@@ -90,7 +90,7 @@ export default function BarberAgenda({ barber, upcoming, busyToday }: Props) {
             </div>
           ))}
           {upcoming.length > MAX_SHOWN && (
-            <p className="text-[11px] text-zinc-500">Se muestran las primeras {MAX_SHOWN}. Mira todas en Reservas o en el Calendario.</p>
+            <p className="text-[11px] text-zinc-500">Se muestran las primeras {MAX_SHOWN}. Mira todas en Reservas o en la Agenda.</p>
           )}
         </div>
       )}

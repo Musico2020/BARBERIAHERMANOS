@@ -1,7 +1,11 @@
 import { useState, useEffect } from 'react';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
-import { getBookingsInRange } from '../../services/bookings';
+import { getBookingsInRange, updateBookingDetails } from '../../services/bookings';
 import { getBarbers } from '../../services/barbers';
+import { getAllServices } from '../../services/services';
+import AgendaBoard from '../../components/admin/AgendaBoard';
+import NewClientModal from '../../components/admin/NewClientModal';
+import EditBookingModal from '../../components/admin/EditBookingModal';
 import { todayKey, addDays, startOfWeek, dayOfMonth, dayShort, monthShort, time12, time12Parts } from '../../lib/dates';
 import MobileAgenda from '../../components/admin/MobileAgenda';
 import { useAutoRefresh } from '../../hooks/useAutoRefresh';
@@ -12,7 +16,6 @@ import type { Booking, Barber } from '../../types';
 type ViewMode = 'day' | 'week';
 
 const DAYS_ES = ['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom'];
-const UNASSIGNED = '__sin_asignar__';
 
 const statusColors: Record<string, string> = {
   pending: 'border-amber-500/50 bg-amber-500/10 text-amber-300',
@@ -69,12 +72,33 @@ export default function AdminCalendar() {
   const [bookings, setBookings] = useState<Booking[]>([]);
   const [barbers, setBarbers] = useState<Barber[]>([]);
   const [error, setError] = useState('');
+  const [durations, setDurations] = useState<Map<string, number>>(new Map());
+  const [reload, setReload] = useState(0);
+  const [adding, setAdding] = useState<{ barberId: string; date: string; time: string } | null>(null);
+  const [editing, setEditing] = useState<Booking | null>(null);
+  const [saved, setSaved] = useState('');
 
   useEffect(() => {
     getBarbers()
       .then(setBarbers)
       .catch((err) => console.error('No se pudieron cargar los barberos', err));
+    getAllServices()
+      .then((list) => setDurations(new Map(list.map((x) => [x.id, x.duration]))))
+      .catch(() => undefined);
   }, []);
+
+  // Acciones de la agenda: agregar en un espacio libre, editar y mover citas
+  const agendaActions = {
+    onAdd: (barber: Barber, time: string) => { setSaved(''); setAdding({ barberId: barber.id, date: currentDate, time }); },
+    onEdit: (b: Booking) => setEditing(b),
+    saveMove: async (b: Booking, barber: Barber, time: string) => {
+      await updateBookingDetails(b.id, {
+        clientName: b.clientName, clientPhone: b.clientPhone, serviceId: b.serviceId, serviceName: b.serviceName,
+        barberId: barber.id, barberName: barber.shortName, date: b.date, time, price: b.price,
+      });
+    },
+    onChanged: () => setReload((n) => n + 1),
+  };
 
   const weekDates = getWeekDates(currentDate);
   const rangeStart = view === 'day' ? currentDate : weekDates[0];
@@ -84,10 +108,10 @@ export default function AdminCalendar() {
     getBookingsInRange(rangeStart, rangeEnd)
       .then((list) => { setBookings(list); setError(''); })
       .catch((err) => {
-        console.error('No se pudo cargar el calendario', err);
-        setError('No se pudo cargar el calendario. Se reintentará automáticamente.');
+        console.error('No se pudo cargar la agenda', err);
+        setError('No se pudo cargar la agenda. Se reintentará automáticamente.');
       });
-  }, [rangeStart, rangeEnd]);
+  }, [rangeStart, rangeEnd, reload]);
 
   const navigateDate = (delta: number) => {
     setCurrentDate((d) => addDays(d, view === 'week' ? delta * 7 : delta));
@@ -97,11 +121,7 @@ export default function AdminCalendar() {
   const HOURS = calendarHours(bookings);
   const barberIds = new Set(barbers.map((b) => b.id));
   const dayBookings = bookings.filter((b) => b.date === currentDate);
-  const unassigned = dayBookings.filter((b) => !barberIds.has(b.barberId));
-  const columns: { id: string; label: string; available?: boolean }[] = [
-    ...barbers.map((b) => ({ id: b.id, label: b.shortName, available: b.available })),
-    ...(unassigned.length > 0 ? [{ id: UNASSIGNED, label: 'Sin asignar' }] : []),
-  ];
+  const unassigned = dayBookings.filter((b) => !barberIds.has(b.barberId) && b.status !== 'cancelled');
 
   const formatDateLabel = () => {
     const short = (d: string) => `${dayShort(d)} ${dayOfMonth(d)} ${monthShort(d)}`;
@@ -147,61 +167,24 @@ export default function AdminCalendar() {
 
       {/* Teléfono: días en círculos, fotos de los barberos y la línea de tiempo de cada uno */}
       <div className="sm:hidden">
-        <MobileAgenda date={currentDate} onDateChange={setCurrentDate} barbers={barbers} bookings={bookings} />
+        <MobileAgenda date={currentDate} onDateChange={setCurrentDate} barbers={barbers} bookings={bookings} durations={durations} {...agendaActions} />
       </div>
 
-      {view === 'day' ? (
-        <div className="hidden sm:block table-card overflow-hidden overflow-x-auto">
-          <div style={{ minWidth: `${64 + Math.max(columns.length, 1) * 140}px` }}>
-            <div
-              className="grid border-b border-white/8"
-              style={{ gridTemplateColumns: `64px repeat(${Math.max(columns.length, 1)}, 1fr)` }}
-            >
-              <div className="p-3" />
-              {columns.map((c) => (
-                <div key={c.id} className="p-3 border-l border-white/8 text-center">
-                  <p className="text-white text-sm font-medium">{c.label}</p>
-                  {c.available !== undefined && (
-                    <span className={`text-[10px] px-2 py-0.5 rounded-full ${c.available ? 'status-available' : 'status-busy'}`}>
-                      {c.available ? 'Disponible' : 'Ocupado'}
-                    </span>
-                  )}
-                </div>
-              ))}
-            </div>
+      {saved && (
+        <div className="p-3 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-300 text-sm flex items-start justify-between gap-3">
+          <span>{saved}</span>
+          <button onClick={() => setSaved('')} className="text-xs text-emerald-200/70 shrink-0">Cerrar</button>
+        </div>
+      )}
 
-            <div className="overflow-y-auto max-h-[500px]">
-              {HOURS.map((hour) => (
-                <div
-                  key={hour}
-                  className={`grid border-b border-white/5 ${isLunchHour(currentDate, hour) ? LUNCH_BG : ''}`}
-                  style={{ gridTemplateColumns: `64px repeat(${Math.max(columns.length, 1)}, 1fr)`, minHeight: '60px' }}
-                >
-                  <div className="p-3 text-zinc-600 text-xs font-mono">
-                    {time12Parts(hour).hm}<span className="block font-sans text-[10px]">{time12Parts(hour).suffix}</span>
-                    {isLunchHour(currentDate, hour) && <span className="block font-sans text-[10px] text-gold/70 mt-0.5">Almuerzo</span>}
-                  </div>
-                  {columns.map((c) => {
-                    const source = c.id === UNASSIGNED ? unassigned : dayBookings.filter((b) => b.barberId === c.id);
-                    const slots = sortForDisplay(source.filter((b) => inHour(b, hour)));
-                    return (
-                      <div key={c.id} className="border-l border-white/5 p-1.5 space-y-1">
-                        {slots.map((slot) => (
-                          <div key={slot.id} className={`rounded-lg border px-2.5 py-2 text-xs ${statusColors[slot.status] || 'border-white/20 text-zinc-300'}`}>
-                            <p className="font-semibold truncate"><span className="font-mono opacity-70">{time12(slot.time)}</span> {slot.clientName}</p>
-                            <p className="opacity-70 truncate">{slot.serviceName}</p>
-                            {slot.clientPhone && (
-                              <a href={`tel:${slot.clientPhone.replace(/[^\d+]/g, '')}`} className="block font-mono opacity-90 truncate hover:underline">📞 {slot.clientPhone}</a>
-                            )}
-                          </div>
-                        ))}
-                      </div>
-                    );
-                  })}
-                </div>
-              ))}
-            </div>
-          </div>
+      {view === 'day' ? (
+        <div className="hidden sm:block space-y-3">
+          {unassigned.length > 0 && (
+            <p className="rounded-xl border border-amber-500/25 bg-amber-500/10 px-3 py-2 text-xs text-amber-300">
+              Sin barbero asignado: {unassigned.map((b) => `${time12(b.time)} ${b.clientName}`).join(' · ')}
+            </p>
+          )}
+          <AgendaBoard date={currentDate} barbers={barbers} bookings={bookings} durations={durations} showHeaders pxPerMin={2.2} lunchOverClosed {...agendaActions} />
         </div>
       ) : (
         <div className="hidden sm:block table-card overflow-hidden overflow-x-auto">
@@ -263,6 +246,23 @@ export default function AdminCalendar() {
           </div>
         ))}
       </div>
+
+      {adding && (
+        <NewClientModal
+          preset={adding}
+          onClose={() => setAdding(null)}
+          onSaved={(count, clientName, scheduled) => {
+            setAdding(null);
+            setSaved(scheduled
+              ? `Cita agendada para ${clientName} a las ${time12(scheduled.time)}.`
+              : `Registrado ${clientName}: ${count === 1 ? 'servicio completado' : `${count} servicios completados`}.`);
+            setReload((n) => n + 1);
+          }}
+        />
+      )}
+      {editing && (
+        <EditBookingModal booking={editing} onClose={() => setEditing(null)} onSaved={() => setReload((n) => n + 1)} />
+      )}
     </div>
   );
 }

@@ -40,7 +40,7 @@ const describe = (b: Pick<Booking, 'date' | 'time' | 'serviceName' | 'barberName
   `📅 ${formatDateLong(b.date)}\n🕒 ${time12(b.time)}\n✂️ ${b.serviceName} con ${b.barberName}\n💰 ${formatCOP(b.price)}`;
 
 /** Mensaje para el cliente con la cita nueva y lo que cambió */
-function changeMessage(before: Booking, after: Booking): string {
+export function changeMessage(before: Booking, after: Booking): string {
   const first = after.clientName.replace(/\s*\(turno \d+\)$/, '').split(' ')[0];
   const changes: string[] = [];
   if (before.date !== after.date || before.time !== after.time) changes.push(`antes era el ${formatDateLong(before.date).toLowerCase()} a las ${time12(before.time)}`);
@@ -71,6 +71,8 @@ export default function EditBookingModal({ booking, onClose, onSaved, barberSess
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
   const [saved, setSaved] = useState<Booking | null>(null);
+  // También las horas del almuerzo y las que ya pasaron hoy (la web no las ofrece)
+  const [allHours, setAllHours] = useState(false);
 
   useEffect(() => {
     Promise.all([getServices(), getBarbers()])
@@ -101,7 +103,7 @@ export default function EditBookingModal({ booking, onClose, onSaved, barberSess
   const service = services.find((s) => s.id === serviceId);
   const barber = barbers.find((b) => b.id === barberId);
   const duration = service?.duration ?? 30;
-  const slots = busy && barber ? generateSlots(date, busy, [barber.id], duration, businessConfig.slotStep, () => barber.workHours).map((s) => s.time) : [];
+  const slots = busy && barber ? generateSlots(date, busy, [barber.id], duration, businessConfig.slotStep, () => barber.workHours, { includeLunch: allHours, includePast: allHours }).map((s) => s.time) : [];
   // La hora que ya tenía se puede dejar aunque no esté en la secuencia
   const keepCurrent = date === booking.date && barberId === booking.barberId;
   const times = [...new Set([...(keepCurrent ? [booking.time] : []), ...slots])].sort();
@@ -224,6 +226,10 @@ export default function EditBookingModal({ booking, onClose, onSaved, barberSess
                   </div>
                 )}
                 {!timeOk && busy !== null && times.length > 0 && <p className="text-amber-300 text-xs mt-1.5">Escoge una de las horas libres.</p>}
+                <label className="mt-2 inline-flex items-center gap-2 text-xs text-zinc-400 cursor-pointer select-none">
+                  <input type="checkbox" className="accent-[#d9ad50] w-4 h-4" checked={allHours} onChange={(e) => setAllHours(e.target.checked)} />
+                  Ver también el almuerzo y las horas que ya pasaron
+                </label>
               </div>
               <label className="block">
                 <span className={label}>Valor</span>

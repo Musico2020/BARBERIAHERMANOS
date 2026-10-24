@@ -6,7 +6,7 @@ import {
 import BarberShifts from './BarberShifts';
 import BarberLogin from './BarberLogin';
 import { usePageMeta } from '../../hooks/usePageMeta';
-import { getBarberBookings, setBarberBookingStatus, changeBarberPin, setBarberWorkHours, barberDeleteBooking, BarberPortalError } from '../../services/barberPortal';
+import { getBarberBookings, setBarberBookingStatus, changeBarberPin, setBarberWorkHours, barberDeleteBooking, barberEditBooking, BarberPortalError } from '../../services/barberPortal';
 import EditBookingModal from '../../components/admin/EditBookingModal';
 import WorkHoursEditor, { validWorkHours } from '../../components/admin/WorkHoursEditor';
 import { formatCOP } from '../../data';
@@ -21,7 +21,7 @@ import NewClientModal from '../../components/admin/NewClientModal';
 import BarberHome from './BarberHome';
 import BarberWorks from './BarberWorks';
 import { barberEarnings, barberShare } from '../../lib/earnings';
-import { Timeline } from '../../components/admin/MobileAgenda';
+import AgendaBoard from '../../components/admin/AgendaBoard';
 import { getAllServices } from '../../services/services';
 import { Panel, KpiCard, StatusBadge, Initials, EmptyState } from '../../components/admin/ui';
 import { GoldBarChart } from '../../components/admin/charts';
@@ -122,7 +122,9 @@ function AppointmentCard({ b, onStatus, busy, onEdit, onDelete }: { b: Booking; 
   );
 }
 
-function AgendaTab({ appts, barber, onStatus, busyId, onNewClient, onEdit, onDelete }: { appts: Booking[]; barber: Barber; onStatus: (id: string, s: Booking['status']) => void; busyId: string | null; onNewClient: () => void; onEdit: (b: Booking) => void; onDelete: (b: Booking) => void }) {
+type BoardActions = Pick<React.ComponentProps<typeof AgendaBoard>, 'onAdd' | 'onEdit' | 'saveMove' | 'onChanged'>;
+
+function AgendaTab({ appts, barber, onStatus, busyId, onNewClient, onEdit, onDelete, onAddAt, board }: { appts: Booking[]; barber: Barber; onStatus: (id: string, s: Booking['status']) => void; busyId: string | null; onNewClient: () => void; onEdit: (b: Booking) => void; onDelete: (b: Booking) => void; onAddAt: (date: string, time: string) => void; board: BoardActions }) {
   const today = todayKey();
   const days = Array.from({ length: 7 }, (_, i) => addDays(today, i));
   const circleDays = Array.from({ length: 21 }, (_, i) => addDays(today, i - 3));
@@ -162,7 +164,7 @@ function AgendaTab({ appts, barber, onStatus, busyId, onNewClient, onEdit, onDel
           );
         })}
       </div>
-      <div className="sm:hidden grid grid-cols-2 gap-1 p-1 rounded-2xl bg-white/[0.04] border border-white/10">
+      <div className="grid grid-cols-2 gap-1 p-1 rounded-2xl bg-white/[0.04] border border-white/10 sm:max-w-sm">
         {([['lista', 'Lista'], ['linea', 'Línea de tiempo']] as const).map(([v, label]) => (
           <button key={v} type="button" onClick={() => setView(v)} aria-pressed={view === v} className={`py-2.5 rounded-xl text-sm font-semibold ${view === v ? 'bg-gold text-dark' : 'text-zinc-300'}`}>
             {label}
@@ -215,13 +217,21 @@ function AgendaTab({ appts, barber, onStatus, busyId, onNewClient, onEdit, onDel
       )}
 
       {view === 'linea' && (
-        <div className="sm:hidden">
+        <div>
           <h3 className="text-white font-semibold capitalize mb-3">{day === today ? 'Hoy · ' : ''}{formatDateLong(day)}</h3>
-          <Timeline date={day} barber={barber} bookings={appts} durations={durations} />
+          <AgendaBoard
+            date={day}
+            barbers={[barber]}
+            bookings={appts}
+            durations={durations}
+            addFromToday
+            {...board}
+            onAdd={(_b, time) => onAddAt(day, time)}
+          />
         </div>
       )}
 
-      <div className={view === 'linea' ? 'hidden sm:block' : ''}>
+      <div className={view === 'linea' ? 'hidden' : ''}>
       <Panel title={day === today ? 'Agenda de hoy' : formatDateLong(day)} subtitle={`${active.length} ${active.length === 1 ? 'cita' : 'citas'}`} bodyClassName="p-3 sm:p-4">
         {list.length === 0 ? (
           <EmptyState icon={CalendarDays}>No tienes citas este día.</EmptyState>
@@ -528,6 +538,8 @@ function BarberDashboard({ barber, pin, onLogout, onPinChanged, onWorkHoursChang
   const [busyId, setBusyId] = useState<string | null>(null);
   const [shiftNotice, setShiftNotice] = useState('');
   const [showNewClient, setShowNewClient] = useState(false);
+  // Espacio libre tocado en la línea de tiempo: «Cliente nuevo» ya con el día y la hora
+  const [addAt, setAddAt] = useState<{ barberId: string; date: string; time: string } | null>(null);
   const [editing, setEditing] = useState<Booking | null>(null);
   // Porcentajes por servicio (para lo que gana en cada uno): al cargarlos se vuelve a dibujar
   const [, setRatesLoaded] = useState(false);
@@ -555,6 +567,19 @@ function BarberDashboard({ barber, pin, onLogout, onPinChanged, onWorkHoursChang
     }
     setError(fallback);
   };
+
+  const reload = () => { getBarberBookings(barber.id, pin).then(setAppts).catch((err) => handlePortalError(err, 'No se pudieron recargar tus citas.')); };
+  const board: BoardActions = {
+    onEdit: setEditing,
+    saveMove: async (b, _barber, time) => {
+      const result = await barberEditBooking(barber.id, pin, b.id, { clientName: b.clientName, clientPhone: b.clientPhone, serviceId: b.serviceId, date: b.date, time });
+      if (result === 'OK') return;
+      if (result === 'INVALID_PIN' || result === 'PIN_LOCKED') { onLogout(); return 'Tu sesión se cerró.'; }
+      return result === 'SLOT_TAKEN' ? 'Ese espacio ya se ocupó. Escoge otro.' : 'No se pudo mover la cita.';
+    },
+    onChanged: reload,
+  };
+  const openAddAt = (date: string, time: string) => { setShiftNotice(''); setAddAt({ barberId: barber.id, date, time }); setShowNewClient(true); };
 
   useAutoRefresh(() => {
     getBarberBookings(barber.id, pin)
@@ -658,16 +683,16 @@ function BarberDashboard({ barber, pin, onLogout, onPinChanged, onWorkHoursChang
                     appts={appts}
                     greeting={greeting}
                     onNavigate={setTab}
-                    onNewClient={() => { setShowNewClient(true); setShiftNotice(''); }}
+                    onNewClient={() => { setAddAt(null); setShowNewClient(true); setShiftNotice(''); }}
                     onLogout={onLogout}
                   />
                 </div>
                 <div className="hidden lg:block">
-                  <AgendaTab appts={appts} barber={barber} onStatus={updateStatus} busyId={busyId} onNewClient={() => { setShowNewClient(true); setShiftNotice(''); }} onEdit={setEditing} onDelete={removeBooking} />
+                  <AgendaTab appts={appts} barber={barber} onStatus={updateStatus} busyId={busyId} onNewClient={() => { setAddAt(null); setShowNewClient(true); setShiftNotice(''); }} onEdit={setEditing} onDelete={removeBooking} onAddAt={openAddAt} board={board} />
                 </div>
               </>
             )}
-            {tab === 'agenda' && <AgendaTab appts={appts} barber={barber} onStatus={updateStatus} busyId={busyId} onNewClient={() => { setShowNewClient(true); setShiftNotice(''); }} onEdit={setEditing} onDelete={removeBooking} />}
+            {tab === 'agenda' && <AgendaTab appts={appts} barber={barber} onStatus={updateStatus} busyId={busyId} onNewClient={() => { setAddAt(null); setShowNewClient(true); setShiftNotice(''); }} onEdit={setEditing} onDelete={removeBooking} onAddAt={openAddAt} board={board} />}
             {tab === 'turnos' && <BarberShifts barber={barber} pin={pin} appts={appts} />}
             {tab === 'trabajos' && <BarberWorks barber={barber} pin={pin} />}
             {tab === 'ganancias' && <EarningsTab appts={appts} barber={barber} />}
@@ -689,9 +714,11 @@ function BarberDashboard({ barber, pin, onLogout, onPinChanged, onWorkHoursChang
       {showNewClient && (
         <NewClientModal
           barberSession={{ barber, pin }}
-          onClose={() => setShowNewClient(false)}
+          preset={addAt ?? undefined}
+          onClose={() => { setShowNewClient(false); setAddAt(null); }}
           onSaved={(count, clientName, scheduled) => {
             setShowNewClient(false);
+            setAddAt(null);
             setShiftNotice(scheduled
               ? `Cita agendada para ${clientName}: ${formatDateLong(scheduled.date)} a las ${time12(scheduled.time)}.`
               : `Registrado ${clientName}: ${count === 1 ? 'el servicio quedó completado' : `${count} servicios completados`} y ya cuenta en tus ganancias.`);

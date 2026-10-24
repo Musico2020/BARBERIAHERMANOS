@@ -1,6 +1,6 @@
 import type { BusySlot } from '../services/bookings';
 import { todayKey, nowMinutes, timeToMinutes, minutesToTime } from './dates';
-import { bookingHoursFor, barberHoursFor, lunchFor } from './businessHours';
+import { bookingHoursFor, barberHoursFor, barberLunchFor } from './businessHours';
 import type { WorkHours } from '../types';
 
 // Horas que se ofrecen al reservar. Para cada barbero se buscan los huecos libres del día (horario de
@@ -63,7 +63,7 @@ export function startsInGap(gap: Gap, duration: number): { start: number; recomm
  * Horas libres del día para un servicio de `duration` minutos con alguno de `barberIds`.
  * Los turnos van uno detrás de otro según la duración del servicio (ver startsInGap); `step` solo se
  * usa si no viene la duración.
- * Solo dentro del horario de atención, fuera del almuerzo y de las horas cerradas, y desde ahora si es hoy
+ * Solo dentro del horario de atención, fuera del almuerzo de cada barbero y de las horas cerradas, y desde ahora si es hoy
  * (hora de Colombia). Los días cerrados o por orden de llegada no tienen horas.
  */
 export function generateSlots(
@@ -74,15 +74,17 @@ export function generateSlots(
   step = 15,
   /** Horario propio de cada barbero (Panel → Barberos); el que no aparece usa el del salón */
   workHoursOf: (barberId: string) => WorkHours | undefined = () => undefined,
+  /** Panel y barbero: pueden ofrecer las horas del almuerzo y las que ya pasaron hoy (cliente atendido sin registrar) */
+  options: { includeLunch?: boolean; includePast?: boolean } = {},
 ): Slot[] {
   if (!bookingHoursFor(date)) return [];
-  const lunch = lunchFor(date);
   // Hoy: desde la hora actual, redondeada a los 5 minutos siguientes
-  const nowFrom = date === todayKey() ? Math.ceil((nowMinutes() + 1) / 5) * 5 : 0;
+  const nowFrom = date === todayKey() && !options.includePast ? Math.ceil((nowMinutes() + 1) / 5) * 5 : 0;
   const slots = new Map<number, boolean>();
   for (const id of barberIds) {
     const hours = barberHoursFor(date, workHoursOf(id));
     if (!hours) continue;
+    const lunch = options.includeLunch ? null : barberLunchFor(date, workHoursOf(id));
     const blocks: { start: number; end: number; kind: Edge }[] = busy
       .filter((b) => b.barberId === id)
       .map((b) => ({ start: timeToMinutes(b.startTime), end: timeToMinutes(b.startTime) + b.duration, kind: b.kind === 'closed' ? 'other' : 'booking' }));

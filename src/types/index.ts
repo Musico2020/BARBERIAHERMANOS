@@ -42,7 +42,8 @@ export interface Barber {
   ownerBeneficiary?: 'walter' | 'daniel' | 'general';
 }
 
-export type WorkDay = { off: true } | { off?: false; open: string; close: string };
+/** lunch: su almuerzo ese día; false = trabaja de corrido; sin lunch = el almuerzo del salón */
+export type WorkDay = { off: true } | { off?: false; open: string; close: string; lunch?: { start: string; end: string } | false };
 export type WorkHours = Partial<Record<'0' | '1' | '2' | '3' | '4' | '5' | '6', WorkDay>>;
 
 export interface TimeSlot {

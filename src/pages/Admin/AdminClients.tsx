@@ -1,8 +1,8 @@
 import { useState, useEffect } from 'react';
 import { inviteToBookLink } from '../../lib/whatsapp';
-import { Search, Star, Loader2, MessageCircle, AlertTriangle, Users, Crown, UserCheck } from 'lucide-react';
+import { Search, Star, Loader2, MessageCircle, AlertTriangle, Users, Crown, UserCheck, Ban, ShieldCheck, X } from 'lucide-react';
 import { getBookings } from '../../services/bookings';
-import { getClients, normalizePhone, type ClientRecord } from '../../services/clients';
+import { getClients, normalizePhone, getBlockedClients, blockClient, unblockClient, type ClientRecord, type BlockedClient } from '../../services/clients';
 import { formatCOP } from '../../data';
 import type { Booking } from '../../types';
 import { Panel, KpiCard, Initials } from '../../components/admin/ui';
@@ -16,10 +16,14 @@ interface Client {
   lastVisit: string;
   totalSpent: number;
   favoriteService: string;
+  /** Citas en las que no llegó */
+  noShows: number;
+  blocked: BlockedClient | null;
 }
 
 // Une la lista de clientes con sus citas (por celular normalizado)
-function buildClients(records: ClientRecord[], bookings: Booking[]): Client[] {
+function buildClients(records: ClientRecord[], bookings: Booking[], blockedList: BlockedClient[]): Client[] {
+  const blockedBy = new Map(blockedList.map((b) => [b.phone, b]));
   const byPhone = new Map<string, Booking[]>();
   for (const b of bookings) {
     const phone = normalizePhone(b.clientPhone);
@@ -27,7 +31,8 @@ function buildClients(records: ClientRecord[], bookings: Booking[]): Client[] {
   }
 
   const toClient = (name: string, phone: string, notes: string): Client => {
-    const list = (byPhone.get(phone) ?? []).filter((b) => b.status !== 'cancelled');
+    const all = byPhone.get(phone) ?? [];
+    const list = all.filter((b) => b.status !== 'cancelled' && b.status !== 'no-show');
     const serviceCounts = new Map<string, number>();
     list.forEach((b) => serviceCounts.set(b.serviceName, (serviceCounts.get(b.serviceName) ?? 0) + 1));
     const favorite = [...serviceCounts].sort((a, b) => b[1] - a[1])[0]?.[0] ?? '';
@@ -39,6 +44,8 @@ function buildClients(records: ClientRecord[], bookings: Booking[]): Client[] {
       lastVisit: list.reduce((last, b) => (b.date > last ? b.date : last), ''),
       totalSpent: list.filter((b) => b.status === 'completed').reduce((sum, b) => sum + b.price, 0),
       favoriteService: favorite,
+      noShows: all.filter((b) => b.status === 'no-show').length,
+      blocked: blockedBy.get(phone) ?? null,
     };
   };
 
@@ -46,7 +53,11 @@ function buildClients(records: ClientRecord[], bookings: Booking[]): Client[] {
   // Citas de celulares que no están en la lista (por ejemplo, anteriores a la tabla de clientes)
   const known = new Set(records.map((r) => r.phone));
   for (const [phone, list] of byPhone) {
-    if (!known.has(phone)) clients.push(toClient(list[0].clientName, phone, ''));
+    if (!known.has(phone)) { clients.push(toClient(list[0].clientName, phone, '')); known.add(phone); }
+  }
+  // Bloqueados que no tienen citas ni están en la lista
+  for (const b of blockedList) {
+    if (!known.has(b.phone)) clients.push(toClient(b.name || 'Sin nombre', b.phone, ''));
   }
   return clients.sort((a, b) => b.visits - a.visits || a.name.localeCompare(b.name));
 }
@@ -55,7 +66,7 @@ function formatPhone(phone: string): string {
   return phone.length === 10 ? `${phone.slice(0, 3)} ${phone.slice(3, 6)} ${phone.slice(6)}` : phone;
 }
 
-const columns: Column<Client>[] = [
+const baseColumns: Column<Client>[] = [
   {
     key: 'name', header: 'Cliente', primary: true,
     render: (c) => (
@@ -64,6 +75,16 @@ const columns: Column<Client>[] = [
         <div className="min-w-0">
           <p className="text-white font-semibold text-sm flex flex-wrap items-center gap-x-2 gap-y-1 min-w-0">
             <span className="break-words md:truncate">{c.name}</span>
+            {c.blocked && (
+              <span className="inline-flex items-center gap-1 text-[10px] bg-red-500/15 text-red-300 border border-red-500/30 px-1.5 py-0.5 rounded-full font-semibold shrink-0">
+                <Ban size={9} /> Bloqueado
+              </span>
+            )}
+            {c.noShows > 0 && (
+              <span className="inline-flex items-center text-[10px] bg-amber-500/10 text-amber-300 border border-amber-500/30 px-1.5 py-0.5 rounded-full font-semibold shrink-0">
+                No llegó {c.noShows} {c.noShows === 1 ? 'vez' : 'veces'}
+              </span>
+            )}
             {c.visits >= 3 && (
               <span className="inline-flex items-center gap-1 text-[10px] bg-gold/15 text-gold border border-gold/30 px-1.5 py-0.5 rounded-full font-semibold shrink-0">
                 <Star size={9} className="fill-gold" /> VIP
@@ -114,6 +135,54 @@ export default function AdminClients() {
   const [error, setError] = useState('');
   const [search, setSearch] = useState('');
   const [onlyReview, setOnlyReview] = useState(false);
+  const [onlyBlocked, setOnlyBlocked] = useState(false);
+  const [blockedList, setBlockedList] = useState<BlockedClient[]>([]);
+  const [toBlock, setToBlock] = useState<Client | null>(null);
+  const [reason, setReason] = useState('');
+  const [savingBlock, setSavingBlock] = useState('');
+
+  const reloadBlocked = () => getBlockedClients().then(setBlockedList).catch((err) => console.error('No se pudieron cargar los bloqueados', err));
+  useEffect(() => { reloadBlocked(); }, []);
+
+  const toggleBlock = async (c: Client, block: boolean, why = '') => {
+    setSavingBlock(c.phone);
+    try {
+      if (block) await blockClient(c.phone, c.name, why);
+      else await unblockClient(c.phone);
+      await reloadBlocked();
+      setToBlock(null);
+      setReason('');
+    } catch (err) {
+      console.error('No se pudo cambiar el bloqueo', err);
+      setError('No se pudo guardar el bloqueo. Intenta de nuevo.');
+    } finally {
+      setSavingBlock('');
+    }
+  };
+
+  const columns: Column<Client>[] = [
+    ...baseColumns,
+    {
+      key: 'block', header: '', align: 'right',
+      render: (c) => c.phone.length < 10 ? null : c.blocked ? (
+        <button
+          onClick={() => toggleBlock(c, false)}
+          disabled={savingBlock === c.phone}
+          className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg border border-emerald-500/30 text-emerald-300 hover:bg-emerald-500/10 text-xs font-semibold whitespace-nowrap disabled:opacity-50"
+          title={c.blocked.reason ? `Motivo: ${c.blocked.reason}` : undefined}
+        >
+          <ShieldCheck size={13} /> Desbloquear
+        </button>
+      ) : (
+        <button
+          onClick={() => { setToBlock(c); setReason(c.noShows ? `No llegó a ${c.noShows} ${c.noShows === 1 ? 'cita' : 'citas'}` : ''); }}
+          className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg border border-red-500/30 text-red-300 hover:bg-red-500/10 text-xs font-semibold whitespace-nowrap"
+        >
+          <Ban size={13} /> Bloquear
+        </button>
+      ),
+    },
+  ];
 
   useEffect(() => {
     Promise.all([getClients(), getBookings()])
@@ -128,7 +197,8 @@ export default function AdminClients() {
       .finally(() => setLoading(false));
   }, []);
 
-  const clients = buildClients(records, bookings);
+  const clients = buildClients(records, bookings, blockedList);
+  const blockedCount = clients.filter((c) => c.blocked).length;
   const reviewCount = clients.filter((c) => c.notes).length;
   const vipCount = clients.filter((c) => c.visits >= 3).length;
   const withVisits = clients.filter((c) => c.visits > 0).length;
@@ -136,6 +206,7 @@ export default function AdminClients() {
   const queryDigits = search.replace(/\D/g, '');
   const filtered = clients.filter((c) =>
     (!onlyReview || c.notes) &&
+    (!onlyBlocked || c.blocked) &&
     (!query || c.name.toLowerCase().includes(query) || (queryDigits !== '' && c.phone.includes(queryDigits)))
   );
 
@@ -162,6 +233,18 @@ export default function AdminClients() {
             className="w-full pl-10 pr-4 py-3 rounded-xl bg-white/[0.04] border border-white/10 text-white placeholder-zinc-500 text-sm focus:outline-none focus:border-gold/50 transition-colors"
           />
         </div>
+        {blockedCount > 0 && (
+          <button
+            onClick={() => setOnlyBlocked((v) => !v)}
+            aria-pressed={onlyBlocked}
+            className={`flex items-center justify-center gap-2 px-4 py-3 rounded-xl border text-sm font-medium transition-all ${
+              onlyBlocked ? 'border-red-500/50 bg-red-500/15 text-red-300' : 'btn-dark-glass hover:text-red-300'
+            }`}
+          >
+            <Ban size={14} className="text-red-400" />
+            Bloqueados ({blockedCount})
+          </button>
+        )}
         {reviewCount > 0 && (
           <button
             onClick={() => setOnlyReview((v) => !v)}
@@ -193,11 +276,37 @@ export default function AdminClients() {
             columns={columns}
             rowKey={(c) => c.phone}
             pageSize={25}
-            resetKey={`${search}|${onlyReview}`}
+            resetKey={`${search}|${onlyReview}|${onlyBlocked}`}
             empty="No se encontraron clientes con esa búsqueda."
           />
         )}
       </Panel>
+
+      {toBlock && (
+        <div className="fixed inset-0 z-[100] flex items-end sm:items-center justify-center" role="dialog" aria-modal="true" aria-label="Bloquear cliente">
+          <div className="absolute inset-0 bg-black/75" onClick={() => !savingBlock && setToBlock(null)} />
+          <div className="relative w-full sm:max-w-md bg-[#111] border border-white/10 rounded-t-3xl sm:rounded-3xl p-5 space-y-4">
+            <div className="flex items-start justify-between gap-3">
+              <h3 className="font-serif text-xl font-bold text-white">¿Bloquear a {toBlock.name}?</h3>
+              <button onClick={() => setToBlock(null)} aria-label="Cerrar" className="w-9 h-9 shrink-0 rounded-full bg-white/5 border border-white/10 flex items-center justify-center text-zinc-400"><X size={16} /></button>
+            </div>
+            <p className="text-sm text-zinc-300">
+              El celular <span className="font-mono text-white">{formatPhone(toBlock.phone)}</span> ya no podrá apartar citas ni reagendar por la web.
+              Tú y los barberos sí pueden seguir registrándolo en el salón. Puedes desbloquearlo cuando quieras.
+            </p>
+            <label className="block">
+              <span className="text-xs text-zinc-400 uppercase tracking-wider block mb-1.5">Motivo (solo lo ves tú)</span>
+              <input value={reason} onChange={(e) => setReason(e.target.value)} placeholder="Ej: apartó 3 citas y no llegó" className="w-full px-3.5 py-2.5 rounded-xl bg-white/[0.04] border border-white/10 text-white text-sm focus:outline-none focus:border-gold/60" />
+            </label>
+            <div className="grid grid-cols-2 gap-2">
+              <button onClick={() => setToBlock(null)} className="btn-dark-glass py-3 rounded-full text-sm font-semibold">Cancelar</button>
+              <button onClick={() => toggleBlock(toBlock, true, reason)} disabled={!!savingBlock} className="py-3 rounded-full font-semibold bg-red-500 hover:bg-red-400 text-white inline-flex items-center justify-center gap-2 disabled:opacity-50">
+                {savingBlock ? <Loader2 size={16} className="animate-spin" /> : <Ban size={16} />} Bloquear
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

@@ -1,148 +1,36 @@
-import { useEffect, useRef, useState } from 'react';
-import { Phone, MessageCircle, Users } from 'lucide-react';
+import { useEffect, useRef, useState, type ComponentProps } from 'react';
+import { Users } from 'lucide-react';
 import BarberAvatar from '../common/BarberAvatar';
 import CalendarAgenda from './CalendarAgenda';
-import { getBusySlots, type BusySlot } from '../../services/bookings';
-import { getAllServices } from '../../services/services';
-import { todayKey, addDays, dayOfMonth, formatDateLong, minutesToTime, time12, timeToMinutes, monthLong } from '../../lib/dates';
-import { barberHoursFor, hoursFor, lunchFor } from '../../lib/businessHours';
-import { waNumber } from '../../lib/whatsapp';
-import { STATUS_LABEL } from '../../lib/stats';
+import AgendaBoard from './AgendaBoard';
+import { todayKey, addDays, dayOfMonth, formatDateLong, monthLong } from '../../lib/dates';
 import type { Barber, Booking } from '../../types';
 
 // Agenda en el teléfono: días en círculos, foto de cada barbero para escogerlo y, por barbero, la
-// línea de tiempo del día (citas, horas no disponibles y almuerzo). «Todos» muestra la lista del día.
+// línea de tiempo del día (citas, horas no disponibles y almuerzo), donde se tocan los espacios libres
+// para agregar clientes y se mueven las citas. «Todos» muestra la lista del día.
 
 const DAY_NAMES = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'];
-const PX_PER_MIN = 2.6;
-
-const STATUS_BLOCK: Record<Booking['status'], string> = {
-  pending: 'border-amber-400 bg-amber-500/15',
-  confirmed: 'border-sky-400 bg-sky-500/15',
-  completed: 'border-emerald-400 bg-emerald-500/15',
-  cancelled: 'border-zinc-600 bg-white/5',
-  'no-show': 'border-red-500/60 bg-red-500/10',
-};
-
 const weekdayOf = (key: string) => {
   const [y, m, d] = key.split('-').map(Number);
   return new Date(Date.UTC(y, m - 1, d)).getUTCDay();
 };
 
-interface Props {
+type BoardActions = Pick<ComponentProps<typeof AgendaBoard>, 'onAdd' | 'onEdit' | 'saveMove' | 'onChanged'>;
+
+interface Props extends BoardActions {
   date: string;
   onDateChange: (date: string) => void;
   barbers: Barber[];
   bookings: Booking[];
+  durations: Map<string, number>;
 }
 
-export function Timeline({ date, barber, bookings, durations }: { date: string; barber: Barber; bookings: Booking[]; durations: Map<string, number> }) {
-  const [closed, setClosed] = useState<BusySlot[]>([]);
-  useEffect(() => {
-    let alive = true;
-    getBusySlots(date, barber.id)
-      .then((list) => { if (alive) setClosed(list.filter((x) => x.kind === 'closed')); })
-      .catch(() => { if (alive) setClosed([]); });
-    return () => { alive = false; };
-  }, [date, barber.id]);
-
-  const mine = bookings.filter((b) => b.date === date && b.barberId === barber.id && b.status !== 'cancelled');
-  const win = barberHoursFor(date, barber.workHours) ?? (hoursFor(date) ? { open: hoursFor(date)!.open, close: hoursFor(date)!.close } : null);
-  const lunch = lunchFor(date);
-  const dur = (b: Booking) => durations.get(b.serviceId) ?? 30;
-
-  // Rango visible: el horario del día (o 8 a 7) ampliado si hay citas por fuera
-  let start = win?.open ?? 8 * 60;
-  let end = win?.close ?? 19 * 60;
-  for (const b of mine) {
-    start = Math.min(start, timeToMinutes(b.time));
-    end = Math.max(end, timeToMinutes(b.time) + dur(b));
-  }
-  start = Math.floor(start / 30) * 30;
-  end = Math.ceil(end / 30) * 30;
-  const height = (end - start) * PX_PER_MIN;
-  const y = (m: number) => (m - start) * PX_PER_MIN;
-  const marks = Array.from({ length: (end - start) / 30 + 1 }, (_, i) => start + i * 30);
-
-  const blocks = closed
-    .map((c) => ({ s: Math.max(start, timeToMinutes(c.startTime)), e: Math.min(end, timeToMinutes(c.startTime) + c.duration) }))
-    .filter((c) => c.e > c.s);
-
-  return (
-    <div>
-      {!win && <p className="mb-3 text-sm text-amber-300">{barber.shortName} no trabaja este día (o el salón está cerrado).</p>}
-      <div className="table-card rounded-2xl p-2 pr-3">
-        <div className="relative" style={{ height }}>
-          {/* Horas */}
-          {marks.map((m) => (
-            <div key={m} className="absolute left-0 right-0 flex items-start gap-2" style={{ top: y(m) }}>
-              <span className={`w-[58px] shrink-0 -mt-2 text-right font-mono whitespace-nowrap ${m % 60 === 0 ? "text-[10.5px] text-zinc-300" : "text-[10px] text-zinc-600"}`}>
-                {m % 60 === 0 ? time12(minutesToTime(m)) : ':30'}
-              </span>
-              <span className={`flex-1 border-t ${m % 60 === 0 ? 'border-white/10' : 'border-white/[0.04] border-dashed'}`} />
-            </div>
-          ))}
-          <div className="absolute top-0 bottom-0 left-[66px] right-0">
-            {/* No disponible */}
-            {blocks.map((c, i) => (
-              <div key={i} className="absolute left-0 right-0 rounded-lg bg-zinc-500/15 border border-zinc-500/20 px-2 py-1 overflow-hidden" style={{ top: y(c.s), height: (c.e - c.s) * PX_PER_MIN }}>
-                <p className="text-[11px] text-zinc-400">{time12(minutesToTime(c.s))} – {time12(minutesToTime(c.e))} · No disponible</p>
-              </div>
-            ))}
-            {/* Almuerzo */}
-            {lunch && lunch.end > start && lunch.start < end && (
-              <div
-                className="absolute left-0 right-0 rounded-lg border border-gold/20 px-2 py-1 bg-[repeating-linear-gradient(135deg,rgba(217,173,80,0.10)_0,rgba(217,173,80,0.10)_6px,transparent_6px,transparent_12px)]"
-                style={{ top: y(Math.max(start, lunch.start)), height: (Math.min(end, lunch.end) - Math.max(start, lunch.start)) * PX_PER_MIN }}
-              >
-                <p className="text-[11px] text-gold/80">Almuerzo · {time12(lunch.startLabel)} – {time12(lunch.endLabel)}</p>
-              </div>
-            )}
-            {/* Citas */}
-            {mine.map((b) => {
-              const s = timeToMinutes(b.time);
-              const d = dur(b);
-              const phone = b.clientPhone?.trim();
-              return (
-                <div
-                  key={b.id}
-                  className={`absolute left-0 right-0 rounded-xl border-l-4 border px-2.5 py-1.5 overflow-hidden shadow-lg ${STATUS_BLOCK[b.status]}`}
-                  style={{ top: y(s) + 1, height: Math.max(d * PX_PER_MIN - 2, 34) }}
-                >
-                  <div className="flex items-start justify-between gap-2">
-                    <div className="min-w-0">
-                      <p className="text-[11px] font-mono text-zinc-300 truncate">{time12(b.time)} – {time12(minutesToTime(s + d))}</p>
-                      <p className="text-sm font-semibold text-white truncate">{b.clientName}</p>
-                      <p className="text-xs text-zinc-300 truncate">{b.serviceName} · <span className="text-zinc-400">{STATUS_LABEL[b.status]}</span></p>
-                    </div>
-                    {phone && (
-                      <div className="flex gap-1.5 shrink-0">
-                        <a href={`tel:${phone.replace(/[^\d+]/g, '')}`} aria-label={`Llamar a ${b.clientName}`} className="w-8 h-8 rounded-lg bg-black/30 border border-white/10 flex items-center justify-center text-gold"><Phone size={14} /></a>
-                        <a href={`https://wa.me/${waNumber(phone)}`} target="_blank" rel="noopener noreferrer" aria-label={`WhatsApp a ${b.clientName}`} className="w-8 h-8 rounded-lg bg-emerald-500/15 border border-emerald-500/30 flex items-center justify-center text-emerald-300"><MessageCircle size={14} /></a>
-                      </div>
-                    )}
-                  </div>
-                  {d >= 45 && phone && <p className="text-[11px] font-mono text-zinc-400 mt-0.5">{phone}</p>}
-                </div>
-              );
-            })}
-          </div>
-        </div>
-      </div>
-      {mine.length === 0 && win && <p className="text-center text-sm text-zinc-500 mt-3">{barber.shortName} no tiene citas este día.</p>}
-    </div>
-  );
-}
-
-export default function MobileAgenda({ date, onDateChange, barbers, bookings }: Props) {
+export default function MobileAgenda({ date, onDateChange, barbers, bookings, durations, ...actions }: Props) {
   const today = todayKey();
   const [barberId, setBarberId] = useState('');
-  const [durations, setDurations] = useState<Map<string, number>>(new Map());
   const stripRef = useRef<HTMLDivElement>(null);
 
-  useEffect(() => {
-    getAllServices().then((list) => setDurations(new Map(list.map((s) => [s.id, s.duration])))).catch(() => undefined);
-  }, []);
   useEffect(() => {
     stripRef.current?.querySelector<HTMLElement>(`[data-day="${date}"]`)?.scrollIntoView({ block: 'nearest', inline: 'center', behavior: 'smooth' });
   }, [date]);
@@ -198,7 +86,7 @@ export default function MobileAgenda({ date, onDateChange, barbers, bookings }: 
       {barber && <h3 className="text-white font-semibold capitalize">{date === today ? 'Hoy · ' : ''}{formatDateLong(date)} · {barber.shortName}</h3>}
 
       {barber ? (
-        <Timeline date={date} barber={barber} bookings={bookings} durations={durations} />
+        <AgendaBoard date={date} barbers={[barber]} bookings={bookings} durations={durations} lunchOverClosed {...actions} />
       ) : (
         <CalendarAgenda dates={[date]} bookings={bookings} barberId="" />
       )}

@@ -85,6 +85,20 @@ export function barberHoursFor(dateKey: string, workHours: WorkHours | undefined
   return { open: timeToMinutes(day.open), close: timeToMinutes(day.close) };
 }
 
+/**
+ * Almuerzo de un barbero ese día (igual que barber_lunch_for en la base de datos): el suyo si lo puso en
+ * su horario propio, ninguno si trabaja de corrido, y si no, el del salón. Con ajuste del día no hay.
+ */
+export function barberLunchFor(dateKey: string, workHours: WorkHours | undefined): ReturnType<typeof lunchFor> {
+  if (dayOverrideOf(dateKey)) return null;
+  const day = workHours?.[String(weekday(dateKey)) as keyof WorkHours];
+  if (day && !day.off && day.lunch !== undefined) {
+    if (!day.lunch) return null;
+    return { start: timeToMinutes(day.lunch.start), end: timeToMinutes(day.lunch.end), startLabel: day.lunch.start, endLabel: day.lunch.end };
+  }
+  return lunchFor(dateKey);
+}
+
 function formatHour(time: string): string {
   const [h, m] = time.split(':').map(Number);
   const suffix = h >= 12 ? 'p. m.' : 'a. m.';

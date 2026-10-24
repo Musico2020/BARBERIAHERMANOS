@@ -5,7 +5,7 @@ import { getBarbers } from '../../services/barbers';
 import { createManualBookings, getBusySlots, type BusySlot } from '../../services/bookings';
 import { barberAddClient, type AddClientResult } from '../../services/barberPortal';
 import { businessConfig } from '../../config/business';
-import { generateSlots } from '../../lib/availability';
+import { generateSlots, isBarberFree } from '../../lib/availability';
 import { formatCOP } from '../../data';
 import { todayKey, nowMinutes, minutesToTime, timeToMinutes, formatDateLong, addDays, time12, dayShort, dayOfMonth, monthShort } from '../../lib/dates';
 import { isValidName, isValidPhone } from '../../lib/clientContact';
@@ -24,6 +24,8 @@ interface Props {
   onSaved: (count: number, clientName: string, scheduled: { date: string; time: string } | null) => void;
   /** Desde el portal del barbero: queda siempre a su nombre, con el precio del servicio, y se guarda con su PIN */
   barberSession?: { barber: Barber; pin: string };
+  /** Desde la Agenda, al tocar un espacio libre: ya trae barbero, día y hora. Si la hora ya pasó, queda como atendido a esa hora. */
+  preset?: { barberId: string; date: string; time: string };
 }
 
 const ADD_ERRORS: Partial<Record<AddClientResult, string>> = {
@@ -51,21 +53,27 @@ function SectionTitle({ number, children, hint }: { number: number; children: Re
   );
 }
 
-export default function NewClientModal({ onClose, onSaved, barberSession }: Props) {
+export default function NewClientModal({ onClose, onSaved, barberSession, preset }: Props) {
+  // Un espacio que ya pasó (hoy o antes): el cliente se atendió sin cita y se registra a esa hora
+  const presetPast = !!preset && (preset.date < todayKey() || (preset.date === todayKey() && timeToMinutes(preset.time) <= nowMinutes()));
   const [services, setServices] = useState<Service[]>([]);
   const [team, setTeam] = useState<Barber[]>([]);
   const [loading, setLoading] = useState(true);
   const [items, setItems] = useState<CartItem[]>([]);
   // Valor cobrado por unidad de cada servicio (por si se cobró distinto, p. ej. recargo fuera del horario)
   const [prices, setPrices] = useState<Record<string, string>>({});
-  const [barberId, setBarberId] = useState('');
+  const [barberId, setBarberId] = useState(preset?.barberId ?? '');
   const [name, setName] = useState('');
   const [phone, setPhone] = useState('');
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
-  const [when, setWhen] = useState<When>('now');
-  const [date, setDate] = useState(todayKey());
-  const [time, setTime] = useState('');
+  const [when, setWhen] = useState<When>(preset && !presetPast ? 'later' : 'now');
+  const [date, setDate] = useState(preset && !presetPast ? preset.date : todayKey());
+  const [time, setTime] = useState(preset && !presetPast ? preset.time : '');
+  // «Atendido» a la hora del espacio tocado (mientras no se cambie a «Agendar cita»)
+  const pastAt = presetPast && when === 'now' ? preset : null;
+  // Las horas del almuerzo no se ofrecen salvo que se pidan (la web no las ofrece)
+  const [withLunch, setWithLunch] = useState(false);
   const [busy, setBusy] = useState<BusySlot[]>([]);
   const [loadingBusy, setLoadingBusy] = useState(false);
 
@@ -119,9 +127,15 @@ export default function NewClientModal({ onClose, onSaved, barberSession }: Prop
 
   // Las mismas horas que ofrece la reserva de la web: horario del salón (o el propio del barbero),
   // sin almuerzo, sin horas cerradas ni citas, y donde quepan todos los servicios elegidos
-  const slots = when === 'later' && barber && !loadingBusy
-    ? generateSlots(date, busy, [barber.id], Math.max(minutes, 5), businessConfig.slotStep, () => barber.workHours)
+  const generated = when === 'later' && barber && !loadingBusy
+    ? generateSlots(date, busy, [barber.id], Math.max(minutes, 5), businessConfig.slotStep, () => barber.workHours, { includeLunch: withLunch })
     : [];
+  // La hora del espacio que se tocó en la Agenda se ofrece aunque no esté en la secuencia, si sigue libre
+  const presetFits = !!preset && !presetPast && !!barber && barber.id === preset.barberId && date === preset.date && !loadingBusy
+    && isBarberFree(busy, barber.id, timeToMinutes(preset.time), Math.max(minutes, 5));
+  const slots = presetFits && !generated.some((s) => s.time === preset!.time)
+    ? [...generated, { time: preset!.time, available: true, recommended: false }].sort((a, b) => a.time.localeCompare(b.time))
+    : generated;
   const timeOk = when === 'now' || (!!time && slots.some((s) => s.time === time));
 
   // Cada elección baja sola a la siguiente pregunta
@@ -164,7 +178,7 @@ export default function NewClientModal({ onClose, onSaved, barberSession }: Prop
     try {
       // Ahora: hoy, desde la hora actual. Agendada: el día y la hora escogidos. Un servicio detrás de otro.
       const scheduled = when === 'later' ? { date, time } : null;
-      let start = scheduled ? timeToMinutes(scheduled.time) : Math.floor(nowMinutes() / 5) * 5;
+      let start = scheduled ? timeToMinutes(scheduled.time) : pastAt ? timeToMinutes(pastAt.time) : Math.floor(nowMinutes() / 5) * 5;
       const lines = items.flatMap(({ service, qty }) =>
         Array.from({ length: qty }, () => {
           const line = { serviceId: service.id, serviceName: service.name, time: minutesToTime(start % (24 * 60)), price: unitPrice(service) };
@@ -190,7 +204,7 @@ export default function NewClientModal({ onClose, onSaved, barberSession }: Prop
           clientPhone: phone,
           barberId: barber.id,
           barberName: barber.shortName,
-          date: scheduled ? scheduled.date : todayKey(),
+          date: scheduled ? scheduled.date : pastAt ? pastAt.date : todayKey(),
           status: scheduled ? 'confirmed' : 'completed',
           lines,
         });
@@ -214,7 +228,7 @@ export default function NewClientModal({ onClose, onSaved, barberSession }: Prop
               <UserPlus size={16} className="text-gold" />
             </div>
             <div>
-              <p className="text-[11px] uppercase tracking-[0.2em] text-gold">{when === 'now' ? `Atendido ahora · ${formatDateLong(todayKey())}` : 'Cita agendada desde el panel · sin anticipo'}</p>
+              <p className="text-[11px] uppercase tracking-[0.2em] text-gold">{when === 'now' ? `${pastAt ? `Atendido a las ${time12(pastAt.time)}` : 'Atendido ahora'} · ${formatDateLong(pastAt?.date ?? todayKey())}` : 'Cita agendada desde el panel · sin anticipo'}</p>
               <h2 className="font-serif text-xl font-bold text-white">Cliente nuevo</h2>
             </div>
           </div>
@@ -344,7 +358,7 @@ export default function NewClientModal({ onClose, onSaved, barberSession }: Prop
               <section ref={whenRef} className="scroll-mt-4">
                 <SectionTitle number={4} hint={when === 'later' ? 'No pide anticipo' : undefined}>¿Cuándo?</SectionTitle>
                 <div className="grid grid-cols-2 gap-2">
-                  {([['now', 'Atendido ahora', 'Queda hoy como completado', Zap], ['later', 'Agendar cita', 'Escoge el día y la hora', CalendarDays]] as const).map(([value, label, hint, Icon]) => (
+                  {([['now', pastAt ? 'Ya lo atendí' : 'Atendido ahora', pastAt ? `Completado a las ${time12(pastAt.time)}` : 'Queda hoy como completado', Zap], ['later', 'Agendar cita', 'Escoge el día y la hora', CalendarDays]] as const).map(([value, label, hint, Icon]) => (
                     <button
                       key={value}
                       type="button"
@@ -408,6 +422,10 @@ export default function NewClientModal({ onClose, onSaved, barberSession }: Prop
                           })}
                         </div>
                       )}
+                      <label className="mt-2 inline-flex items-center gap-2 text-xs text-zinc-400 cursor-pointer select-none">
+                        <input type="checkbox" className="accent-[#d9ad50] w-4 h-4" checked={withLunch} onChange={(e) => { setWithLunch(e.target.checked); setTime(''); }} />
+                        Ver también las horas del almuerzo
+                      </label>
                       <p className="text-zinc-500 text-[11px] mt-2">
                         Son las mismas horas libres que ve el cliente en la reserva de la web para {barber?.shortName ?? 'ese barbero'} ({minutes} min de servicio).
                         En dorado, las que quedan pegadas a otra cita.
@@ -452,7 +470,7 @@ export default function NewClientModal({ onClose, onSaved, barberSession }: Prop
               </span>
             ) : (
               <span>
-                {when === 'later' ? `Agendar · ${dayShort(date)} ${dayOfMonth(date)} ${monthShort(date)}, ${time12(time)} · ${formatCOP(total)}` : `Registrar servicio · ${formatCOP(total)}`}
+                {when === 'later' ? `Agendar · ${dayShort(date)} ${dayOfMonth(date)} ${monthShort(date)}, ${time12(time)} · ${formatCOP(total)}` : `Registrar servicio${pastAt ? ` · ${time12(pastAt.time)}` : ''} · ${formatCOP(total)}`}
               </span>
             )}
           </button>

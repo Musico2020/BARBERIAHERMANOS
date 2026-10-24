@@ -28,6 +28,7 @@ import {
   findClientBookings,
   cancelClientBooking,
   rescheduleClientBooking,
+  CLIENT_CHANGE_ERRORS,
   type ClientBooking,
 } from '../services/clientLookup';
 import { getBarbers } from '../services/barbers';
@@ -133,7 +134,8 @@ function CancelModal({ booking, phone, name, onClose, onSuccess, onWantReschedul
     setLoading(true);
     setError('');
     try {
-      await cancelClientBooking(phone, name, booking.id);
+      const result = await cancelClientBooking(phone, name, booking.id);
+      if (result !== 'OK') { setError(CLIENT_CHANGE_ERRORS[result] ?? 'No pudimos cancelar la cita. Contáctanos por WhatsApp.'); return; }
       onSuccess(booking.id);
     } catch (err: unknown) {
       console.error('Error al cancelar cita:', err);
@@ -309,7 +311,8 @@ function RescheduleModal({ booking, phone, name, onClose, onSuccess }: Reschedul
     setSaving(true);
     setError('');
     try {
-      await rescheduleClientBooking(phone, name, booking.id, selectedDate, selectedTime);
+      const result = await rescheduleClientBooking(phone, name, booking.id, selectedDate, selectedTime);
+      if (result !== 'OK') { setError(CLIENT_CHANGE_ERRORS[result] ?? 'No pudimos reprogramar la cita. Contáctanos por WhatsApp.'); return; }
       onSuccess(booking.id, selectedDate, selectedTime);
     } catch (err: unknown) {
       console.error('Error al reagendar cita:', err);

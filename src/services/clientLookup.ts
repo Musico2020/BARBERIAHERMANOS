@@ -30,29 +30,14 @@ export async function rateBooking(phone: string, name: string, bookingId: string
   return data as RateResult;
 }
 
-/** Cancela una cita desde «Mis citas» cuando el cliente no puede asistir. */
+/** Cancela una cita desde «Mis citas» cuando el cliente no puede asistir. Devuelve 'OK' o el motivo. */
 export async function cancelClientBooking(phone: string, name: string, bookingId: string): Promise<string> {
-  try {
-    const { data, error } = await supabase.rpc('client_cancel_booking', {
-      p_phone: phone,
-      p_name: name,
-      p_booking_id: bookingId,
-    });
-    if (error) throw error;
-    return (data as string) || 'OK';
-  } catch (err: unknown) {
-    // Si la función RPC aún no fue ejecutada en Supabase, intentamos fallback directo
-    console.warn('RPC client_cancel_booking falló, intentando fallback', err);
-    const { error: directError } = await supabase
-      .from('bookings')
-      .update({ status: 'cancelled', updated_at: new Date().toISOString() })
-      .eq('id', bookingId);
-    if (!directError) return 'OK';
-    throw err;
-  }
+  const { data, error } = await supabase.rpc('client_cancel_booking', { p_phone: phone, p_name: name, p_booking_id: bookingId });
+  if (error) throw error;
+  return (data as string) || 'OK';
 }
 
-/** Reagenda una cita a nueva fecha y hora desde «Mis citas». */
+/** Reagenda una cita a nueva fecha y hora desde «Mis citas». Devuelve 'OK' o el motivo. */
 export async function rescheduleClientBooking(
   phone: string,
   name: string,
@@ -60,34 +45,30 @@ export async function rescheduleClientBooking(
   newDate: string,
   newTime: string,
 ): Promise<string> {
-  try {
-    const { data, error } = await supabase.rpc('client_reschedule_booking', {
-      p_phone: phone,
-      p_name: name,
-      p_booking_id: bookingId,
-      p_new_date: newDate,
-      p_new_time: newTime,
-    });
-    if (error) throw error;
-    return (data as string) || 'OK';
-  } catch (err: unknown) {
-    // Si la función RPC aún no fue ejecutada en Supabase, intentamos fallback directo
-    console.warn('RPC client_reschedule_booking falló, intentando fallback', err);
-    const { error: directError } = await supabase
-      .from('bookings')
-      .update({
-        date: newDate,
-        time: newTime,
-        status: 'pending',
-        original_time: null,
-        shifted_at: null,
-        updated_at: new Date().toISOString(),
-      })
-      .eq('id', bookingId);
-    if (!directError) return 'OK';
-    throw err;
-  }
+  const { data, error } = await supabase.rpc('client_reschedule_booking', {
+    p_phone: phone,
+    p_name: name,
+    p_booking_id: bookingId,
+    p_new_date: newDate,
+    p_new_time: newTime,
+  });
+  if (error) throw error;
+  return (data as string) || 'OK';
 }
+
+/** Por qué no se pudo cancelar o reagendar, en palabras para el cliente */
+export const CLIENT_CHANGE_ERRORS: Record<string, string> = {
+  SLOT_TAKEN: 'Esa hora ya se ocupó. Escoge otra.',
+  INVALID_TIME: 'Esa hora no está disponible con tu barbero. Escoge otra.',
+  LUNCH_BREAK: 'A esa hora tu barbero está en almuerzo. Escoge otra.',
+  CLOSED_DAY: 'Ese día no atendemos. Escoge otro día.',
+  PAST_DATE: 'Esa hora ya pasó. Escoge otra.',
+  TOO_FAR: 'Ese día está muy lejos todavía. Escoge una fecha más cercana.',
+  ALREADY_PROCESSED: 'Esta cita ya fue atendida o cancelada.',
+  CLIENT_BLOCKED: 'No es posible reagendar desde la web. Comunícate con el salón por WhatsApp.',
+  NOT_FOUND: 'No encontramos esta cita.',
+  UNAUTHORIZED: 'Los datos no coinciden con la cita.',
+};
 
 export type ClientLookup =
   | { status: 'OK'; name: string; bookings: ClientBooking[] }

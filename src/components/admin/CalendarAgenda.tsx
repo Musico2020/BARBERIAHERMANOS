@@ -5,7 +5,7 @@ import { lunchFor } from '../../lib/businessHours';
 import { STATUS_LABEL } from '../../lib/stats';
 import type { Booking } from '../../types';
 
-// Calendario en el teléfono: en vez de la cuadrícula (que no cabe), una agenda en lista con todo
+// Agenda en el teléfono (vista «Todos»): en vez de la cuadrícula (que no cabe), una agenda en lista con todo
 // visible — hora, cliente, su número (llamar o WhatsApp), servicio, barbero y estado.
 
 const STATUS_STYLE: Record<Booking['status'], string> = {

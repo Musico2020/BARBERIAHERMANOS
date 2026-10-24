@@ -159,7 +159,7 @@ export default function AdminDashboard({ onNavigate, onLogout }: { onNavigate?: 
     { label: 'Cliente nuevo', icon: UserPlus, onClick: () => setShowNewClient(true), primary: true },
     { label: 'Facturas y Caja', icon: Receipt, onClick: () => onNavigate?.('invoices') },
     { label: 'Código QR', icon: QrCode, onClick: () => window.open('/cartel-qr-reservas.html', '_blank') },
-    { label: 'Calendario', icon: CalendarDays, onClick: () => onNavigate?.('calendar') },
+    { label: 'Agenda', icon: CalendarDays, onClick: () => onNavigate?.('calendar') },
     { label: 'Reservas', icon: ClipboardList, onClick: () => onNavigate?.('bookings') },
     { label: 'Mensajes', icon: MessageCircle, onClick: () => onNavigate?.('messages') },
   ];

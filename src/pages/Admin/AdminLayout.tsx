@@ -37,7 +37,7 @@ const notifBg = (type: AdminNotificationType) => {
 
 const navItems: { id: AdminTab; label: string; icon: React.ElementType; group: string; description: string }[] = [
   { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard, group: 'Día a día', description: 'Cómo va el negocio hoy y este mes' },
-  { id: 'calendar', label: 'Calendario', icon: Calendar, group: 'Día a día', description: 'Agenda por día y por semana' },
+  { id: 'calendar', label: 'Agenda', icon: Calendar, group: 'Día a día', description: 'Agenda por barbero: agrega y mueve citas' },
   { id: 'shifts', label: 'Turnos', icon: CalendarClock, group: 'Día a día', description: 'Abrir o cerrar horas de un día' },
   { id: 'payments', label: 'Pagos', icon: Banknote, group: 'Día a día', description: 'Anticipos por verificar' },
   { id: 'bookings', label: 'Reservas', icon: ClipboardList, group: 'Día a día', description: 'Todas las citas y su estado' },

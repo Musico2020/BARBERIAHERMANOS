@@ -34,6 +34,7 @@ const ERROR_MESSAGES: Record<BookingErrorCode, string> = {
   BARBER_REQUIRED: 'Elige con quién quieres tu cita.',
   WRONG_PROFESSIONAL: 'Esa persona no realiza este servicio. Elige a otra, por favor.',
   LUNCH_BREAK: 'A esa hora estamos en almuerzo. Elige otra hora, por favor.',
+  CLIENT_BLOCKED: 'No es posible reservar por la web con este número. Comunícate con el salón por WhatsApp.',
   UNKNOWN: 'No pudimos confirmar tu reserva por un problema de conexión. Intenta de nuevo o escríbenos por WhatsApp.',
 };
 
