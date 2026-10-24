@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import {
   Store, Clock, CalendarX, ShieldCheck, ListChecks, Save, Loader2, CheckCircle2, AlertCircle, Trash2, Plus,
-  Eye, EyeOff, KeyRound, Users, Megaphone, MessageCircle,
+  Eye, EyeOff, KeyRound, Users, Megaphone, MessageCircle, QrCode, Download, Printer, Copy, ExternalLink, Check,
 } from 'lucide-react';
 import { currentSettings, saveSettings, DAYS_AHEAD_OPTIONS, type EditableSettings } from '../../services/settings';
 import { changeAdminPassword, currentAdminEmail, AdminAuthError } from '../../services/adminAuth';
@@ -16,7 +16,7 @@ import PushCard from '../../components/admin/PushCard';
 // Configuración editable del negocio. Se guarda en la base de datos (tabla business_settings)
 // y la web la usa apenas se recarga: horarios, días especiales, contacto y redes.
 
-type Tab = 'negocio' | 'horario' | 'dias' | 'seguridad' | 'reglas';
+type Tab = 'negocio' | 'qr' | 'horario' | 'dias' | 'seguridad' | 'reglas';
 type Status = { kind: 'ok' | 'error'; text: string } | null;
 
 const inputClass =
@@ -747,8 +747,158 @@ function RulesTab() {
 
 // ---------------------------------------------------------------------------
 
+function QrTab() {
+  const [copied, setCopied] = useState(false);
+  const bookingUrl = 'https://barberia-hermanos.vercel.app/#servicios';
+
+  const copyUrl = () => {
+    navigator.clipboard.writeText(bookingUrl);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
+
+  return (
+    <div className="space-y-6">
+      <Panel
+        title="Código QR de Reservas y Servicios"
+        subtitle="Escanea con el celular para ir directo a la carta de servicios y reservar una cita"
+      >
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 items-center">
+          {/* Tarjeta de previsualización del QR */}
+          <div className="flex flex-col items-center justify-center p-6 rounded-3xl bg-white/[0.02] border border-gold/30 text-center relative overflow-hidden">
+            <div className="p-4 bg-white rounded-2xl shadow-2xl mb-4 border-2 border-gold/40">
+              <img
+                src="/qr-reservas.png"
+                alt="Código QR de Reservas Salón Hermanos"
+                className="w-48 h-48 sm:w-56 sm:h-56 block object-contain"
+              />
+            </div>
+            <p className="font-serif font-bold text-white text-base">Salón Hermanos</p>
+            <p className="text-zinc-400 text-xs mt-0.5">Escanea para ver servicios y reservar</p>
+            <span className="mt-3 inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-mono text-emerald-300 bg-emerald-500/10 border border-emerald-500/25">
+              <CheckCircle2 size={12} /> Alta resolución (1200×1200 px)
+            </span>
+          </div>
+
+          {/* Opciones y Descargas */}
+          <div className="space-y-4">
+            <div>
+              <label className="text-xs text-zinc-400 font-medium block mb-1.5">Enlace directo al que apunta el QR:</label>
+              <div className="flex items-center gap-2">
+                <input
+                  type="text"
+                  readOnly
+                  value={bookingUrl}
+                  className="w-full bg-white/[0.04] border border-white/10 rounded-xl px-3.5 py-2 text-gold font-mono text-xs select-all focus:outline-none"
+                />
+                <button
+                  type="button"
+                  onClick={copyUrl}
+                  className="btn-dark-glass px-3.5 py-2 rounded-xl text-xs font-semibold shrink-0 flex items-center gap-1.5 hover:text-gold"
+                  title="Copiar enlace"
+                >
+                  {copied ? <Check size={14} className="text-emerald-400" /> : <Copy size={14} />}
+                  <span>{copied ? '¡Copiado!' : 'Copiar'}</span>
+                </button>
+              </div>
+            </div>
+
+            <div className="p-3.5 rounded-2xl bg-gold/5 border border-gold/20 space-y-2 text-xs text-zinc-300">
+              <p className="font-semibold text-gold text-sm flex items-center gap-2">
+                <QrCode size={16} /> ¿Cómo funciona este QR?
+              </p>
+              <p>
+                Al escanearlo con la cámara de cualquier teléfono móvil (iPhone o Android), abre de inmediato la web de <strong className="text-white">Salón Hermanos</strong> y se desplaza automáticamente a la sección de <strong className="text-gold">Servicios</strong> para que el cliente elija el corte o tratamiento y reserve su turno en 1 toque.
+              </p>
+            </div>
+
+            <div className="space-y-2 pt-2">
+              <p className="text-xs font-semibold text-zinc-400 uppercase tracking-wider">Acciones y Materiales:</p>
+              
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                <a
+                  href="/cartel-qr-reservas.html"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="btn-gold py-2.5 px-4 rounded-xl text-xs font-bold flex items-center justify-center gap-2 shadow-gold"
+                >
+                  <Printer size={15} />
+                  <span>Imprimir Cartel</span>
+                </a>
+
+                <a
+                  href="/qr-reservas.png"
+                  download="QR-Salon-Hermanos-Reservas.png"
+                  className="btn-dark-glass py-2.5 px-4 rounded-xl text-xs font-semibold flex items-center justify-center gap-2 hover:border-gold/40 hover:text-white"
+                >
+                  <Download size={15} />
+                  <span>Descargar PNG</span>
+                </a>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                <a
+                  href="/qr-reservas.svg"
+                  download="QR-Salon-Hermanos-Reservas.svg"
+                  className="btn-dark-glass py-2.5 px-4 rounded-xl text-xs font-semibold flex items-center justify-center gap-2 hover:border-gold/40 hover:text-white"
+                >
+                  <Download size={15} />
+                  <span>Vector SVG (Imprenta)</span>
+                </a>
+
+                <a
+                  href={bookingUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="btn-dark-glass py-2.5 px-4 rounded-xl text-xs font-semibold flex items-center justify-center gap-2 hover:text-gold"
+                >
+                  <ExternalLink size={15} />
+                  <span>Probar Enlace</span>
+                </a>
+              </div>
+            </div>
+          </div>
+        </div>
+      </Panel>
+
+      {/* Sugerencias de uso en la barbería */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div className="p-4 rounded-2xl bg-white/[0.02] border border-white/5 space-y-1.5">
+          <p className="text-sm font-bold text-white flex items-center gap-2">
+            <span>💈</span> En el Mostrador / Recepción
+          </p>
+          <p className="text-xs text-zinc-400">
+            Imprime el cartel y colócalo en un portarretratos o acrílico en la entrada para que los clientes agenden su próxima cita antes de salir.
+          </p>
+        </div>
+
+        <div className="p-4 rounded-2xl bg-white/[0.02] border border-white/5 space-y-1.5">
+          <p className="text-sm font-bold text-white flex items-center gap-2">
+            <span>✂️</span> En el Espejo de cada Barbero
+          </p>
+          <p className="text-xs text-zinc-400">
+            Un sticker o mini afiche en cada estación de trabajo para que el cliente mientras se atiende escanee y guarde el enlace.
+          </p>
+        </div>
+
+        <div className="p-4 rounded-2xl bg-white/[0.02] border border-white/5 space-y-1.5">
+          <p className="text-sm font-bold text-white flex items-center gap-2">
+            <span>📱</span> Redes Sociales y WhatsApp
+          </p>
+          <p className="text-xs text-zinc-400">
+            Publica la imagen del QR en los estados de WhatsApp o en historias destacadas de Instagram con el llamado a la acción para agendarse.
+          </p>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+
 const TABS: { value: Tab; label: string; icon: React.ElementType }[] = [
   { value: 'negocio', label: 'Negocio', icon: Store },
+  { value: 'qr', label: 'Código QR', icon: QrCode },
   { value: 'horario', label: 'Horario', icon: Clock },
   { value: 'dias', label: 'Días especiales', icon: CalendarX },
   { value: 'seguridad', label: 'Seguridad', icon: ShieldCheck },
@@ -767,6 +917,7 @@ export default function AdminSettings() {
         Los cambios se guardan en la base de datos y la web los muestra al recargar.
       </div>
       {tab === 'negocio' && <BusinessTab />}
+      {tab === 'qr' && <QrTab />}
       {tab === 'horario' && <HoursTab />}
       {tab === 'dias' && <SpecialDaysTab />}
       {tab === 'seguridad' && <SecurityTab />}

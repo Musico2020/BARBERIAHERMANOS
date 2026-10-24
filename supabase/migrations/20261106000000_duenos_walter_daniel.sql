@@ -67,3 +67,4 @@ COMMENT ON COLUMN public.barbers.owner_beneficiary IS 'A qué dueño rinde el ma
 SELECT id, name, short_name, role, commission, is_owner, owner_name, owner_beneficiary 
 FROM public.barbers 
 ORDER BY is_owner DESC, name ASC;
+

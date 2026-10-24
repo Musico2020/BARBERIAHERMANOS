@@ -1,4 +1,4 @@
-import { useState, type ReactNode } from 'react';
+import { useState, useEffect, type ReactNode } from 'react';
 import Navbar from './Navbar';
 import Footer from './Footer';
 import ClubBackground from './ClubBackground';
@@ -23,6 +23,32 @@ export default function PublicLayout({ children }: Props) {
     setPreselectedBarber(barber || null);
     setBookingOpen(true);
   };
+
+  // Manejo de escaneo de QR o enlaces directos (#servicios, #reservar, ?reservar=1)
+  useEffect(() => {
+    const handleUrlTriggers = () => {
+      const hash = window.location.hash;
+      const params = new URLSearchParams(window.location.search);
+      const wantsBooking = hash === '#reservar' || params.has('reservar') || params.get('qr') === '1';
+
+      if (wantsBooking) {
+        setBookingOpen(true);
+      }
+
+      if (hash === '#servicios' || wantsBooking) {
+        setTimeout(() => {
+          const el = document.getElementById('servicios');
+          if (el) {
+            el.scrollIntoView({ behavior: 'smooth' });
+          }
+        }, 300);
+      }
+    };
+
+    handleUrlTriggers();
+    window.addEventListener('hashchange', handleUrlTriggers);
+    return () => window.removeEventListener('hashchange', handleUrlTriggers);
+  }, []);
 
   return (
     <div className="min-h-screen bg-dark relative">

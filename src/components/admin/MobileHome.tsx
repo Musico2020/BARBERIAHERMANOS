@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import {
   CalendarDays, ClipboardList, CalendarClock, Banknote, Users, UserCircle, MessageCircle, ShoppingBag, Images,
-  BarChart2, Settings, ExternalLink, LogOut, UserPlus, Star, CalendarCheck, Wallet, Receipt,
+  BarChart2, Settings, ExternalLink, LogOut, UserPlus, Star, CalendarCheck, Wallet, Receipt, QrCode,
 } from 'lucide-react';
 import { ClipperIcon } from '../common/BarberIcons';
 import { currentAdminEmail } from '../../services/adminAuth';
@@ -151,6 +151,7 @@ export default function MobileHome({ greeting, barbers, clientsCount, todayCount
       <TileGroup
         title="Más"
         tiles={[
+          { label: 'Código QR', icon: QrCode, onClick: () => window.open('/cartel-qr-reservas.html', '_blank') },
           { label: 'Ver sitio', icon: ExternalLink, onClick: () => window.open('/', '_blank') },
           ...(onLogout ? [{ label: 'Cerrar sesión', icon: LogOut, onClick: onLogout }] : []),
         ]}

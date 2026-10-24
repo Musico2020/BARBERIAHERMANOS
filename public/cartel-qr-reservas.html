@@ -1,0 +1,220 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Salón Hermanos · Cartel QR de Reservas</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Cinzel:wght@600;700;800;900&family=Montserrat:wght@400;500;600;700&display=swap');
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      background-color: #0b0b0d;
+      color: #f4f4f5;
+      font-family: 'Montserrat', sans-serif;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+      padding: 24px;
+      -webkit-print-color-adjust: exact;
+      print-color-adjust: exact;
+    }
+
+    .no-print-bar {
+      margin-bottom: 20px;
+      display: flex;
+      gap: 12px;
+      align-items: center;
+    }
+
+    .btn {
+      background: #D9AD50;
+      color: #0b0b0d;
+      font-weight: 700;
+      font-size: 14px;
+      padding: 12px 24px;
+      border-radius: 9999px;
+      border: none;
+      cursor: pointer;
+      text-decoration: none;
+      box-shadow: 0 4px 14px rgba(217, 173, 80, 0.4);
+      transition: all 0.2s ease;
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .btn:hover {
+      background: #e5b95d;
+      transform: translateY(-1px);
+    }
+
+    .card {
+      width: 100%;
+      max-width: 440px;
+      background: radial-gradient(circle at 50% 0%, #1f1d17 0%, #0e0e11 100%);
+      border: 2px solid #D9AD50;
+      border-radius: 28px;
+      padding: 40px 32px;
+      text-align: center;
+      box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.8), 0 0 40px rgba(217, 173, 80, 0.15);
+      position: relative;
+      overflow: hidden;
+    }
+
+    .card::before {
+      content: '';
+      position: absolute;
+      inset: 8px;
+      border: 1px solid rgba(217, 173, 80, 0.3);
+      border-radius: 20px;
+      pointer-events: none;
+    }
+
+    .corner-decor {
+      position: absolute;
+      width: 16px;
+      height: 16px;
+      border-color: #D9AD50;
+    }
+    .top-left { top: 12px; left: 12px; border-top: 2px solid; border-left: 2px solid; }
+    .top-right { top: 12px; right: 12px; border-top: 2px solid; border-right: 2px solid; }
+    .bottom-left { bottom: 12px; left: 12px; border-bottom: 2px solid; border-left: 2px solid; }
+    .bottom-right { bottom: 12px; right: 12px; border-bottom: 2px solid; border-right: 2px solid; }
+
+    .logo-badge {
+      font-family: 'Cinzel', serif;
+      font-size: 26px;
+      font-weight: 800;
+      color: #D9AD50;
+      letter-spacing: 2px;
+      text-transform: uppercase;
+      margin-bottom: 4px;
+    }
+
+    .sub-badge {
+      font-size: 11px;
+      font-weight: 600;
+      color: #a1a1aa;
+      text-transform: uppercase;
+      letter-spacing: 4px;
+      margin-bottom: 24px;
+    }
+
+    .qr-container {
+      background: #FFFFFF;
+      padding: 16px;
+      border-radius: 20px;
+      display: inline-block;
+      margin: 0 auto 24px auto;
+      box-shadow: 0 10px 25px rgba(0, 0, 0, 0.5), 0 0 0 4px rgba(217, 173, 80, 0.4);
+    }
+
+    .qr-container img {
+      display: block;
+      width: 230px;
+      height: 230px;
+    }
+
+    .headline {
+      font-family: 'Cinzel', serif;
+      font-size: 18px;
+      font-weight: 700;
+      color: #ffffff;
+      margin-bottom: 8px;
+    }
+
+    .instruction {
+      font-size: 13px;
+      color: #d4d4d8;
+      line-height: 1.5;
+      margin-bottom: 20px;
+    }
+
+    .highlight {
+      color: #D9AD50;
+      font-weight: 600;
+    }
+
+    .divider {
+      height: 1px;
+      background: linear-gradient(90deg, transparent, rgba(217, 173, 80, 0.4), transparent);
+      margin: 16px 0;
+    }
+
+    .footer-info {
+      font-size: 11px;
+      color: #71717a;
+      letter-spacing: 0.5px;
+    }
+
+    .footer-url {
+      font-size: 12px;
+      font-weight: 600;
+      color: #D9AD50;
+      margin-top: 4px;
+    }
+
+    @media print {
+      body {
+        background: none;
+        padding: 0;
+        justify-content: flex-start;
+      }
+      .no-print-bar {
+        display: none;
+      }
+      .card {
+        box-shadow: none;
+        margin: 20px auto;
+        page-break-inside: avoid;
+      }
+    }
+  </style>
+</head>
+<body>
+
+  <div class="no-print-bar">
+    <button class="btn" onclick="window.print()">
+      🖨️ Imprimir Cartel / Guardar PDF
+    </button>
+    <a href="/qr-reservas.png" download="QR-Salon-Hermanos.png" class="btn" style="background:#27272a; color:#f4f4f5; border:1px solid #3f3f46;">
+      📥 Descargar Imagen PNG
+    </a>
+  </div>
+
+  <div class="card">
+    <div class="corner-decor top-left"></div>
+    <div class="corner-decor top-right"></div>
+    <div class="corner-decor bottom-left"></div>
+    <div class="corner-decor bottom-right"></div>
+
+    <div class="logo-badge">Salón Hermanos</div>
+    <div class="sub-badge">Club de Caballeros</div>
+
+    <div class="qr-container">
+      <img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAlgAAAJYCAYAAAC+ZpjcAAAAAklEQVR4AewaftIAABORSURBVO3BwQlsR4AkwFTxLUj/bUwXtALBsoe5vJ7ibauJiL/+/kcAALjmBACAq04AALjqBACAq04AALjqBACAq04AALjqBACAq04AALjqBACAq04AALjqBACAq04AALjqBACAq04AALjqBACAq04AALjqBACAq04AALjqBACAq04AALjqBACAq04AALjqBACAq04AALjqBACAq04AALjqT17UNrxvW55qm6e25S1t82u25Zu1zVPb8om2eWpb3tI2/GtbvlnbPLUtb2gb3rctbzgBAOCqEwAArjoBAOCqEwAArjoBAOCqEwAArjoBAOCqEwAArjoBAOCqEwAArjoBAOCqEwAArjoBAOCqP/kP2BaStvk1bfOWbXmqbT6xLSRt85a2ecu2vKVtfk3bPLUtn9iWp9rmqW15y7aQtM03OwEA4KoTAACuOgEA4KoTAACuOgEA4KoTAACuOgEA4KoTAACuOgEA4KoTAACuOgEA4KoTAACu+pMf1TbfbFu+2bY81TZPbQv/apuntuUt2/JU2/yitnlqW96yLW9pm2/WNk9ty69pm2+2Lb/mBACAq04AALjqBACAq04AALjqBACAq04AALjqBACAq04AALjqBACAq04AALjqBACAq04AALjqT+B/0DZPbctb2ubXbMtb2uYN2/KJtnlqWz7RNk9tyzdrm6e2BbjnBACAq04AALjqBACAq04AALjqBACAq04AALjqBACAq04AALjqBACAq04AALjqBACAq04AALjqBACAq/4E/oO25Zu1zVPb8mva5hPb8lTb8Lm2ecu2vGVb4P+HEwAArjoBAOCqEwAArjoBAOCqEwAArjoBAOCqEwAArjoBAOCqEwAArjoBAOCqEwAArjoBAOCqP/lR28K72ubXbMsntuWptnnLtjzVNk9tyyfa5i3b8lTbvGVb3tA2b2mbp7blE23zhm35ZtvCu04AALjqBACAq04AALjqBACAq04AALjqBACAq04AALjqBACAq04AALjqBACAq04AALjqBACAq/7kP6Bt+H7b8lTbfGJbnmqbt7TNU9vyVNvwr235RNs8tS1Ptc1b2uapbflE2zy1LU+1zSe25am2+WZtw/c7AQDgqhMAAK46AQDgqhMA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5am2eWpbftG2fLO2+WZt88225am2ecu2PNU236xtntqWb3YCAMBVJwAAXHUCAMBVJwAAXHUCAMBVJwAAXHUCAMBVJwAAXHUCAMBVJwAAXHUCAMBVJwAAXHUCAMBVfwL/g235ZtvyVNs8tS2faJtv1jZPbctTbfOJbXlL2zy1LU+1zSe25Zu1zVPb8lTbfLNt+TVt85ZteaptPrEtbzgBAOCqEwAArjoBAOCqEwAArjoBAOCqEwAArjoBAOCqEwAArjoBAOCqEwAArjoBAOCqEwAArvqTH7UtvKtteFfbfGJbnmqbb9Y2n9iWb9Y2v6ZtntqWT7TNG7blqbZ5y7Y81Taf2Jan2uapbflmJwAAXHUCAMBVJwAAXHUCAMBVJwAAXHUCAMBVJwAAXHUCAMBVJwAAXHUCAMBVJwAAXHUCAMBVf/39j7ykbXjftnyrtvnEtjzVNm/Zlje0zVu25Zu1zVu25de0zSe25am2eWpb3tI2b9iWT7QNybZ8sxMAAK46AQDgqhMAAK46AQDgqhMAAK46AQDgqhMAAK46AQDgqhMAAK46AQDgqhMAAK46AQDgqhMAAK766+9/BACAa04AALjqBACAq04AALjqBACAq04AALjqBACAq04AALjqBACAq04AALjqBACAq04AALjqBACAq04AALjqBACAq04AALjqBACAq04AALjqBACAq04AALjqBACAq04AALjqBACAq04AALjqBACAq04AALjq/wCXidx8uDLtagAAAABJRU5ErkJggg==" alt="Código QR de Reservas Salón Hermanos">
+    </div>
+
+    <h2 class="headline">Escanea con tu Celular</h2>
+    <p class="instruction">
+      Apunta con la cámara de tu teléfono para ver nuestra <span class="highlight">carta de servicios</span>, precios y <span class="highlight">reservar tu cita</span> al instante.
+    </p>
+
+    <div class="divider"></div>
+
+    <div class="footer-info">
+      Barrio Tobías Daza, Mz B casa 16 · Valledupar
+      <div class="footer-url">barberia-hermanos.vercel.app</div>
+    </div>
+  </div>
+
+</body>
+</html>
