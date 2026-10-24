@@ -248,3 +248,4 @@ END $$;
 
 REVOKE ALL ON FUNCTION public.client_bookings(text, text) FROM PUBLIC;
 GRANT EXECUTE ON FUNCTION public.client_bookings(text, text) TO anon, authenticated;
+

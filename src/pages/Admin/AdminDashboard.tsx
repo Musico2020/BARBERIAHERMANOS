@@ -103,6 +103,11 @@ export default function AdminDashboard({ onNavigate, onLogout }: { onNavigate?: 
       .catch((err) => {
         console.error('No se pudo cargar el dashboard', err);
         const detail = err?.message || err?.error_description || (typeof err === 'string' ? err : '');
+        // Si es un error transitorio de sincronización de navegador (AbortError o Lock broken), reintenta sin alarmar
+        if (err?.name === 'AbortError' || detail.toLowerCase().includes('lock broken')) {
+          setTimeout(() => load(), 1200);
+          return;
+        }
         setLoadError(detail ? `No se pudieron cargar los datos: ${detail}. Se reintentará automáticamente.` : 'No se pudieron cargar los datos. Se reintentará automáticamente.');
       });
   };
