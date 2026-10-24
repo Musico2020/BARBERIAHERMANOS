@@ -3,19 +3,19 @@ import { Copy, Check, Upload, Loader2, Clock, ShieldCheck, ImageIcon, AlertTrian
 import { businessConfig } from '../../config/business';
 import { formatCOP } from '../../data';
 import { IMAGE_ACCEPT } from '../../lib/imageFile';
-import { uploadReceipt, submitDeposit, chooseCashDeposit, type SubmitDepositResult } from '../../services/deposits';
+import { uploadReceipt, submitDeposit, choosePayAtSalon, type SubmitDepositResult } from '../../services/deposits';
 import { notifyPush } from '../../services/push';
 
 // Paso de pago al terminar la reserva. El cliente elige:
 //   · anticipo por transferencia (QR de Nequi / Bre-B),
 //   · pago total por transferencia,
-//   · anticipo en efectivo en el salón (se compromete a ir a pagarlo antes de su cita).
+//   · o agendar sin anticipo para pagar el 100% en el salón el día de la cita.
 // En todos los casos acepta las condiciones y queda constancia en la reserva.
 
-export type PayChoice = 'deposit' | 'full' | 'cash';
+export type PayChoice = 'deposit' | 'full' | 'salon';
 
 export interface DepositDone {
-  method: 'transfer' | 'cash';
+  method: 'transfer' | 'cash' | 'salon';
   /** Lo que pagó o pagará como anticipo */
   amount: number;
 }
@@ -51,7 +51,6 @@ const ERRORS: Partial<Record<SubmitDepositResult, string>> = {
 export default function DepositStep({ bookingIds, amount, total, expiresAt, clientName, onDone }: Props) {
   const { deposit } = businessConfig;
   const allowFull = deposit.allowFull !== false && total > amount;
-  const allowCash = deposit.allowCash !== false;
   const countdown = useCountdown(expiresAt);
   const [choice, setChoice] = useState<PayChoice>('deposit');
   const [copied, setCopied] = useState<'key' | 'amount' | null>(null);
@@ -107,17 +106,21 @@ export default function DepositStep({ bookingIds, amount, total, expiresAt, clie
     }
   };
 
-  const sendCash = async () => {
-    if (!accepted) { setError('Para reservar con efectivo debes aceptar el compromiso.'); return; }
+  const sendSalon = async () => {
+    if (!accepted) { setError('Debes confirmar tu compromiso de asistencia para continuar.'); return; }
     setSending(true);
     setError('');
     try {
-      const result = await chooseCashDeposit(bookingIds, accepted);
-      if (result === 'OK') onDone({ method: 'cash', amount });
-      else setError(ERRORS[result] ?? ERRORS.NOT_FOUND!);
+      const result = await choosePayAtSalon(bookingIds);
+      if (result === 'OK') {
+        notifyPush('booking', bookingIds);
+        onDone({ method: 'salon', amount: 0 });
+      } else {
+        setError(ERRORS[result] ?? ERRORS.NOT_FOUND!);
+      }
     } catch (err) {
-      console.error('No se pudo guardar el pago en efectivo', err);
-      setError('No se pudo guardar tu elección. Revisa tu conexión e intenta de nuevo.');
+      console.error('No se pudo guardar la reserva en el salón', err);
+      setError('No se pudo confirmar tu cita. Revisa tu conexión e intenta de nuevo.');
     } finally {
       setSending(false);
     }
@@ -126,7 +129,7 @@ export default function DepositStep({ bookingIds, amount, total, expiresAt, clie
   const options: { value: PayChoice; title: string; detail: string; price: number; icon: React.ElementType }[] = [
     { value: 'deposit', title: `Anticipo ${deposit.percent} %`, detail: 'Transferencia · QR Nequi / Bre-B', price: amount, icon: Smartphone },
     ...(allowFull ? [{ value: 'full' as const, title: 'Pago total 100 %', detail: 'Transferencia · no pagas nada en el salón', price: total, icon: BadgeCheck }] : []),
-    ...(allowCash ? [{ value: 'cash' as const, title: 'Anticipo en efectivo', detail: 'Vas al salón a pagarlo antes de tu cita', price: amount, icon: Banknote }] : []),
+    { value: 'salon', title: 'Pagar en el salón (Sin anticipo)', detail: 'Pagas el 100 % en la barbería el día de tu cita', price: 0, icon: Banknote },
   ];
 
   return (
@@ -160,36 +163,36 @@ export default function DepositStep({ bookingIds, amount, total, expiresAt, clie
                 <span className="block text-sm font-semibold text-white">{title}</span>
                 <span className="block text-[11px] text-zinc-400">{detail}</span>
               </span>
-              <span className={`font-mono text-sm font-bold shrink-0 ${active ? 'text-gold' : 'text-zinc-300'}`}>{formatCOP(price)}</span>
+              <span className={`font-mono text-sm font-bold shrink-0 ${active ? 'text-gold' : 'text-zinc-300'}`}>
+                {price > 0 ? formatCOP(price) : 'Sin anticipo'}
+              </span>
             </button>
           );
         })}
       </div>
 
-      {choice === 'cash' ? (
+      {choice === 'salon' ? (
         <div className="w-full max-w-sm mt-5 space-y-3">
-          <div role="alert" className="rounded-2xl border border-amber-500/50 bg-amber-500/10 p-4">
-            <p className="flex items-center gap-2 text-amber-300 font-bold text-sm">
-              <AlertTriangle size={18} /> Atención: te comprometes a cumplir
+          <div role="alert" className="rounded-2xl border border-gold/40 bg-gold/[0.08] p-4">
+            <p className="flex items-center gap-2 text-gold font-bold text-sm">
+              <Banknote size={18} /> Pagar en la barbería sin anticipo
             </p>
             <ul className="mt-2 space-y-1.5 text-[13px] text-zinc-200 leading-snug list-disc pl-5">
-              <li>Debes <strong>responder por tu reserva</strong> y asistir a tu cita.</li>
+              <li>No tienes que transferir nada por adelantado: <strong>anticipo $0</strong>.</li>
               <li>
-                Debes acercarte al salón (<span className="text-white">{businessConfig.address.trim()}</span>) a pagar el anticipo
-                de <strong className="text-amber-200">{formatCOP(amount)}</strong> en efectivo <strong>antes de tu cita</strong>.
-              </li>
-              <li>Si no pagas el anticipo, la barbería puede cancelar tu reserva y liberar la hora.</li>
-              <li>El resto, {formatCOP(total - amount)}, lo pagas el día del servicio.</li>
+                Pagas el valor total de <strong className="text-gold">{formatCOP(total)}</strong> en el salón el día de tu cita
+                (en efectivo o transferencia Nequi directo al barbero).</li>
+              <li>Tu cita quedará confirmada y agendada de inmediato.</li>
             </ul>
           </div>
           <label className="flex items-start gap-3 cursor-pointer rounded-xl border border-white/10 bg-white/[0.03] px-3.5 py-3">
             <input type="checkbox" checked={accepted} onChange={(e) => { setAccepted(e.target.checked); setError(''); }} className="mt-0.5 w-5 h-5 accent-yellow-500 shrink-0" />
-            <span className="text-[13px] text-zinc-200">Me comprometo a cumplir mi reserva y a ir al salón a pagar el anticipo en efectivo.</span>
+            <span className="text-[13px] text-zinc-200">Me comprometo a asistir puntualmente a mi cita en Salón Hermanos.</span>
           </label>
           {error && <p className="text-sm text-rose-300">{error}</p>}
-          <button onClick={sendCash} disabled={sending || expired || !accepted} className="btn-gold w-full min-h-[48px] py-3 rounded-full text-base font-bold disabled:opacity-60">
+          <button onClick={sendSalon} disabled={sending || !accepted} className="btn-gold w-full min-h-[48px] py-3 rounded-full text-base font-bold disabled:opacity-60 shadow-gold">
             {sending ? <Loader2 size={18} className="animate-spin" /> : <Banknote size={18} />}
-            <span>Reservar · pago en efectivo</span>
+            <span>Confirmar cita y pagar en el salón</span>
           </button>
         </div>
       ) : (

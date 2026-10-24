@@ -20,8 +20,8 @@ export interface TicketData {
   endTime: string;
   /** Anticipo enviado (comprobante por verificar) o por pagar en efectivo, si la reserva lo pidió */
   deposit?: number;
-  /** transfer: comprobante enviado · cash: lo paga en efectivo en el salón antes de la cita */
-  depositMethod?: 'transfer' | 'cash';
+  /** transfer: comprobante enviado · cash: lo paga en efectivo en el salón antes de la cita · salon: paga todo en el salón */
+  depositMethod?: 'transfer' | 'cash' | 'salon';
 }
 
 interface Props {
@@ -46,8 +46,9 @@ export default function BookingTicket({ ticket, onClose }: Props) {
   const several = ticket.items.reduce((n, i) => n + i.qty, 0) > 1;
   const hourText = several ? `${time12(ticket.time)} a ${time12(ticket.endTime)}` : time12(ticket.time);
   const cash = !!ticket.deposit && ticket.depositMethod === 'cash';
-  const paidAll = !!ticket.deposit && !cash && ticket.deposit >= ticket.price;
-  const status = !ticket.deposit ? 'Reserva confirmada' : cash ? 'Anticipo en efectivo pendiente' : paidAll ? 'Pago total por verificar' : 'Anticipo por verificar';
+  const isSalon = ticket.depositMethod === 'salon' || !ticket.deposit;
+  const paidAll = !!ticket.deposit && !cash && !isSalon && ticket.deposit >= ticket.price;
+  const status = isSalon ? 'Reserva confirmada' : cash ? 'Anticipo en efectivo pendiente' : paidAll ? 'Pago total por verificar' : 'Anticipo por verificar';
 
   const summary = [
     `✂️ *${businessConfig.name}* — ${status}`,
