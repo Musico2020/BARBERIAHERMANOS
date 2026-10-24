@@ -39,7 +39,8 @@ export function getAutoStatus(
     }
   }
 
-  return 'pending';
+  // Cita futura: se respeta el estado que tiene (si el administrador o el barbero la confirmó, sigue confirmada)
+  return currentStatus;
 }
 
 /** Devuelve la reserva con su estado corregido automáticamente si corresponde. */

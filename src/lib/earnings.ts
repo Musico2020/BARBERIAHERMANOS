@@ -21,10 +21,13 @@ export function getBarberOwnerKey(
   barber?: (Pick<Barber, 'name' | 'shortName'> & { isOwner?: boolean; ownerName?: 'walter' | 'daniel' }) | null,
 ): OwnerKey | null {
   if (!barber) return null;
+  // Manda lo que se marcó en Panel → Barberos (is_owner / owner_name)
   if (barber.ownerName === 'walter' || barber.ownerName === 'daniel') return barber.ownerName;
+  if (barber.isOwner === false) return null;
   const name = `${barber.shortName || ''} ${barber.name || ''}`.toLowerCase();
-  if (name.includes('walter')) return 'walter';
-  if (name.includes('daniel') || name.includes('dani')) return 'daniel';
+  // Respaldo solo para datos viejos sin la marca: el nombre (palabra completa, no «Daniela»)
+  if (/\bwalter\b/.test(name)) return 'walter';
+  if (/\bdaniel\b/.test(name)) return 'daniel';
   if (barber.isOwner) return 'walter';
   return null;
 }

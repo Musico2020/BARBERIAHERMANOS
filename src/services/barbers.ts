@@ -34,13 +34,14 @@ function rowToBarber(row: BarberRow): Barber {
     ? Boolean(row.is_owner)
     : (isWalter || isDaniel);
 
-  const ownerName: 'walter' | 'daniel' | undefined = (row.owner_name === 'walter' || row.owner_name === 'daniel')
-    ? row.owner_name
-    : isDaniel
-      ? 'daniel'
-      : isOwner
-        ? 'walter'
-        : undefined;
+  // Solo un dueño tiene nombre de dueño: si en el panel no está marcado como dueño, no lo es aunque se llame Daniel
+  const ownerName: 'walter' | 'daniel' | undefined = !isOwner
+    ? undefined
+    : (row.owner_name === 'walter' || row.owner_name === 'daniel')
+      ? row.owner_name
+      : isDaniel
+        ? 'daniel'
+        : 'walter';
 
   // Beneficiario por defecto según la regla de negocio:
   // - Gerardo entrega su 22% a Walter

@@ -52,26 +52,11 @@ export async function chooseCashDeposit(bookingIds: string[], acceptTerms: boole
 
 /** El cliente elige agendar sin anticipo para pagar el 100% en el salón el día de la cita. */
 export async function choosePayAtSalon(bookingIds: string[]): Promise<SubmitDepositResult> {
-  try {
-    const { data, error } = await supabase.rpc('choose_pay_at_salon', { p_booking_ids: bookingIds });
-    if (error) throw error;
-    return (data as SubmitDepositResult) || 'OK';
-  } catch (err) {
-    console.warn('RPC choose_pay_at_salon falló, intentando actualización directa', err);
-    const { error: directError } = await supabase
-      .from('bookings')
-      .update({
-        deposit_status: 'none',
-        deposit_amount: 0,
-        deposit_method: 'salon',
-        deposit_expires_at: null,
-        status: 'pending',
-        updated_at: new Date().toISOString(),
-      })
-      .in('id', bookingIds);
-    if (!directError) return 'OK';
-    throw err;
-  }
+  // Solo la base de datos decide (revisa que la reserva siga esperando el anticipo); desde la web
+  // no se puede cambiar una cita directamente
+  const { data, error } = await supabase.rpc('choose_pay_at_salon', { p_booking_ids: bookingIds });
+  if (error) throw error;
+  return data as SubmitDepositResult;
 }
 
 // --- Solo administradores ---------------------------------------------------
