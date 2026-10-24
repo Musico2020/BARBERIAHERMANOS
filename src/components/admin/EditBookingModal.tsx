@@ -109,7 +109,7 @@ export default function EditBookingModal({ booking, onClose, onSaved, barberSess
   const service = services.find((s) => s.id === serviceId);
   const barber = barbers.find((b) => b.id === barberId);
   const duration = service?.duration ?? 30;
-  const slots = busy && barber ? generateSlots(date, busy, [barber.id], duration, businessConfig.slotStep, () => barber.workHours, { includeLunch: allHours, includePast: allHours }).map((s) => s.time) : [];
+  const slots = busy && barber ? generateSlots(date, busy, [barber.id], duration, businessConfig.slotStep, () => barber.workHours, { includeLunch: allHours, includePast: allHours, staff: true }).map((s) => s.time) : [];
   // La hora que ya tenía se puede dejar aunque no esté en la secuencia
   const keepCurrent = date === booking.date && barberId === booking.barberId;
   const times = [...new Set([...(keepCurrent ? [booking.time] : []), ...slots])].sort();

@@ -163,7 +163,9 @@ export default function AgendaBoard({
   const addTarget = (col: Column, m: number): number | null => {
     const gap = gapsOf(col).find((g) => m >= g.start && m < g.end);
     if (!gap) return null;
-    const t = Math.max(gap.start, Math.floor(m / 15) * 15);
+    let t = Math.max(gap.start, Math.floor(m / 15) * 15);
+    // Hoy, si se toca a partir de la hora actual, la cita empieza ya (no en el cuarto de hora que pasó)
+    if (date === today && m >= now && t < now) t = Math.min(Math.ceil(now / 5) * 5, gap.end - 5);
     return t + 5 <= gap.end ? t : null;
   };
 

@@ -75,11 +75,16 @@ export function generateSlots(
   /** Horario propio de cada barbero (Panel → Barberos); el que no aparece usa el del salón */
   workHoursOf: (barberId: string) => WorkHours | undefined = () => undefined,
   /** Panel y barbero: pueden ofrecer las horas del almuerzo y las que ya pasaron hoy (cliente atendido sin registrar) */
-  options: { includeLunch?: boolean; includePast?: boolean } = {},
+  // staff: el panel o el barbero agendan en el salón; hoy se puede desde este mismo minuto (no desde los
+  // 5 minutos siguientes como en la web), y también la hora actual aunque no caiga en la secuencia.
+  options: { includeLunch?: boolean; includePast?: boolean; staff?: boolean } = {},
 ): Slot[] {
   if (!bookingHoursFor(date)) return [];
-  // Hoy: desde la hora actual, redondeada a los 5 minutos siguientes
-  const nowFrom = date === todayKey() && !options.includePast ? Math.ceil((nowMinutes() + 1) / 5) * 5 : 0;
+  const isToday = date === todayKey();
+  // Hoy: desde la hora actual, redondeada a los 5 minutos siguientes (el equipo: al minuto actual)
+  const nowFrom = !isToday || options.includePast ? 0 : options.staff ? nowMinutes() : Math.ceil((nowMinutes() + 1) / 5) * 5;
+  // El equipo puede empezar «ya»: el minuto actual, redondeado a los 5 minutos
+  const startNow = isToday && options.staff && !options.includePast ? Math.ceil(nowMinutes() / 5) * 5 : null;
   const slots = new Map<number, boolean>();
   for (const id of barberIds) {
     const hours = barberHoursFor(date, workHoursOf(id));
@@ -96,6 +101,8 @@ export function generateSlots(
       for (const s of startsInGap(gap, duration > 0 ? duration : step)) {
         if (s.start >= nowFrom) slots.set(s.start, (slots.get(s.start) ?? false) || s.recommended);
       }
+      const d = duration > 0 ? duration : step;
+      if (startNow !== null && startNow >= gap.start && startNow + d <= gap.end && !slots.has(startNow)) slots.set(startNow, false);
     }
   }
   return [...slots.entries()]

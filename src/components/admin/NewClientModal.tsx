@@ -133,13 +133,20 @@ export default function NewClientModal({ onClose, onSaved, barberSession, preset
   // Las mismas horas que ofrece la reserva de la web: horario del salón (o el propio del barbero),
   // sin almuerzo, sin horas cerradas ni citas, y donde quepan todos los servicios elegidos
   const generated = when === 'later' && barber && !loadingBusy
-    ? generateSlots(date, busy, [barber.id], Math.max(minutes, 5), businessConfig.slotStep, () => barber.workHours, { includeLunch: withLunch })
+    ? generateSlots(date, busy, [barber.id], Math.max(minutes, 5), businessConfig.slotStep, () => barber.workHours, { includeLunch: withLunch, staff: true })
     : [];
   // La hora del espacio que se tocó en la Agenda se ofrece aunque no esté en la secuencia, si sigue libre
   const presetFits = !!preset && !presetPast && !!barber && barber.id === preset.barberId && date === preset.date && !loadingBusy
     && isBarberFree(busy, barber.id, timeToMinutes(preset.time), Math.max(minutes, 5));
-  const slots = presetFits && !generated.some((s) => s.time === preset!.time)
-    ? [...generated, { time: preset!.time, available: true, recommended: false }].sort((a, b) => a.time.localeCompare(b.time))
+  // La hora ya escogida sigue sirviendo aunque el reloj avance mientras se llenan los datos (hasta 15 min), si sigue libre
+  const chosenFits = !!time && !!barber && !loadingBusy && date === todayKey()
+    && timeToMinutes(time) >= nowMinutes() - 15 && isBarberFree(busy, barber.id, timeToMinutes(time), Math.max(minutes, 5));
+  const extra = [
+    ...(presetFits ? [preset!.time] : []),
+    ...(chosenFits ? [time] : []),
+  ].filter((t, i, all) => all.indexOf(t) === i && !generated.some((s) => s.time === t));
+  const slots = extra.length
+    ? [...generated, ...extra.map((t) => ({ time: t, available: true, recommended: false }))].sort((a, b) => a.time.localeCompare(b.time))
     : generated;
   const timeOk = when === 'now' || (!!time && slots.some((s) => s.time === time));
 

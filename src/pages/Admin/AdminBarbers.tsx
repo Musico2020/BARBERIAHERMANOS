@@ -3,11 +3,13 @@ import { Star, Phone, Edit2, ToggleLeft, ToggleRight, X, Plus, User, Loader2, Ca
 import { getBarbers, updateBarberAvailability, createBarber, updateBarber, uploadBarberPhoto, deleteBarberWithPhoto } from '../../services/barbers';
 import { getBookingsByMonth, getBookingsInRange, getBusySlots, type BusySlot } from '../../services/bookings';
 import BarberAgenda from '../../components/admin/BarberAgenda';
+import { getAllServices } from '../../services/services';
 import BarberServicesModal from '../../components/admin/BarberServicesModal';
 import { formatCOP } from '../../data';
 import { todayKey, addDays } from '../../lib/dates';
 import { barberMonthStats } from '../../lib/stats';
 import { isBarberOwner, getBarberOwnerKey, getOwnerBeneficiary } from '../../lib/earnings';
+import { splitTotals } from '../../components/admin/ServiceSplit';
 import type { Barber, Booking, StaffRole, WorkHours } from '../../types';
 import { IMAGE_ACCEPT } from '../../lib/imageFile';
 import BarberAvatar from '../../components/common/BarberAvatar';
@@ -104,6 +106,10 @@ export default function AdminBarbers() {
       setDeleteTarget(null);
     }
   };
+
+  // Los porcentajes de cada servicio, para calcular en dinero lo que entrega cada barbero
+  const [, setRatesLoaded] = useState(false);
+  useEffect(() => { getAllServices().then(() => setRatesLoaded(true)).catch(() => undefined); }, []);
 
   useEffect(() => {
     const [year, month] = todayKey().split('-').map(Number);
@@ -389,16 +395,25 @@ export default function AdminBarbers() {
                   <p className="font-mono text-xs font-bold text-gold">{formatCOP(barberMonthStats(monthBookings, barber.id).revenue)}</p>
                   <p className="text-gold text-[10px] uppercase font-semibold mt-0.5 underline decoration-dotted underline-offset-2">Ingresos</p>
                 </button>
-                <div className="bg-white/[0.03] border border-white/[0.06] rounded-xl p-2.5 text-center">
-                  <p className="font-mono text-base font-bold text-gold">
-                    {isBarberOwner(barber) ? '100%' : `${100 - barber.commission}%`}
+                <button
+                  type="button"
+                  onClick={() => setServicesTarget(barber)}
+                  title="Ver cuánto entrega por cada servicio"
+                  className="bg-gold/[0.06] border border-gold/25 rounded-xl p-2.5 text-center hover:border-gold/50 transition-colors"
+                >
+                  {/* Lo que entrega este mes en dinero (servicios completados), y el porcentaje debajo */}
+                  <p className="font-mono text-xs font-bold text-gold">
+                    {formatCOP(isBarberOwner(barber)
+                      ? barberMonthStats(monthBookings, barber.id).revenue
+                      : splitTotals(monthBookings.filter((b) => b.barberId === barber.id && b.status === 'completed' && b.date.startsWith(todayKey().slice(0, 7))), barber).boss)}
                   </p>
+                  <p className="text-zinc-400 text-[10px] font-mono mt-0.5">{isBarberOwner(barber) ? '100%' : `${100 - barber.commission}%`}</p>
                   <p className="text-zinc-500 text-[10px] uppercase font-medium mt-0.5">
                     {isBarberOwner(barber) 
                       ? `100% Salón (${getBarberOwnerKey(barber) === 'daniel' ? 'Daniel' : 'Walter'})` 
                       : `Entrega a ${getOwnerBeneficiary(barber) === 'daniel' ? 'Daniel' : getOwnerBeneficiary(barber) === 'general' ? 'Caja General' : 'Walter'}`}
                   </p>
-                </div>
+                </button>
               </div>
 
               <BarberAgenda barber={barber} upcoming={upcoming.filter((b) => b.barberId === barber.id)} busyToday={busyToday} />
