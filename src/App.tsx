@@ -11,7 +11,7 @@ const BarberPage = lazy(() => import('./pages/Barber/index'));
 
 const loadingScreen = <div className="min-h-screen bg-dark" />;
 
-type Route = 'landing' | 'admin' | 'barber' | 'galeria' | 'shop' | 'citas';
+type Route = 'landing' | 'admin' | 'barber' | 'galeria' | 'shop' | 'citas' | 'reservar';
 
 const ROUTE_PATHS: Record<Route, string> = {
   landing: '/',
@@ -20,6 +20,7 @@ const ROUTE_PATHS: Record<Route, string> = {
   galeria: '/galeria',
   shop: '/shop',
   citas: '/mis-citas',
+  reservar: '/reservar',
 };
 
 function getRoute(): Route {
@@ -29,6 +30,7 @@ function getRoute(): Route {
   if (path.startsWith('/galeria')) return 'galeria';
   if (path.startsWith('/shop')) return 'shop';
   if (path.startsWith('/mis-citas')) return 'citas';
+  if (path.startsWith('/reservar')) return 'reservar';
   return 'landing';
 }
 
@@ -53,5 +55,6 @@ export default function App() {
   if (route === 'galeria') return <GalleryPage />;
   if (route === 'shop') return <ShopPage />;
   if (route === 'citas') return <MyBookingsPage />;
+  if (route === 'reservar') return <LandingPage autoOpenBooking />;
   return <LandingPage />;
 }

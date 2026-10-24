@@ -7,8 +7,8 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const publicDir = path.resolve(__dirname, '../public');
 
-// URL directa a los servicios y reserva de Salón Hermanos
-const BOOKING_URL = 'https://barberia-hermanos.vercel.app/#servicios';
+// URL directa a la reserva de Salón Hermanos (abre de inmediato la elección de servicio)
+const BOOKING_URL = 'https://barberia-hermanos.vercel.app/reservar';
 
 async function main() {
   console.log(`Generando códigos QR para: ${BOOKING_URL}`);
@@ -273,16 +273,16 @@ async function main() {
       <img src="${standardDataUrl}" alt="Código QR de Reservas Salón Hermanos">
     </div>
 
-    <h2 class="headline">Escanea con tu Celular</h2>
+    <h2 class="headline">Escanea y Reserva tu Cita</h2>
     <p class="instruction">
-      Apunta con la cámara de tu teléfono para ver nuestra <span class="highlight">carta de servicios</span>, precios y <span class="highlight">reservar tu cita</span> al instante.
+      Apunta con la cámara de tu teléfono para <span class="highlight">escoger tu servicio de una</span> y <span class="highlight">reservar tu cita</span> directamente al instante.
     </p>
 
     <div class="divider"></div>
 
     <div class="footer-info">
       Barrio Tobías Daza, Mz B casa 16 · Valledupar
-      <div class="footer-url">barberia-hermanos.vercel.app</div>
+      <div class="footer-url">barberia-hermanos.vercel.app/reservar</div>
     </div>
   </div>
 
@@ -298,3 +298,4 @@ main().catch((err) => {
   console.error('Error al generar los códigos QR:', err);
   process.exit(1);
 });
+

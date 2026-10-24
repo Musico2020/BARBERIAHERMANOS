@@ -749,7 +749,7 @@ function RulesTab() {
 
 function QrTab() {
   const [copied, setCopied] = useState(false);
-  const bookingUrl = 'https://barberia-hermanos.vercel.app/#servicios';
+  const bookingUrl = 'https://barberia-hermanos.vercel.app/reservar';
 
   const copyUrl = () => {
     navigator.clipboard.writeText(bookingUrl);
@@ -761,7 +761,7 @@ function QrTab() {
     <div className="space-y-6">
       <Panel
         title="Código QR de Reservas y Servicios"
-        subtitle="Escanea con el celular para ir directo a la carta de servicios y reservar una cita"
+        subtitle="Escanea con el celular para abrir directamente la reserva y escoger el servicio al instante"
       >
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6 items-center">
           {/* Tarjeta de previsualización del QR */}
@@ -774,7 +774,7 @@ function QrTab() {
               />
             </div>
             <p className="font-serif font-bold text-white text-base">Salón Hermanos</p>
-            <p className="text-zinc-400 text-xs mt-0.5">Escanea para ver servicios y reservar</p>
+            <p className="text-zinc-400 text-xs mt-0.5">Escanea para elegir tu servicio y reservar</p>
             <span className="mt-3 inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-mono text-emerald-300 bg-emerald-500/10 border border-emerald-500/25">
               <CheckCircle2 size={12} /> Alta resolución (1200×1200 px)
             </span>
@@ -808,7 +808,7 @@ function QrTab() {
                 <QrCode size={16} /> ¿Cómo funciona este QR?
               </p>
               <p>
-                Al escanearlo con la cámara de cualquier teléfono móvil (iPhone o Android), abre de inmediato la web de <strong className="text-white">Salón Hermanos</strong> y se desplaza automáticamente a la sección de <strong className="text-gold">Servicios</strong> para que el cliente elija el corte o tratamiento y reserve su turno en 1 toque.
+                Al escanearlo con la cámara de cualquier teléfono móvil (iPhone o Android), abre de inmediato la ventana de <strong className="text-white">Reserva de Salón Hermanos</strong> con la lista de servicios en primer plano («¿Qué servicio te gustaría?»), para que el cliente escoja su corte o tratamiento de una y reserve su turno en 1 toque.
               </p>
             </div>
 

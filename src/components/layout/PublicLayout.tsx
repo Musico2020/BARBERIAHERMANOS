@@ -8,13 +8,21 @@ import BookingModal from '../booking/BookingModal';
 import type { Barber, Service } from '../../types';
 
 interface Props {
+  initialBookingOpen?: boolean;
   /** Recibe la función para abrir la reserva (opcionalmente con un servicio ya elegido). */
   children: (openBooking: (service?: Service, barber?: Barber) => void) => ReactNode;
 }
 
 /** Estructura común de las páginas públicas: menú, contenido, pie de página y ventana de reserva. */
-export default function PublicLayout({ children }: Props) {
-  const [bookingOpen, setBookingOpen] = useState(false);
+export default function PublicLayout({ children, initialBookingOpen = false }: Props) {
+  const [bookingOpen, setBookingOpen] = useState(() => {
+    if (initialBookingOpen) return true;
+    if (typeof window === 'undefined') return false;
+    const path = window.location.pathname;
+    const hash = window.location.hash;
+    const params = new URLSearchParams(window.location.search);
+    return path.startsWith('/reservar') || hash === '#reservar' || params.has('reservar') || params.get('qr') === '1';
+  });
   const [preselectedService, setPreselectedService] = useState<Service | null>(null);
   const [preselectedBarber, setPreselectedBarber] = useState<Barber | null>(null);
 
@@ -24,18 +32,30 @@ export default function PublicLayout({ children }: Props) {
     setBookingOpen(true);
   };
 
-  // Manejo de escaneo de QR o enlaces directos (#servicios, #reservar, ?reservar=1)
+  const handleClose = () => {
+    setBookingOpen(false);
+    if (typeof window !== 'undefined') {
+      const path = window.location.pathname;
+      const hash = window.location.hash;
+      if (path.startsWith('/reservar') || hash === '#reservar') {
+        window.history.replaceState(null, '', '/');
+      }
+    }
+  };
+
+  // Manejo de escaneo de QR o enlaces directos (/reservar, #reservar, ?reservar=1)
   useEffect(() => {
     const handleUrlTriggers = () => {
+      const path = window.location.pathname;
       const hash = window.location.hash;
       const params = new URLSearchParams(window.location.search);
-      const wantsBooking = hash === '#reservar' || params.has('reservar') || params.get('qr') === '1';
+      const wantsBooking = path.startsWith('/reservar') || hash === '#reservar' || params.has('reservar') || params.get('qr') === '1';
 
       if (wantsBooking) {
         setBookingOpen(true);
       }
 
-      if (hash === '#servicios' || wantsBooking) {
+      if (hash === '#servicios') {
         setTimeout(() => {
           const el = document.getElementById('servicios');
           if (el) {
@@ -46,8 +66,12 @@ export default function PublicLayout({ children }: Props) {
     };
 
     handleUrlTriggers();
+    window.addEventListener('popstate', handleUrlTriggers);
     window.addEventListener('hashchange', handleUrlTriggers);
-    return () => window.removeEventListener('hashchange', handleUrlTriggers);
+    return () => {
+      window.removeEventListener('popstate', handleUrlTriggers);
+      window.removeEventListener('hashchange', handleUrlTriggers);
+    };
   }, []);
 
   return (
@@ -68,7 +92,7 @@ export default function PublicLayout({ children }: Props) {
 
       <BookingModal
         isOpen={bookingOpen}
-        onClose={() => setBookingOpen(false)}
+        onClose={handleClose}
         preselectedService={preselectedService}
         preselectedBarber={preselectedBarber}
       />
