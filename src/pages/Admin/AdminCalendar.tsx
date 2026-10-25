@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
-import { getBookingsInRange, updateBookingDetails } from '../../services/bookings';
+import { getBookingsInRange, updateBookingDetails, isSlotTakenError } from '../../services/bookings';
 import { getBarbers } from '../../services/barbers';
 import { getAllServices } from '../../services/services';
 import AgendaBoard from '../../components/admin/AgendaBoard';
@@ -92,10 +92,15 @@ export default function AdminCalendar() {
     onAdd: (barber: Barber, time: string) => { setSaved(''); setAdding({ barberId: barber.id, date: currentDate, time }); },
     onEdit: (b: Booking) => setEditing(b),
     saveMove: async (b: Booking, barber: Barber, time: string) => {
-      await updateBookingDetails(b.id, {
-        clientName: b.clientName, clientPhone: b.clientPhone, serviceId: b.serviceId, serviceName: b.serviceName,
-        barberId: barber.id, barberName: barber.shortName, date: b.date, time, price: b.price,
-      });
+      try {
+        await updateBookingDetails(b.id, {
+          clientName: b.clientName, clientPhone: b.clientPhone, serviceId: b.serviceId, serviceName: b.serviceName,
+          barberId: barber.id, barberName: barber.shortName, date: b.date, time, price: b.price,
+        });
+      } catch (err) {
+        if (isSlotTakenError(err)) return 'Ese espacio ya se ocupó con otra cita. Escoge otro.';
+        throw err;
+      }
     },
     onChanged: () => setReload((n) => n + 1),
   };

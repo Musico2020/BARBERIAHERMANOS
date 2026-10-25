@@ -351,3 +351,7 @@ export async function getRecentlyCreatedBookings(sinceIso: string, limit = 30): 
   if (error) throw error;
   return (data as BookingRow[]).map(rowToBooking);
 }
+
+/** ¿La base rechazó el cambio porque ese barbero ya tiene otra cita a esa hora? (trigger bookings_prevent_double) */
+export const isSlotTakenError = (err: unknown): boolean =>
+  typeof err === 'object' && err !== null && 'message' in err && String((err as { message: unknown }).message).includes('SLOT_TAKEN');

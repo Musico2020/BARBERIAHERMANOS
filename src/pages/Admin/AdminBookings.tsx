@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { Search, Download, ChevronDown, Loader2, MessageCircle, UserPlus, CheckCircle2, Trash2, CalendarDays, ChevronLeft, ChevronRight, Pencil } from 'lucide-react';
-import { getBookings, updateBookingStatus, deleteBooking } from '../../services/bookings';
+import { getBookings, updateBookingStatus, deleteBooking, isSlotTakenError } from '../../services/bookings';
 import { formatCOP } from '../../data';
 import { dayOfMonth, monthShort, dayShort, todayKey, formatDateLong, time12, addDays } from '../../lib/dates';
 import { STATUS_LABEL, type BookingStatus } from '../../lib/stats';
@@ -98,7 +98,9 @@ export default function AdminBookings() {
     } catch (err) {
       console.error('No se pudo cambiar el estado de la reserva', err);
       if (previous) setList((prev) => prev.map((b) => (b.id === id ? { ...b, status: previous } : b)));
-      setError('No se pudo guardar el cambio de estado. Intenta de nuevo.');
+      setError(isSlotTakenError(err)
+        ? 'No se puede reactivar: a esa hora el barbero ya tiene otra cita. Muévela a otra hora desde «Editar».'
+        : 'No se pudo guardar el cambio de estado. Intenta de nuevo.');
     }
   };
 

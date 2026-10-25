@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { X, UserPlus, Loader2, Minus, Plus, Clock, Check, Zap, ChevronDown } from 'lucide-react';
 import { getServices } from '../../services/services';
 import { getBarbers } from '../../services/barbers';
-import { createManualBookings, getBusySlots, type BusySlot } from '../../services/bookings';
+import { createManualBookings, getBusySlots, isSlotTakenError, type BusySlot } from '../../services/bookings';
 import { barberAddClient, type AddClientResult } from '../../services/barberPortal';
 import { businessConfig } from '../../config/business';
 import { generateSlots, isBarberFree } from '../../lib/availability';
@@ -246,7 +246,7 @@ export default function NewClientModal({ onClose, onSaved, barberSession, preset
       onSaved(lines.length, name.trim(), scheduled);
     } catch (err) {
       console.error('No se pudo registrar el cliente', err);
-      setError('No se pudo guardar. Revisa tu conexión e intenta de nuevo.');
+      setError(isSlotTakenError(err) ? 'Esa hora ya se ocupó: ese barbero tiene otra cita. Escoge otra hora.' : 'No se pudo guardar. Revisa tu conexión e intenta de nuevo.');
     } finally {
       setSaving(false);
     }

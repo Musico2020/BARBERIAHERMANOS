@@ -75,6 +75,8 @@ export function bookingHoursFor(dateKey: string): ReturnType<typeof hoursFor> {
  * Horario de trabajo de un barbero ese día (igual que barber_windows_for en la base de datos):
  * null si el salón no recibe reservas ese día o si el barbero descansa; su horario propio si lo tiene
  * (puede ir más allá del horario del salón); si no, el del salón.
+ * Si ese día el salón atiende distinto de lo normal (festivo, o se cambió el horario en Turnos), el
+ * horario propio queda dentro del horario de ese día.
  */
 export function barberHoursFor(dateKey: string, workHours: WorkHours | undefined): { open: number; close: number } | null {
   const salon = bookingHoursFor(dateKey);
@@ -82,7 +84,13 @@ export function barberHoursFor(dateKey: string, workHours: WorkHours | undefined
   const day = workHours?.[String(weekday(dateKey)) as keyof WorkHours];
   if (!day) return { open: salon.open, close: salon.close };
   if (day.off) return null;
-  return { open: timeToMinutes(day.open), close: timeToMinutes(day.close) };
+  const own = { open: timeToMinutes(day.open), close: timeToMinutes(day.close) };
+  const regular = businessConfig.hours[(weekday(dateKey) + 6) % 7];
+  const special = !regular || regular.closed || timeToMinutes(regular.open) !== salon.open || timeToMinutes(regular.close) !== salon.close;
+  if (!special) return own;
+  const open = Math.max(own.open, salon.open);
+  const close = Math.min(own.close, salon.close);
+  return open < close ? { open, close } : null;
 }
 
 /**

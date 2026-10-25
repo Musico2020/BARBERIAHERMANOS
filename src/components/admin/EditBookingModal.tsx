@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { X, Pencil, Loader2, MessageCircle, CheckCircle2, Save } from 'lucide-react';
 import { getServices } from '../../services/services';
 import { getBarbers } from '../../services/barbers';
-import { getBusySlots, updateBookingDetails, type BusySlot } from '../../services/bookings';
+import { getBusySlots, updateBookingDetails, isSlotTakenError, type BusySlot } from '../../services/bookings';
 import { generateSlots } from '../../lib/availability';
 import { businessConfig } from '../../config/business';
 import { formatCOP } from '../../data';
@@ -154,7 +154,7 @@ export default function EditBookingModal({ booking, onClose, onSaved, barberSess
       onSaved(updated);
     } catch (err) {
       console.error('No se pudo editar la reserva', err);
-      setError('No se pudo guardar. Revisa tu conexión e intenta de nuevo.');
+      setError(isSlotTakenError(err) ? 'Esa hora ya se ocupó: ese barbero tiene otra cita. Escoge otra hora.' : 'No se pudo guardar. Revisa tu conexión e intenta de nuevo.');
     } finally {
       setSaving(false);
     }
