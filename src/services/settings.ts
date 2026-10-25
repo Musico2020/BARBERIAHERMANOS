@@ -78,15 +78,45 @@ function apply(data: Partial<EditableSettings>) {
   }
 }
 
+/** Aviso para volver a dibujar la web cuando cambia la configuración (ver startSettingsSync) */
+export const SETTINGS_EVENT = 'settings-updated';
+let lastLoaded = '';
+
 /** Lee la configuración guardada. Si falla (sin internet, tabla vacía) la web sigue con los valores del código. */
 export async function loadSettings(): Promise<void> {
   try {
     const { data, error } = await supabase.from('business_settings').select('data').maybeSingle();
     if (error) throw error;
-    if (data?.data) apply(data.data as Partial<EditableSettings>);
+    if (data?.data) {
+      apply(data.data as Partial<EditableSettings>);
+      // Solo se avisa si algo cambió, para no redibujar la web cada minuto
+      const json = JSON.stringify(data.data);
+      if (json !== lastLoaded) {
+        const first = lastLoaded === '';
+        lastLoaded = json;
+        if (!first) window.dispatchEvent(new Event(SETTINGS_EVENT));
+      }
+    }
   } catch (err) {
     console.warn('No se pudo cargar la configuración guardada; se usan los valores por defecto', err);
   }
+}
+
+/**
+ * Mantiene el horario al día en pantallas que quedan abiertas (panel, portal del barbero, reserva):
+ * vuelve a leer la configuración cada minuto y al volver a la ventana. Si cambió (p. ej. se cerró el
+ * día o unas horas en Turnos), avisa con SETTINGS_EVENT para que la web se vuelva a dibujar.
+ */
+export function startSettingsSync(): () => void {
+  const id = window.setInterval(() => { void loadSettings(); }, 60_000);
+  const onVisible = () => { if (document.visibilityState === 'visible') void loadSettings(); };
+  document.addEventListener('visibilitychange', onVisible);
+  window.addEventListener('focus', onVisible);
+  return () => {
+    window.clearInterval(id);
+    document.removeEventListener('visibilitychange', onVisible);
+    window.removeEventListener('focus', onVisible);
+  };
 }
 
 export function currentSettings(): EditableSettings {
@@ -96,6 +126,9 @@ export function currentSettings(): EditableSettings {
 
 /** Guarda los cambios (solo administradores) y los aplica de inmediato en esta pestaña. */
 export async function saveSettings(patch: Partial<EditableSettings>): Promise<void> {
+  // Primero lo último guardado (otra pestaña, otro administrador o un barbero pudo cambiar algo):
+  // así solo se cambia lo de `patch` y no se borra lo demás
+  await loadSettings();
   const next = { ...currentSettings(), ...patch };
   if (!next.hours.every(validHours) || !validHours(next.holidayHours)) throw new Error('INVALID_HOURS');
   if (!next.specialDays.every(validSpecialDay)) throw new Error('INVALID_SPECIAL_DAY');
@@ -108,4 +141,6 @@ export async function saveSettings(patch: Partial<EditableSettings>): Promise<vo
     .upsert({ id: true, data: next, updated_at: new Date().toISOString() });
   if (error) throw error;
   apply(next);
+  lastLoaded = JSON.stringify(next);
+  window.dispatchEvent(new Event(SETTINGS_EVENT));
 }

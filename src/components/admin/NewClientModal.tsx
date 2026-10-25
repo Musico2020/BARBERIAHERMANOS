@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { X, UserPlus, Loader2, Minus, Plus, Clock, Check, CalendarDays, Zap, ChevronDown } from 'lucide-react';
+import { X, UserPlus, Loader2, Minus, Plus, Clock, Check, Zap, ChevronDown } from 'lucide-react';
 import { getServices } from '../../services/services';
 import { getBarbers } from '../../services/barbers';
 import { createManualBookings, getBusySlots, type BusySlot } from '../../services/bookings';
@@ -15,10 +15,10 @@ import { doesAll, doesService, priceFor } from '../../lib/barberServices';
 import { CategoryIcon } from '../common/BarberIcons';
 import type { Service, Barber } from '../../types';
 
-// Cliente registrado por el administrador, por fuera de la reserva web (no pide anticipo).
-//   · «Atendido ahora»: queda hoy, a la hora actual, como servicio completado (entra a la contabilidad).
-//   · «Agendar cita»: se escoge el día y la hora; queda como cita confirmada en la agenda del barbero.
-//     No deja escoger una hora que se cruce con otra cita de ese barbero.
+// Cliente registrado por el administrador o el barbero, por fuera de la reserva web (no pide anticipo).
+// Pasos: servicio → quién lo atiende → día y hora libre → nombre y celular.
+//   · «Ahora · ya lo atendí» (hoy): queda a la hora actual como servicio completado (entra a la contabilidad).
+//   · Una hora libre: queda como cita confirmada en la agenda del barbero. Solo se ofrecen horas libres.
 // Desde la Agenda (preset) el día y la hora ya vienen del espacio tocado: solo se pide servicio, barbero,
 // nombre y celular, y se cobra el precio del servicio (el de ese barbero si tiene uno propio).
 
@@ -70,13 +70,15 @@ export default function NewClientModal({ onClose, onSaved, barberSession, preset
   const [phone, setPhone] = useState('');
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
-  const [when, setWhen] = useState<When>(preset && !presetPast ? 'later' : 'now');
+  const [when, setWhen] = useState<When>(preset && presetPast ? 'now' : 'later');
   const [date, setDate] = useState(preset && !presetPast ? preset.date : todayKey());
   const [time, setTime] = useState(preset && !presetPast ? preset.time : '');
   // «Atendido» a la hora del espacio tocado (mientras no se cambie a «Agendar cita»)
   const pastAt = presetPast && when === 'now' ? preset : null;
   // Las horas del almuerzo no se ofrecen salvo que se pidan (la web no las ofrece)
   const [withLunch, setWithLunch] = useState(false);
+  // El valor cobrado solo se muestra si el administrador lo quiere cambiar
+  const [showPrices, setShowPrices] = useState(false);
   const [busy, setBusy] = useState<BusySlot[]>([]);
   const [loadingBusy, setLoadingBusy] = useState(false);
   // Desde la Agenda: ventana corta, con el día y la hora fijos
@@ -192,7 +194,7 @@ export default function NewClientModal({ onClose, onSaved, barberSession, preset
   const nextStep = (): { label: string; go: () => void } | null => {
     if (!barber) return { label: role === 'manicurista' ? 'Elige la manicurista' : 'Elige quién lo atiende', go: () => scrollTo(barberRef) };
     if (quick && !timeOk) return { label: busyAll === null ? 'Revisando quién está libre…' : `${barber.shortName} está ocupado a esa hora: elige otro`, go: () => scrollTo(barberRef) };
-    if (when === 'later' && !timeOk) return { label: 'Escoge la hora de la cita', go: () => scrollTo(timeRef) };
+    if (when === 'later' && !timeOk) return { label: 'Escoge el día y la hora', go: () => scrollTo(whenRef) };
     if (!nameOk || !phoneOk) {
       return {
         label: !nameOk ? 'Escribe el nombre del cliente' : 'Revisa el celular',
@@ -260,7 +262,7 @@ export default function NewClientModal({ onClose, onSaved, barberSession, preset
               <UserPlus size={16} className="text-gold" />
             </div>
             <div>
-              <p className="text-[11px] uppercase tracking-[0.2em] text-gold">{quick && preset ? `${presetPast ? 'Ya atendido' : 'Cita'} · ${formatDateLong(preset.date)} · ${time12(preset.time)}` : when === 'now' ? `${pastAt ? `Atendido a las ${time12(pastAt.time)}` : 'Atendido ahora'} · ${formatDateLong(pastAt?.date ?? todayKey())}` : 'Cita agendada desde el panel · sin anticipo'}</p>
+              <p className="text-[11px] uppercase tracking-[0.2em] text-gold">{quick && preset ? `${presetPast ? 'Ya atendido' : 'Cita'} · ${formatDateLong(preset.date)} · ${time12(preset.time)}` : when === 'now' ? `Atendido ahora · ${formatDateLong(todayKey())}` : time ? `Cita · ${formatDateLong(date)} · ${time12(time)}` : 'Escoge servicio, barbero, día y hora'}</p>
               <h2 className="font-serif text-xl font-bold text-white">Cliente nuevo</h2>
             </div>
           </div>
@@ -273,7 +275,7 @@ export default function NewClientModal({ onClose, onSaved, barberSession, preset
           {error && <div className="p-3 rounded-xl bg-red-500/10 border border-red-500/20 text-red-400 text-sm">{error}</div>}
 
           <section>
-            <SectionTitle number={1} hint="Puedes elegir varios y la cantidad de cada uno">{quick && !presetPast ? "¿Qué servicio?" : "¿Qué se hizo?"}</SectionTitle>
+            <SectionTitle number={1} hint="Puedes elegir varios y la cantidad de cada uno">{presetPast ? "¿Qué se hizo?" : "¿Qué servicio?"}</SectionTitle>
             {loading ? (
               <div className="flex justify-center py-8"><Loader2 size={22} className="animate-spin text-gold" /></div>
             ) : (
@@ -327,9 +329,17 @@ export default function NewClientModal({ onClose, onSaved, barberSession, preset
 
           {hasItems && (
             <>
-              {!quick && (
+              {!quick && !barberSession && (
+                <p className="-mt-3 flex items-center justify-between gap-3 text-sm">
+                  <span className="text-zinc-400">{units} {units === 1 ? 'servicio' : 'servicios'} · {minutes} min · <b className="font-mono text-gold">{formatCOP(total)}</b></span>
+                  <button type="button" onClick={() => setShowPrices((v) => !v)} className="text-xs text-gold underline underline-offset-2">
+                    {showPrices ? 'Ocultar valores' : 'Cambiar el valor cobrado'}
+                  </button>
+                </p>
+              )}
+              {!quick && showPrices && !barberSession && (
               <section>
-                <SectionTitle number={2} hint={barberSession ? "Precio del servicio" : "Cambia el valor si se cobró distinto"}>Lo que se cobra</SectionTitle>
+                <SectionTitle number={1} hint={barberSession ? "Precio del servicio" : "Cambia el valor si se cobró distinto"}>Lo que se cobra</SectionTitle>
                 <div className="rounded-2xl border border-gold/25 bg-gold/[0.05] p-4">
                   <ul className="space-y-2">
                     {items.map(({ service, qty }) => (
@@ -366,7 +376,7 @@ export default function NewClientModal({ onClose, onSaved, barberSession, preset
               )}
 
               <section ref={barberRef} className="scroll-mt-4">
-                <SectionTitle number={quick ? 2 : 3} hint={quick && preset && !presetPast ? `Libres a las ${time12(preset.time)}` : undefined}>{role === 'manicurista' ? '¿Qué manicurista lo atiende?' : '¿Quién lo atiende?'}</SectionTitle>
+                <SectionTitle number={2} hint={quick && preset && !presetPast ? `Libres a las ${time12(preset.time)}` : undefined}>{role === 'manicurista' ? '¿Qué manicurista lo atiende?' : '¿Quién lo atiende?'}</SectionTitle>
                 <div className="grid sm:grid-cols-2 gap-2">
                   {staff.map((b) => {
                     const selected = barber?.id === b.id;
@@ -376,7 +386,7 @@ export default function NewClientModal({ onClose, onSaved, barberSession, preset
                         key={b.id}
                         type="button"
                         disabled={busyThen}
-                        onClick={() => { setBarberId(b.id); if (!quick) setTime(''); scrollTo(quick ? clientRef : whenRef); }}
+                        onClick={() => { setBarberId(b.id); if (!quick) { setTime(''); if (when === 'now' && !presetPast) setWhen('later'); } scrollTo(quick ? clientRef : whenRef); }}
                         aria-pressed={selected}
                         className={`flex items-center gap-3 p-3 rounded-xl border text-left transition-all ${selected ? 'border-gold bg-gold/10' : 'border-white/10 bg-white/[0.03] hover:border-gold/40'} disabled:opacity-40 disabled:cursor-not-allowed`}
                       >
@@ -394,89 +404,88 @@ export default function NewClientModal({ onClose, onSaved, barberSession, preset
 
               {!quick && (
               <section ref={whenRef} className="scroll-mt-4">
-                <SectionTitle number={4} hint={when === 'later' ? 'No pide anticipo' : undefined}>¿Cuándo?</SectionTitle>
-                <div className="grid grid-cols-2 gap-2">
-                  {([['now', pastAt ? 'Ya lo atendí' : 'Atendido ahora', pastAt ? `Completado a las ${time12(pastAt.time)}` : 'Queda hoy como completado', Zap], ['later', 'Agendar cita', 'Escoge el día y la hora', CalendarDays]] as const).map(([value, label, hint, Icon]) => (
-                    <button
-                      key={value}
-                      type="button"
-                      onClick={() => { setWhen(value); setError(''); scrollTo(value === 'later' ? timeRef : clientRef); }}
-                      aria-pressed={when === value}
-                      className={`flex items-start gap-2.5 p-3 rounded-xl border text-left transition-all ${when === value ? 'border-gold bg-gold/10' : 'border-white/10 bg-white/[0.03] hover:border-gold/40'}`}
-                    >
-                      <Icon size={17} className={`shrink-0 mt-0.5 ${when === value ? 'text-gold' : 'text-zinc-500'}`} />
-                      <span>
-                        <span className={`block text-sm font-semibold ${when === value ? 'text-gold' : 'text-white'}`}>{label}</span>
-                        <span className="block text-[11px] text-zinc-500">{hint}</span>
-                      </span>
-                    </button>
-                  ))}
-                </div>
-
-                {when === 'later' && (
-                  <div ref={timeRef} className="mt-3 space-y-3 scroll-mt-4">
-                    <label className="block">
-                      <span className="text-xs text-zinc-400 uppercase tracking-wider block mb-2">Día</span>
-                      <input
-                        type="date"
-                        className={`${inputClass} [color-scheme:dark]`}
-                        value={date}
-                        min={todayKey()}
-                        max={addDays(todayKey(), 90)}
-                        onChange={(e) => { setDate(e.target.value); setTime(''); }}
-                      />
-                      {date && <span className="text-[11px] text-zinc-500 mt-1 block capitalize">{formatDateLong(date)}</span>}
-                    </label>
-                    <div>
-                      <span className="text-xs text-zinc-400 uppercase tracking-wider flex items-center gap-2 mb-2">
-                        Hora {loadingBusy && <Loader2 size={12} className="animate-spin text-gold" />}
-                      </span>
-                      {!barber ? (
-                        <p className="text-zinc-500 text-sm">Primero elige quién lo atiende.</p>
-                      ) : loadingBusy ? (
-                        <div className="h-16" />
-                      ) : slots.length === 0 ? (
-                        <p className="text-amber-300 text-sm">
-                          {barber.shortName} no tiene horas libres ese día para {minutes} min de servicio. Escoge otro día.
-                        </p>
-                      ) : (
-                        <div className="grid grid-cols-4 sm:grid-cols-6 gap-1.5 max-h-56 overflow-y-auto pr-1">
-                          {slots.map(({ time: t, recommended }) => {
-                            const selected = time === t;
-                            return (
-                              <button
-                                key={t}
-                                type="button"
-                                onClick={() => { setTime(t); scrollTo(clientRef); }}
-                                aria-pressed={selected}
-                                className={`py-2 rounded-lg text-xs font-mono border transition-all ${
-                                  selected ? 'border-gold bg-gold text-dark font-bold'
-                                    : recommended ? 'border-gold/50 text-gold bg-black/30 hover:bg-gold/15'
-                                      : 'border-white/10 text-zinc-200 hover:border-gold/50 hover:text-gold bg-white/[0.03]'}`}
-                              >
-                                {time12(t)}
-                              </button>
-                            );
-                          })}
-                        </div>
-                      )}
-                      <label className="mt-2 inline-flex items-center gap-2 text-xs text-zinc-400 cursor-pointer select-none">
-                        <input type="checkbox" className="accent-[#d9ad50] w-4 h-4" checked={withLunch} onChange={(e) => { setWithLunch(e.target.checked); setTime(''); }} />
-                        Ver también las horas del almuerzo
+                <SectionTitle number={3} hint="Solo horas libres · no pide anticipo">¿Qué día y a qué hora?</SectionTitle>
+                {!barber ? (
+                  <p className="text-zinc-500 text-sm">Primero elige quién lo atiende.</p>
+                ) : (
+                  <div ref={timeRef} className="space-y-3 scroll-mt-4">
+                    <div className="flex gap-2 overflow-x-auto pb-1 -mx-1 px-1" style={{ scrollbarWidth: 'none' }}>
+                      {Array.from({ length: 21 }, (_, i) => addDays(todayKey(), i)).map((d, i) => {
+                        const selected = date === d;
+                        return (
+                          <button
+                            key={d}
+                            type="button"
+                            onClick={() => { setDate(d); setTime(''); if (when === 'now') setWhen('later'); }}
+                            aria-pressed={selected}
+                            className={`shrink-0 flex flex-col items-center min-w-[58px] px-2 py-2 rounded-xl border transition-all ${selected ? 'border-gold bg-gold text-dark' : 'border-white/10 bg-white/[0.03] text-white hover:border-gold/40'}`}
+                          >
+                            <span className={`text-[10px] font-semibold uppercase ${selected ? 'text-dark/70' : 'text-zinc-500'}`}>{i === 0 ? 'Hoy' : i === 1 ? 'Mañana' : dayShort(d)}</span>
+                            <span className="font-mono text-lg font-bold leading-tight">{dayOfMonth(d)}</span>
+                            <span className={`text-[10px] ${selected ? 'text-dark/70' : 'text-zinc-500'}`}>{monthShort(d)}</span>
+                          </button>
+                        );
+                      })}
+                      <label className="shrink-0 flex flex-col items-center justify-center min-w-[70px] px-2 py-2 rounded-xl border border-dashed border-white/15 text-[11px] text-zinc-400 cursor-pointer">
+                        Otro día
+                        <input
+                          type="date"
+                          className="w-0 h-0 opacity-0"
+                          min={todayKey()}
+                          max={addDays(todayKey(), 90)}
+                          onChange={(e) => { if (e.target.value) { setDate(e.target.value); setTime(''); setWhen('later'); } }}
+                          onClick={(e) => { try { e.currentTarget.showPicker(); } catch { /* el navegador abre su calendario */ } }}
+                        />
                       </label>
-                      <p className="text-zinc-500 text-[11px] mt-2">
-                        Son las mismas horas libres que ve el cliente en la reserva de la web para {barber?.shortName ?? 'ese barbero'} ({minutes} min de servicio).
-                        En dorado, las que quedan pegadas a otra cita.
-                      </p>
                     </div>
+                    <p className="text-xs text-zinc-400 capitalize">{formatDateLong(date)} · {barber.shortName} {loadingBusy && <Loader2 size={12} className="inline animate-spin text-gold ml-1" />}</p>
+                    {loadingBusy ? (
+                      <div className="h-16" />
+                    ) : (
+                      <div className="grid grid-cols-3 sm:grid-cols-5 gap-1.5 max-h-60 overflow-y-auto pr-1">
+                        {date === todayKey() && (
+                          <button
+                            type="button"
+                            onClick={() => { setWhen('now'); setTime(''); scrollTo(clientRef); }}
+                            aria-pressed={when === 'now'}
+                            className={`py-2 rounded-lg text-xs font-semibold border transition-all ${when === 'now' ? 'border-emerald-400 bg-emerald-500 text-dark' : 'border-emerald-500/40 text-emerald-300 bg-emerald-500/10 hover:bg-emerald-500/20'}`}
+                          >
+                            <Zap size={12} className="inline -mt-0.5" /> Ahora · ya lo atendí
+                          </button>
+                        )}
+                        {slots.map(({ time: t, recommended }) => {
+                          const selected = when === 'later' && time === t;
+                          return (
+                            <button
+                              key={t}
+                              type="button"
+                              onClick={() => { setWhen('later'); setTime(t); scrollTo(clientRef); }}
+                              aria-pressed={selected}
+                              className={`py-2 rounded-lg text-sm font-mono border transition-all ${
+                                selected ? 'border-gold bg-gold text-dark font-bold'
+                                  : recommended ? 'border-gold/50 text-gold bg-black/30 hover:bg-gold/15'
+                                    : 'border-white/10 text-zinc-200 hover:border-gold/50 hover:text-gold bg-white/[0.03]'}`}
+                            >
+                              {time12(t)}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    )}
+                    {!loadingBusy && slots.length === 0 && (
+                      <p className="text-amber-300 text-sm">{barber.shortName} no tiene horas libres este día para {minutes} min. Escoge otro día.</p>
+                    )}
+                    <label className="inline-flex items-center gap-2 text-xs text-zinc-400 cursor-pointer select-none">
+                      <input type="checkbox" className="accent-[#d9ad50] w-4 h-4" checked={withLunch} onChange={(e) => { setWithLunch(e.target.checked); setTime(''); }} />
+                      Ver también las horas del almuerzo
+                    </label>
                   </div>
                 )}
               </section>
-
               )}
 
               <section ref={clientRef} className="space-y-3 scroll-mt-4">
-                <SectionTitle number={quick ? 3 : 5}>Datos del cliente</SectionTitle>
+                <SectionTitle number={quick ? 3 : 4}>Datos del cliente</SectionTitle>
                 <div className="grid sm:grid-cols-2 gap-3">
                   <label className="block">
                     <span className="text-xs text-zinc-400 uppercase tracking-wider block mb-2">Nombre</span>

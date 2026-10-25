@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { CalendarX, CalendarCheck, RotateCcw, Save, Loader2, Lock, Unlock, Info } from 'lucide-react';
 import { getBarbers } from '../../services/barbers';
 import { getBookingsInRange } from '../../services/bookings';
-import { currentSettings, saveSettings } from '../../services/settings';
+import { currentSettings, saveSettings, loadSettings } from '../../services/settings';
 import { todayKey, addDays, dayShort, dayOfMonth, monthShort, formatDateLong, minutesToTime, timeToMinutes, time12 } from '../../lib/dates';
 import { regularHoursFor } from '../../lib/businessHours';
 import { holidayName } from '../../lib/holidays';
@@ -59,12 +59,25 @@ export default function AdminShifts() {
   const view: DayOverride | null = special ? null : override ?? (regular ? newOverride(date) : null);
   const targetBarber = barbers.find((b) => b.id === target) ?? null;
 
+  // Días que se cambiaron aquí: al guardar, solo esos reemplazan lo último guardado
+  const [edited, setEdited] = useState<Set<string>>(new Set());
   const change = (nextOverrides: DayOverride[], nextSpecials: SpecialDay[] = specials) => {
     setOverrides(nextOverrides.sort((a, b) => a.date.localeCompare(b.date)));
     setSpecials(nextSpecials);
+    setEdited((prev) => new Set(prev).add(date));
     setDirty(true);
     setMessage(null);
   };
+
+  // Al abrir, y mientras no haya cambios sin guardar, se muestra lo último guardado
+  useEffect(() => {
+    if (dirty) return;
+    loadSettings().then(() => {
+      setOverrides(currentSettings().dayOverrides);
+      setSpecials(currentSettings().specialDays);
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [date]);
   const upsert = (o: DayOverride) => change([...overrides.filter((d) => d.date !== o.date), o]);
 
   const toggle = (start: number) => view && upsert(toggleSlot(view, start, target));
@@ -91,8 +104,14 @@ export default function AdminShifts() {
     setSaving(true);
     setMessage(null);
     try {
-      // Los ajustes de días que ya pasaron se descartan para no acumularlos
-      await saveSettings({ dayOverrides: overrides.filter((d) => d.date >= today), specialDays: specials });
+      // Sobre lo último guardado se ponen solo los días cambiados aquí (no se borran los cambios que
+      // hizo un barbero u otra pestaña mientras tanto). Los días que ya pasaron se descartan.
+      await loadSettings();
+      const latest = currentSettings();
+      const mergedOverrides = [...latest.dayOverrides.filter((d) => !edited.has(d.date)), ...overrides.filter((d) => edited.has(d.date))];
+      const mergedSpecials = [...latest.specialDays.filter((d) => !edited.has(d.date)), ...specials.filter((d) => edited.has(d.date))];
+      await saveSettings({ dayOverrides: mergedOverrides.filter((d) => d.date >= today), specialDays: mergedSpecials });
+      setEdited(new Set());
       setOverrides(currentSettings().dayOverrides);
       setSpecials(currentSettings().specialDays);
       setDirty(false);

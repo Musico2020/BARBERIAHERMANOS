@@ -84,6 +84,7 @@ export default function AgendaBoard({
   }, []);
 
   const barberKey = barbers.map((b) => b.id).join(',');
+  // Se vuelve a leer cada vez que se recargan las citas: así se ven al momento las horas que se cerraron en Turnos
   useEffect(() => {
     let alive = true;
     getBusySlots(date, barbers.length === 1 ? barbers[0].id : undefined)
@@ -91,7 +92,7 @@ export default function AgendaBoard({
       .catch(() => { if (alive) setClosedSlots([]); });
     return () => { alive = false; };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [date, barberKey]);
+  }, [date, barberKey, bookings]);
 
   const dur = (b: Booking) => durations.get(b.serviceId) ?? 30;
   const dayBookings = bookings.filter((b) => b.date === date && b.status !== 'cancelled');

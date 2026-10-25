@@ -3,6 +3,7 @@ import LandingPage from './pages/Landing';
 import GalleryPage from './pages/GalleryPage';
 import ShopPage from './pages/ShopPage';
 import MyBookingsPage from './pages/MyBookingsPage';
+import { startSettingsSync, SETTINGS_EVENT } from './services/settings';
 
 // El panel y el portal del barbero (con gráficas y PDF) se descargan solo al abrirlos,
 // así la página pública carga rápido para los clientes.
@@ -36,6 +37,14 @@ function getRoute(): Route {
 
 export default function App() {
   const [route, setRoute] = useState<Route>(getRoute);
+  // Si el horario cambia mientras la página está abierta, se vuelve a dibujar con el nuevo
+  const [, setSettingsVersion] = useState(0);
+  useEffect(() => {
+    const stop = startSettingsSync();
+    const onChange = () => setSettingsVersion((v) => v + 1);
+    window.addEventListener(SETTINGS_EVENT, onChange);
+    return () => { stop(); window.removeEventListener(SETTINGS_EVENT, onChange); };
+  }, []);
 
   useEffect(() => {
     const handler = () => setRoute(getRoute());
