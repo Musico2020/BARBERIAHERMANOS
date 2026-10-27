@@ -45,7 +45,9 @@ function validDayOverride(o: unknown): o is DayOverride {
   return !!x && DATE_RE.test(x.date) && TIME_RE.test(x.open) && TIME_RE.test(x.close) && x.open < x.close &&
     Array.isArray(x.closed) &&
     x.closed.every((c) => !!c && TIME_RE.test(c.start) && TIME_RE.test(c.end) && c.start < c.end &&
-      (c.barberId === undefined || typeof c.barberId === 'string'));
+      (c.barberId === undefined || typeof c.barberId === 'string')) &&
+    (x.barbers === undefined || (typeof x.barbers === 'object' && x.barbers !== null && Object.values(x.barbers).every((d) =>
+      !!d && (d.off === true || (TIME_RE.test(d.open) && TIME_RE.test(d.close) && d.open < d.close)))));
 }
 
 export function validDeposit(d: unknown): d is DepositConfig {

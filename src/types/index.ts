@@ -161,7 +161,15 @@ export interface DayOverride {
   open: string;
   close: string;
   closed: ClosedRange[];
+  /**
+   * Horario de cada barbero ESE día (manda sobre su horario de la semana). Sirve para abrir el día solo
+   * para un barbero, abrir un domingo a quien normalmente descansa o dejar a uno sin trabajar.
+   * El que no aparece usa su horario de la semana. Igual que en barber_windows_for de la base.
+   */
+  barbers?: Record<string, BarberDayHours>;
 }
+
+export type BarberDayHours = { off: true } | { off?: false; open: string; close: string };
 
 export interface LunchBreak {
   enabled: boolean;

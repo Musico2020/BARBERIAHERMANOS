@@ -87,7 +87,7 @@ export function generateSlots(
   const startNow = isToday && options.staff && !options.includePast ? Math.ceil(nowMinutes() / 5) * 5 : null;
   const slots = new Map<number, boolean>();
   for (const id of barberIds) {
-    const hours = barberHoursFor(date, workHoursOf(id));
+    const hours = barberHoursFor(date, workHoursOf(id), id);
     if (!hours) continue;
     const lunch = options.includeLunch ? null : barberLunchFor(date, workHoursOf(id));
     const blocks: { start: number; end: number; kind: Edge }[] = busy

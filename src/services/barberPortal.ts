@@ -152,6 +152,26 @@ export async function setBarberWorkHours(barberId: string, pin: string, hours: W
   return data as WorkHoursResult;
 }
 
+/** El barbero pone SU horario de un día (o que no trabaja). Si el salón está cerrado, se abre solo para él. */
+export async function setBarberDayHours(
+  barberId: string,
+  pin: string,
+  date: string,
+  hours: { open: string; close: string } | { off: true },
+): Promise<DayClosuresResult> {
+  const off = 'off' in hours;
+  const { data, error } = await supabase.rpc('barber_set_day_hours', {
+    p_barber_id: barberId,
+    p_pin: pin,
+    p_date: date,
+    p_open: off ? null : hours.open,
+    p_close: off ? null : hours.close,
+    p_off: off,
+  });
+  if (error) throw error;
+  return data as DayClosuresResult;
+}
+
 export async function setBarberDayClosures(
   barberId: string,
   pin: string,

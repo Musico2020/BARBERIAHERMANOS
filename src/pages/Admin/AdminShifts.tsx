@@ -1,18 +1,20 @@
 import { useEffect, useMemo, useState } from 'react';
-import { CalendarX, CalendarCheck, RotateCcw, Save, Loader2, Lock, Unlock, Info } from 'lucide-react';
+import { CalendarX, CalendarCheck, RotateCcw, Save, Loader2, Lock, Unlock, Info, UserCheck, UserX } from 'lucide-react';
 import { getBarbers } from '../../services/barbers';
 import { getBookingsInRange } from '../../services/bookings';
 import { currentSettings, saveSettings, loadSettings } from '../../services/settings';
 import { todayKey, addDays, dayShort, dayOfMonth, monthShort, formatDateLong, minutesToTime, timeToMinutes, time12 } from '../../lib/dates';
-import { regularHoursFor } from '../../lib/businessHours';
+import { regularHoursFor, barberWindowIn } from '../../lib/businessHours';
 import { holidayName } from '../../lib/holidays';
-import { newOverride, slotStarts, slotState, toggleSlot, setAllSlots, normalizeOverride } from '../../lib/dayShifts';
+import { newOverride, slotStarts, slotState, toggleSlot, setAllSlots, normalizeOverride, withBarberDay } from '../../lib/dayShifts';
 import { Panel } from '../../components/admin/ui';
 import BarberAvatar from '../../components/common/BarberAvatar';
-import type { Barber, Booking, DayOverride, SpecialDay } from '../../types';
+import type { Barber, BarberDayHours, Booking, DayOverride, SpecialDay } from '../../types';
 
 // Panel → Turnos: abrir o cerrar medias horas de cualquier día, para todo el salón o para un barbero.
 // También abre días que normalmente están cerrados (domingos, festivos) o cierra un día completo.
+// Cada barbero puede tener su horario de ESE día (o no trabajar), y se puede abrir un día cerrado solo
+// para un barbero. Se ve igual que en la Agenda y en la web (mismo cálculo: barberWindowIn).
 
 const DAYS_SHOWN = 90;
 const TIME_OPTIONS = Array.from({ length: (23 - 5) * 2 + 1 }, (_, i) => minutesToTime(5 * 60 + i * 30));
@@ -58,6 +60,12 @@ export default function AdminShifts() {
   // Lo que muestra la grilla: el ajuste guardado, o el día normal (con su almuerzo) si no hay ajuste
   const view: DayOverride | null = special ? null : override ?? (regular ? newOverride(date) : null);
   const targetBarber = barbers.find((b) => b.id === target) ?? null;
+  // Horario de cada barbero ese día según el borrador (igual que la Agenda y la web)
+  const windowIn = (o: DayOverride | null, b: Barber) =>
+    o ? barberWindowIn(date, b.workHours, { open: timeToMinutes(o.open), close: timeToMinutes(o.close) }, o.barbers?.[b.id]) : null;
+  const windowOf = (b: Barber) => windowIn(view, b);
+  const targetWindow = targetBarber ? windowOf(targetBarber) : null;
+  const working = view ? barbers.filter((b) => windowOf(b)) : [];
 
   // Días que se cambiaron aquí: al guardar, solo esos reemplazan lo último guardado
   const [edited, setEdited] = useState<Set<string>>(new Set());
@@ -93,11 +101,24 @@ export default function AdminShifts() {
   };
   const closeDay = () =>
     change(overrides.filter((d) => d.date !== date), [...specials.filter((d) => d.date !== date), { date, type: 'closed' }]);
-  const openDay = () =>
-    change(
-      [...overrides.filter((d) => d.date !== date), override ?? newOverride(date)],
-      specials.filter((d) => d.date !== date),
-    );
+  const openDay = () => {
+    let base = override ?? newOverride(date);
+    for (const b of barbers) {
+      if (!base.barbers?.[b.id] && !windowIn(base, b)) base = withBarberDay(base, b.id, { open: base.open, close: base.close });
+    }
+    change([...overrides.filter((d) => d.date !== date), base], specials.filter((d) => d.date !== date));
+  };
+  // El salón sigue cerrado para los demás: solo trabaja este barbero
+  const openOnlyFor = (barber: Barber) => {
+    let base = newOverride(date);
+    for (const b of barbers) if (b.id !== barber.id) base = withBarberDay(base, b.id, { off: true });
+    const own = windowIn({ ...base, barbers: undefined }, barber);
+    base = withBarberDay(base, barber.id, own
+      ? { open: minutesToTime(own.open), close: minutesToTime(own.close) }
+      : { open: base.open, close: base.close });
+    change([...overrides.filter((d) => d.date !== date), base], specials.filter((d) => d.date !== date));
+  };
+  const setBarberDay = (barber: Barber, day: BarberDayHours | undefined) => upsert(withBarberDay(view ?? newOverride(date), barber.id, day));
   const resetDay = () => change(overrides.filter((d) => d.date !== date), specials.filter((d) => d.date !== date));
 
   const save = async () => {
@@ -128,6 +149,10 @@ export default function AdminShifts() {
     ? { tone: 'text-rose-300', text: 'Cerrado todo el día' }
     : special?.type === 'walk-in'
       ? { tone: 'text-amber-300', text: 'Solo por orden de llegada (sin reservas por la web)' }
+      : view && barbers.length > 0 && working.length === 0
+        ? { tone: 'text-rose-300', text: 'Ningún barbero trabaja este día' }
+      : view && barbers.length > 0 && working.length < barbers.length
+        ? { tone: 'text-gold', text: `Atiende solo: ${working.map((b) => b.shortName).join(', ')}` }
       : override
         ? { tone: 'text-gold', text: `Horario ajustado: ${hour12(timeToMinutes(override.open))} a ${hour12(timeToMinutes(override.close))}` }
         : regular
@@ -138,7 +163,9 @@ export default function AdminShifts() {
   const bookingsAt = (start: number) =>
     activeBookings.filter((b) => (!target || b.barberId === target) && timeToMinutes(b.time) >= start && timeToMinutes(b.time) < start + 30);
   const slots = view ? slotStarts(view.open, view.close) : [];
-  const closedCount = view ? slots.filter((s) => slotState(view, s, target) !== 'open').length : 0;
+  // Para un barbero, fuera de su horario de ese día la media hora es «No trabaja»
+  const outside = (s: number) => !!targetBarber && (!targetWindow || s < targetWindow.open || s + 30 > targetWindow.close);
+  const closedCount = view ? slots.filter((s) => outside(s) || slotState(view, s, target) !== 'open').length : 0;
 
   return (
     <div className="space-y-5 pb-24">
@@ -215,6 +242,105 @@ export default function AdminShifts() {
           </div>
         }
       >
+        <div className="space-y-4 mb-5">
+        {/* Para quién (siempre visible, también con el día cerrado) */}
+        <div>
+          <p className="text-xs text-zinc-400 mb-2">¿Para quién?</p>
+          <div className="flex flex-wrap gap-2">
+            <button
+              onClick={() => setTarget(null)}
+              aria-pressed={target === null}
+              className={`px-4 py-2 rounded-full text-sm font-semibold border min-h-[40px] ${target === null ? 'bg-gold text-dark border-gold' : 'border-white/10 text-zinc-300 hover:border-gold/40'}`}
+            >
+              Todo el salón
+            </button>
+            {barbers.map((b) => (
+              <button
+                key={b.id}
+                onClick={() => setTarget(b.id)}
+                aria-pressed={target === b.id}
+                className={`inline-flex items-center gap-2 pl-1.5 pr-4 py-1.5 rounded-full text-sm font-semibold border min-h-[40px] ${target === b.id ? 'bg-gold text-dark border-gold' : 'border-white/10 text-zinc-300 hover:border-gold/40'}`}
+              >
+                <BarberAvatar barber={b} className="w-7 h-7 rounded-full text-[10px]" />
+                {b.shortName}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* Horario del barbero ese día */}
+        {targetBarber && (
+          <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-4 space-y-3">
+            <div className="flex flex-wrap items-start justify-between gap-2">
+              <div>
+                <p className="text-sm font-semibold text-white">Horario de {targetBarber.shortName} este día</p>
+                <p className="text-[11px] text-zinc-500">
+                  {view?.barbers?.[targetBarber.id] ? 'Ajustado solo para este día' : 'Su horario de la semana (Panel → Barberos)'}
+                </p>
+              </div>
+              {view?.barbers?.[targetBarber.id] && (
+                <button onClick={() => setBarberDay(targetBarber, undefined)} className="btn-dark-glass px-3 py-1.5 rounded-xl text-xs font-semibold">
+                  <RotateCcw size={12} /> Usar su horario de la semana
+                </button>
+              )}
+            </div>
+            {!view ? (
+              <button onClick={() => openOnlyFor(targetBarber)} className="btn-gold px-4 py-2.5 rounded-full text-sm font-bold">
+                <UserCheck size={15} /> <span>Abrir este día solo para {targetBarber.shortName}</span>
+              </button>
+            ) : targetWindow ? (
+              <div className="flex flex-wrap items-end gap-3">
+                <label className="text-xs text-zinc-400">
+                  Entra
+                  <select
+                    value={minutesToTime(targetWindow.open)}
+                    onChange={(e) => e.target.value < minutesToTime(targetWindow.close) && setBarberDay(targetBarber, { open: e.target.value, close: minutesToTime(targetWindow.close) })}
+                    className="block mt-1 bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-white text-sm"
+                  >
+                    {TIME_OPTIONS.map((t) => <option key={t} value={t}>{hour12(timeToMinutes(t))}</option>)}
+                  </select>
+                </label>
+                <label className="text-xs text-zinc-400">
+                  Sale
+                  <select
+                    value={minutesToTime(targetWindow.close)}
+                    onChange={(e) => e.target.value > minutesToTime(targetWindow.open) && setBarberDay(targetBarber, { open: minutesToTime(targetWindow.open), close: e.target.value })}
+                    className="block mt-1 bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-white text-sm"
+                  >
+                    {TIME_OPTIONS.map((t) => <option key={t} value={t}>{hour12(timeToMinutes(t))}</option>)}
+                  </select>
+                </label>
+                <button onClick={() => setBarberDay(targetBarber, { off: true })} className="btn-danger-glass px-3.5 py-2 rounded-xl text-xs font-semibold min-h-[38px]">
+                  <UserX size={13} /> No trabaja este día
+                </button>
+              </div>
+            ) : (
+              <div className="flex flex-wrap items-center gap-3">
+                <p className="text-sm text-rose-300">{targetBarber.shortName} no trabaja este día.</p>
+                <button onClick={() => setBarberDay(targetBarber, { open: view.open, close: view.close })} className="btn-gold px-4 py-2 rounded-full text-xs font-bold">
+                  <UserCheck size={14} /> <span>Que trabaje este día</span>
+                </button>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Quién trabaja (todo el salón) */}
+        {!targetBarber && view && barbers.length > 0 && (
+          <div className="flex flex-wrap gap-2">
+            {barbers.map((b) => {
+              const w = windowOf(b);
+              return (
+                <button key={b.id} onClick={() => setTarget(b.id)} className={`inline-flex items-center gap-2 rounded-xl border px-3 py-2 text-xs ${w ? 'border-emerald-500/30 bg-emerald-500/[0.06] text-emerald-200' : 'border-rose-500/30 bg-rose-500/[0.06] text-rose-300'}`}>
+                  <BarberAvatar barber={b} className="w-6 h-6 rounded-full text-[9px]" />
+                  <span className="font-semibold">{b.shortName}</span>
+                  <span className="opacity-80">{w ? `${hour12(w.open)} a ${hour12(w.close)}` : 'No trabaja'}</span>
+                </button>
+              );
+            })}
+          </div>
+        )}
+        </div>
         {!view ? (
           <p className="text-zinc-400 text-sm py-6 text-center">
             {special?.type === 'closed'
@@ -225,31 +351,6 @@ export default function AdminShifts() {
           </p>
         ) : (
           <div className="space-y-5">
-            {/* Para quién */}
-            <div>
-              <p className="text-xs text-zinc-400 mb-2">¿Para quién?</p>
-              <div className="flex flex-wrap gap-2">
-                <button
-                  onClick={() => setTarget(null)}
-                  aria-pressed={target === null}
-                  className={`px-4 py-2 rounded-full text-sm font-semibold border min-h-[40px] ${target === null ? 'bg-gold text-dark border-gold' : 'border-white/10 text-zinc-300 hover:border-gold/40'}`}
-                >
-                  Todo el salón
-                </button>
-                {barbers.map((b) => (
-                  <button
-                    key={b.id}
-                    onClick={() => setTarget(b.id)}
-                    aria-pressed={target === b.id}
-                    className={`inline-flex items-center gap-2 pl-1.5 pr-4 py-1.5 rounded-full text-sm font-semibold border min-h-[40px] ${target === b.id ? 'bg-gold text-dark border-gold' : 'border-white/10 text-zinc-300 hover:border-gold/40'}`}
-                  >
-                    <BarberAvatar barber={b} className="w-7 h-7 rounded-full text-[10px]" />
-                    {b.shortName}
-                  </button>
-                ))}
-              </div>
-            </div>
-
             {/* Horario del día */}
             <div className="flex flex-wrap items-end gap-3">
               <label className="text-xs text-zinc-400">
@@ -281,15 +382,15 @@ export default function AdminShifts() {
               </p>
               <div className="grid grid-cols-3 sm:grid-cols-4 lg:grid-cols-6 gap-2">
                 {slots.map((s) => {
-                  const state = slotState(view, s, target);
+                  const state = outside(s) ? 'off' : slotState(view, s, target);
                   const booked = bookingsAt(s);
                   return (
                     <button
                       key={s}
-                      onClick={() => state !== 'closed-salon' && toggle(s)}
-                      disabled={state === 'closed-salon'}
+                      onClick={() => state !== 'closed-salon' && state !== 'off' && toggle(s)}
+                      disabled={state === 'closed-salon' || state === 'off'}
                       aria-pressed={state === 'open'}
-                      title={state === 'closed-salon' ? 'Cerrada para todo el salón' : state === 'open' ? 'Toca para cerrar' : 'Toca para abrir'}
+                      title={state === 'off' ? 'Fuera de su horario de este día' : state === 'closed-salon' ? 'Cerrada para todo el salón' : state === 'open' ? 'Toca para cerrar' : 'Toca para abrir'}
                       className={`rounded-xl border px-2 py-2.5 text-left transition-all min-h-[56px] ${
                         state === 'open'
                           ? 'border-emerald-500/40 bg-emerald-500/10 hover:bg-emerald-500/20'
@@ -302,7 +403,7 @@ export default function AdminShifts() {
                         {time12(minutesToTime(s))}
                       </span>
                       <span className="block text-[10px] text-zinc-400 mt-0.5">
-                        {state === 'open' ? 'Abierta' : state === 'closed' ? 'Cerrada' : 'Cerrada (salón)'}
+                        {state === 'open' ? 'Abierta' : state === 'closed' ? 'Cerrada' : state === 'off' ? 'No trabaja' : 'Cerrada (salón)'}
                         {booked.length > 0 && <span className="text-gold font-semibold"> · {booked.length} cita{booked.length > 1 ? 's' : ''}</span>}
                       </span>
                     </button>

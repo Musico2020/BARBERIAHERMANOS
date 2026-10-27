@@ -3,7 +3,7 @@ import { Phone, MessageCircle, Pencil, Move, X, Loader2, CheckCircle2, Plus, Arr
 import BarberAvatar from '../common/BarberAvatar';
 import { getBusySlots, type BusySlot } from '../../services/bookings';
 import { freeGaps } from '../../lib/availability';
-import { barberHoursFor, barberLunchFor, dayOverrideOf, hoursFor } from '../../lib/businessHours';
+import { barberHoursFor, barberLunchFor, dayOverrideOf, hoursFor, specialDayOf } from '../../lib/businessHours';
 import { businessConfig } from '../../config/business';
 import { todayKey, nowMinutes, minutesToTime, time12, timeToMinutes, formatDateLong } from '../../lib/dates';
 import { waNumber } from '../../lib/whatsapp';
@@ -105,10 +105,12 @@ export default function AgendaBoard({
     : null;
 
   const columns: Column[] = barbers.map((barber) => {
-    const salon = hoursFor(date);
+    // Mismo horario que la web y Turnos; los días por orden de llegada se muestra el del salón para
+    // poder registrar a quien llegue
+    const salon = specialDayOf(date) === 'walk-in' ? hoursFor(date) : null;
     return {
       barber,
-      win: barberHoursFor(date, barber.workHours) ?? (salon ? { open: salon.open, close: salon.close } : null),
+      win: barberHoursFor(date, barber.workHours, barber.id) ?? (salon ? { open: salon.open, close: salon.close } : null),
       lunch: barberLunchFor(date, barber.workHours) ?? closedLunch,
       bookings: dayBookings.filter((b) => b.barberId === barber.id).sort((a, b) => a.time.localeCompare(b.time)),
       closed: closedSlots

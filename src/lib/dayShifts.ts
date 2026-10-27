@@ -1,4 +1,4 @@
-import type { ClosedRange, DayOverride } from '../types';
+import type { BarberDayHours, ClosedRange, DayOverride } from '../types';
 import { minutesToTime, timeToMinutes } from './dates';
 import { regularHoursFor, regularLunchFor } from './businessHours';
 
@@ -65,6 +65,15 @@ export function toggleSlot(o: DayOverride, start: number, barberId: string | nul
   const next = scoped.includes(start) ? scoped.filter((s) => s !== start) : [...scoped, start];
   const others = o.closed.filter((r) => (barberId ? r.barberId !== barberId : !!r.barberId));
   return normalizeOverride({ ...o, closed: [...others, ...toRanges(next, barberId ?? undefined)] });
+}
+
+/** Pone (o quita, con undefined) el horario de un barbero ese día. */
+export function withBarberDay(o: DayOverride, barberId: string, day: BarberDayHours | undefined): DayOverride {
+  const barbers = { ...(o.barbers ?? {}) };
+  if (day) barbers[barberId] = day; else delete barbers[barberId];
+  const next: DayOverride = { ...o, barbers };
+  if (Object.keys(barbers).length === 0) delete next.barbers;
+  return next;
 }
 
 /** Cierra o abre todas las medias horas del día para un alcance. */
