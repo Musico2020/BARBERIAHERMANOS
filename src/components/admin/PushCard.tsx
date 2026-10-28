@@ -1,9 +1,10 @@
 import { useEffect, useState } from 'react';
 import { Bell, BellOff, BellRing, Loader2, Share, PlusSquare, X } from 'lucide-react';
-import { pushSupport, currentPushSubscription, enablePush, disablePush, sendTestPush, countPushDevices } from '../../services/push';
+import { pushSupport, currentPushSubscription, enablePush, disablePush, sendTestPush, countPushDevices, countBarberPushDevices, type PushBarber } from '../../services/push';
 
 // «Avisos en este teléfono»: activa las notificaciones de reservas nuevas y comprobantes en el
 // teléfono donde está abierto el panel. En iPhone primero hay que agregar el panel a la pantalla de inicio.
+// Con «barber» es la versión del portal del barbero: le avisa cuando le agendan una cita.
 
 type State = 'loading' | 'off' | 'on' | 'denied' | 'ios-install' | 'unsupported';
 
@@ -12,9 +13,12 @@ const DISMISS_KEY = 'sh-push-banner-dismissed';
 interface Props {
   /** compact: aviso en el dashboard que desaparece cuando ya está activo */
   compact?: boolean;
+  /** Portal del barbero: sus avisos (se registran con su PIN) */
+  barber?: PushBarber;
 }
 
-export default function PushCard({ compact = false }: Props) {
+export default function PushCard({ compact = false, barber }: Props) {
+  const count = () => (barber ? countBarberPushDevices(barber) : countPushDevices());
   const [state, setState] = useState<State>('loading');
   const [subscription, setSubscription] = useState<PushSubscription | null>(null);
   const [devices, setDevices] = useState<number | null>(null);
@@ -29,23 +33,26 @@ export default function PushCard({ compact = false }: Props) {
     if (support !== 'ok') { setState(support); return; }
     if (Notification.permission === 'denied') { setState('denied'); return; }
     const sub = await currentPushSubscription().catch(() => null);
+    // El barbero puede tener el permiso dado pero este teléfono no estar registrado a su nombre
+    const mine = barber && sub ? await count().then((n) => n > 0).catch(() => false) : true;
     setSubscription(sub);
-    setState(sub ? 'on' : 'off');
-    countPushDevices().then(setDevices).catch(() => setDevices(null));
+    setState(sub && mine ? 'on' : 'off');
+    count().then(setDevices).catch(() => setDevices(null));
   };
 
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- solo al abrir (el barbero de la sesión no cambia)
   useEffect(() => { refresh(); }, []);
 
   const activate = async () => {
     setBusy(true);
     setMessage(null);
     try {
-      const sub = await enablePush();
+      const sub = await enablePush(barber);
       setSubscription(sub);
       setState('on');
-      await sendTestPush(sub).catch(() => undefined);
+      await sendTestPush(sub, !!barber).catch(() => undefined);
       setMessage({ kind: 'ok', text: 'Avisos activados. Te enviamos uno de prueba.' });
-      countPushDevices().then(setDevices).catch(() => undefined);
+      count().then(setDevices).catch(() => undefined);
     } catch (err) {
       console.error('No se pudieron activar los avisos', err);
       if (err instanceof Error && err.message === 'PERMISSION_DENIED') {
@@ -63,11 +70,11 @@ export default function PushCard({ compact = false }: Props) {
     setBusy(true);
     setMessage(null);
     try {
-      await disablePush();
+      await disablePush(barber);
       setSubscription(null);
       setState('off');
       setMessage({ kind: 'ok', text: 'Este teléfono ya no recibirá avisos.' });
-      countPushDevices().then(setDevices).catch(() => undefined);
+      count().then(setDevices).catch(() => undefined);
     } catch (err) {
       console.error('No se pudieron quitar los avisos', err);
       setMessage({ kind: 'error', text: 'No se pudieron quitar los avisos. Intenta de nuevo.' });
@@ -81,7 +88,7 @@ export default function PushCard({ compact = false }: Props) {
     setBusy(true);
     setMessage(null);
     try {
-      await sendTestPush(subscription);
+      await sendTestPush(subscription, !!barber);
       setMessage({ kind: 'ok', text: 'Aviso de prueba enviado. Debe llegarte en unos segundos.' });
     } catch {
       setMessage({ kind: 'error', text: 'No se pudo enviar la prueba. Desactiva y vuelve a activar los avisos.' });
@@ -110,9 +117,13 @@ export default function PushCard({ compact = false }: Props) {
         <div className="min-w-0 flex-1 pr-5">
           <p className="text-white font-semibold">Avisos en este teléfono</p>
           <p className="text-zinc-400 text-sm mt-0.5">
-            {state === 'on'
-              ? 'Activados: te llega una notificación cuando alguien reserva o envía un comprobante de pago.'
-              : 'Recibe una notificación en el teléfono cuando alguien reserve o envíe un comprobante, sin WhatsApp.'}
+            {barber
+              ? state === 'on'
+                ? 'Activados: te llega una notificación cuando te agendan una cita (por la web, el panel u otro barbero).'
+                : 'Recibe una notificación en este teléfono cada vez que te agenden una cita, sin WhatsApp.'
+              : state === 'on'
+                ? 'Activados: te llega una notificación cuando alguien reserva o envía un comprobante de pago.'
+                : 'Recibe una notificación en el teléfono cuando alguien reserve o envíe un comprobante, sin WhatsApp.'}
           </p>
           {devices !== null && devices > 0 && (
             <p className="text-zinc-500 text-xs mt-1">{devices === 1 ? '1 teléfono recibe avisos' : `${devices} teléfonos reciben avisos`}</p>
@@ -122,7 +133,7 @@ export default function PushCard({ compact = false }: Props) {
             <ol className="mt-3 space-y-1.5 text-sm text-zinc-200 list-decimal pl-5">
               <li>En Safari toca <Share size={14} className="inline -mt-0.5 text-gold" /> <strong>Compartir</strong> (abajo).</li>
               <li>Elige <PlusSquare size={14} className="inline -mt-0.5 text-gold" /> <strong>Agregar a inicio</strong> y luego <strong>Agregar</strong>.</li>
-              <li>Abre el ícono <strong>«Panel Hermanos»</strong> desde la pantalla de inicio, entra y vuelve aquí para tocar <strong>Activar avisos</strong>.</li>
+              <li>Abre el ícono desde la pantalla de inicio, entra y vuelve aquí para tocar <strong>Activar avisos</strong>.</li>
               <li className="text-zinc-500 text-xs list-none -ml-5">Necesitas iOS 16.4 o más reciente (Ajustes → General → Información).</li>
             </ol>
           )}

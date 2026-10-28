@@ -143,6 +143,28 @@ export async function barberAddClient(
   return data as AddClientResult;
 }
 
+export type BookForResult = AddClientResult | 'INVALID_BARBER';
+
+/** El barbero agenda una cita a OTRO barbero (si él no está disponible). Solo citas, en horas libres del otro. */
+export async function barberBookFor(
+  barberId: string,
+  pin: string,
+  targetBarberId: string,
+  input: { clientName: string; clientPhone: string; date: string; lines: { serviceId: string; time: string }[] },
+): Promise<BookForResult> {
+  const { data, error } = await supabase.rpc('barber_book_for', {
+    p_barber_id: barberId,
+    p_pin: pin,
+    p_target_barber_id: targetBarberId,
+    p_client_name: input.clientName,
+    p_client_phone: input.clientPhone,
+    p_date: input.date,
+    p_lines: input.lines,
+  });
+  if (error) throw error;
+  return data as BookForResult;
+}
+
 export type WorkHoursResult = 'OK' | 'INVALID_PIN' | 'PIN_LOCKED' | 'INVALID_HOURS';
 
 /** El barbero cambia su propio horario de trabajo (mismo formato que en Panel → Barberos). */

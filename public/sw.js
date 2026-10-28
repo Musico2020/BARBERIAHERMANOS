@@ -1,5 +1,6 @@
-// Service worker del panel de Salón Hermanos: recibe los avisos al teléfono (push) aunque la página
-// esté cerrada, y al tocarlos abre el panel en la sección del aviso. No guarda la página en caché.
+// Service worker de Salón Hermanos: recibe los avisos al teléfono (push) aunque la página esté
+// cerrada, y al tocarlos abre el panel (o el portal del barbero) en la sección del aviso. No guarda la
+// página en caché.
 
 self.addEventListener('install', () => self.skipWaiting());
 self.addEventListener('activate', (event) => event.waitUntil(self.clients.claim()));
@@ -31,8 +32,8 @@ self.addEventListener('notificationclick', (event) => {
   const tab = url.searchParams.get('tab');
   event.waitUntil((async () => {
     const windows = await self.clients.matchAll({ type: 'window', includeUncontrolled: true });
-    // Si el panel ya está abierto, se trae al frente y cambia de sección
-    const open = windows.find((w) => new URL(w.url).pathname.startsWith('/admin'));
+    // Si el panel (o el portal del barbero) ya está abierto, se trae al frente y cambia de sección
+    const open = windows.find((w) => new URL(w.url).pathname.startsWith(url.pathname));
     if (open) {
       await open.focus();
       if (tab) open.postMessage({ type: 'open-tab', tab });

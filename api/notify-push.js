@@ -4,6 +4,10 @@
 //   POST { event: 'booking', bookingIds } → «Nueva reserva» (la web lo llama al terminar de reservar)
 //   POST { event: 'deposit', bookingIds } → «Comprobante por revisar» (al enviar el comprobante)
 //   POST { event: 'test', endpoint }      → aviso de prueba a ese teléfono (solo si ya está registrado)
+//   POST { event: 'barber' }              → «Te agendaron…» a cada barbero con citas nuevas o que le
+//                                           acaban de pasar (panel, portal, Agenda). Lo decide la base
+//                                           (claim_barber_push): cada cita se avisa una vez a su barbero.
+// La reserva web (event 'booking') también avisa a su barbero.
 //
 // Los datos se leen de la base de datos con la llave de servicio, así nadie puede mandar textos
 // inventados. Cada reserva se avisa una sola vez y solo en los primeros 15 minutos.
@@ -53,9 +57,13 @@ export default async function handler(req, res) {
       headers: { apikey: serviceKey, Authorization: `Bearer ${serviceKey}`, 'Content-Type': 'application/json', ...init.headers },
     });
 
-  /** Envía a todos los teléfonos registrados (o a uno) y borra los que ya no existen. */
-  const sendAll = async (payload, onlyEndpoint) => {
-    const r = await db(`push_subscriptions?select=endpoint,p256dh,auth${onlyEndpoint ? `&endpoint=eq.${encodeURIComponent(onlyEndpoint)}` : ''}`);
+  /** Envía a los teléfonos de una tabla (todos, de un barbero o uno solo) y borra los que ya no existen. */
+  const sendAll = async (payload, onlyEndpoint, table = 'push_subscriptions', barberId = '') => {
+    const filtros = [
+      onlyEndpoint ? `endpoint=eq.${encodeURIComponent(onlyEndpoint)}` : '',
+      barberId ? `barber_id=eq.${barberId}` : '',
+    ].filter(Boolean).join('&');
+    const r = await db(`${table}?select=endpoint,p256dh,auth${filtros ? `&${filtros}` : ''}`);
     const subs = r.ok ? await r.json() : [];
     let sent = 0;
     await Promise.all(subs.map(async (s) => {
@@ -65,7 +73,7 @@ export default async function handler(req, res) {
       } catch (err) {
         // 404 / 410: el teléfono quitó el permiso o el navegador borró la suscripción
         if (err.statusCode === 404 || err.statusCode === 410) {
-          await db(`push_subscriptions?endpoint=eq.${encodeURIComponent(s.endpoint)}`, { method: 'DELETE' });
+          await db(`${table}?endpoint=eq.${encodeURIComponent(s.endpoint)}`, { method: 'DELETE' });
         } else {
           console.error('No se pudo enviar el aviso', err.statusCode, err.body);
         }
@@ -74,14 +82,59 @@ export default async function handler(req, res) {
     return { devices: subs.length, sent };
   };
 
+  /** Avisa a cada barbero sus citas nuevas o que le acaban de pasar (una vez por cita). */
+  const notifyBarbers = async () => {
+    const r = await db('rpc/claim_barber_push', { method: 'POST', body: '{}' });
+    if (!r.ok) {
+      console.error('claim_barber_push', r.status, await r.text());
+      return { barbers: 0, sent: 0 };
+    }
+    const rows = await r.json();
+    // Un aviso por cliente y día (los servicios seguidos van juntos)
+    const groups = new Map();
+    for (const b of rows) {
+      const client = String(b.o_client_name).replace(/\s*\(turno \d+\)$/, '');
+      const key = `${b.o_barber_id}|${client}|${b.o_date}`;
+      if (!groups.has(key)) groups.set(key, { barber: b.o_barber_id, client, date: b.o_date, items: [], by: b.o_booked_by });
+      groups.get(key).items.push(b);
+    }
+    let sent = 0;
+    for (const g of groups.values()) {
+      g.items.sort((a, b) => a.o_time.localeCompare(b.o_time));
+      const services = g.items.map((b) => b.o_service_name).join(' + ');
+      const total = g.items.reduce((s, b) => s + Number(b.o_price), 0);
+      const result = await sendAll({
+        title: '💈 Te agendaron una cita',
+        body: `${g.client} · ${services} · ${shortDate(g.date)}, ${hour12(g.items[0].o_time)} · ${cop(total)}${g.by ? ` (la agendó ${g.by})` : ''}`,
+        url: '/barber',
+        tag: `cita-${g.items[0].o_id}`,
+      }, '', 'barber_push_subscriptions', g.barber);
+      sent += result.sent;
+    }
+    return { citas: rows.length, sent };
+  };
+
   const { event } = req.body ?? {};
+
+  if (event === 'barber') {
+    return res.status(200).json(await notifyBarbers());
+  }
 
   if (event === 'test') {
     const endpoint = String(req.body?.endpoint ?? '');
     if (!endpoint.startsWith('https://')) return res.status(400).json({ error: 'endpoint inválido' });
-    const result = await sendAll({ title: '💈 Salón Hermanos', body: 'Listo: los avisos de reservas llegarán a este teléfono.', url: '/admin', tag: 'prueba' }, endpoint);
+    const barber = req.body?.barber === true;
+    const result = await sendAll({
+      title: '💈 Salón Hermanos',
+      body: barber ? 'Listo: te avisaremos aquí cuando te agenden una cita.' : 'Listo: los avisos de reservas llegarán a este teléfono.',
+      url: barber ? '/barber' : '/admin',
+      tag: 'prueba',
+    }, endpoint, barber ? 'barber_push_subscriptions' : 'push_subscriptions');
     return res.status(result.devices ? 200 : 404).json(result);
   }
+
+  // La reserva web también le avisa a su barbero (aunque el aviso al administrador ya haya salido)
+  if (event === 'booking') await notifyBarbers().catch((err) => console.error('Aviso al barbero', err));
 
   const ids = Array.isArray(req.body?.bookingIds) ? req.body.bookingIds.filter((x) => typeof x === 'string' && UUID_RE.test(x)).slice(0, 10) : [];
   if (!ids.length || (event !== 'booking' && event !== 'deposit')) {

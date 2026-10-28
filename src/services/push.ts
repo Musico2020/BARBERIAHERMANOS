@@ -2,6 +2,7 @@ import { supabase } from '../lib/supabase';
 
 // Avisos al teléfono (notificaciones push de la web). El administrador los activa en cada teléfono
 // desde el panel; api/notify-push.js los envía cuando alguien reserva o manda un comprobante.
+// Cada barbero también los puede activar desde su portal (con su PIN): le llega «Te agendaron…».
 // Android: funciona en Chrome directamente. iPhone (iOS 16.4+): solo desde la página agregada a la
 // pantalla de inicio.
 
@@ -42,8 +43,11 @@ export async function currentPushSubscription(): Promise<PushSubscription | null
   return (await reg?.pushManager.getSubscription()) ?? null;
 }
 
-/** Pide permiso, registra este teléfono y lo guarda en la base de datos. */
-export async function enablePush(): Promise<PushSubscription> {
+/** Barbero que activa los avisos desde su portal (se valida con su PIN en la base). */
+export interface PushBarber { id: string; pin: string }
+
+/** Pide permiso, registra este teléfono y lo guarda en la base de datos (del administrador o del barbero). */
+export async function enablePush(barber?: PushBarber): Promise<PushSubscription> {
   const permission = await Notification.requestPermission();
   if (permission !== 'granted') throw new Error('PERMISSION_DENIED');
   const reg = await registration();
@@ -54,6 +58,15 @@ export async function enablePush(): Promise<PushSubscription> {
   const subscription = (await reg.pushManager.getSubscription())
     ?? (await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: base64ToBytes(publicKey) as unknown as BufferSource }));
   const json = subscription.toJSON();
+  if (barber) {
+    const { data, error } = await supabase.rpc('barber_push_subscribe', {
+      p_barber_id: barber.id, p_pin: barber.pin, p_endpoint: subscription.endpoint,
+      p_p256dh: json.keys?.p256dh ?? '', p_auth: json.keys?.auth ?? '', p_device: deviceLabel(),
+    });
+    if (error) throw error;
+    if (data !== 'OK') throw new Error(String(data));
+    return subscription;
+  }
   const { error } = await supabase.from('push_subscriptions').upsert({
     endpoint: subscription.endpoint,
     p256dh: json.keys?.p256dh ?? '',
@@ -65,21 +78,33 @@ export async function enablePush(): Promise<PushSubscription> {
 }
 
 /** Quita los avisos de este teléfono. */
-export async function disablePush(): Promise<void> {
+export async function disablePush(barber?: PushBarber): Promise<void> {
   const subscription = await currentPushSubscription();
   if (!subscription) return;
+  if (barber) {
+    // Solo se quita el registro del barbero (el mismo teléfono puede seguir recibiendo los del panel)
+    await supabase.rpc('barber_push_unsubscribe', { p_barber_id: barber.id, p_pin: barber.pin, p_endpoint: subscription.endpoint });
+    return;
+  }
   await supabase.from('push_subscriptions').delete().eq('endpoint', subscription.endpoint);
   await subscription.unsubscribe();
 }
 
 /** Aviso de prueba a este teléfono. */
-export async function sendTestPush(subscription: PushSubscription): Promise<void> {
+export async function sendTestPush(subscription: PushSubscription, barber = false): Promise<void> {
   const response = await fetch('/api/notify-push', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ event: 'test', endpoint: subscription.endpoint }),
+    body: JSON.stringify({ event: 'test', endpoint: subscription.endpoint, barber }),
   });
   if (!response.ok) throw new Error('TEST_FAILED');
+}
+
+/** Cuántos teléfonos tiene registrados ese barbero para sus avisos. */
+export async function countBarberPushDevices(barber: PushBarber): Promise<number> {
+  const { data, error } = await supabase.rpc('barber_push_count', { p_barber_id: barber.id, p_pin: barber.pin });
+  if (error) throw error;
+  return Number(data ?? 0);
 }
 
 /** Cuántos teléfonos tienen los avisos activados. */
@@ -87,6 +112,19 @@ export async function countPushDevices(): Promise<number> {
   const { count, error } = await supabase.from('push_subscriptions').select('endpoint', { count: 'exact', head: true });
   if (error) throw error;
   return count ?? 0;
+}
+
+/**
+ * Avisa a los barberos sus citas nuevas o que les acaban de pasar (panel, portal, Agenda). La base
+ * decide a quién y cada cita se avisa una sola vez, así que se puede llamar después de cualquier cambio.
+ */
+export function notifyBarbers(): void {
+  fetch('/api/notify-push', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ event: 'barber' }),
+    keepalive: true,
+  }).catch((err) => console.warn('No se pudo avisar al barbero', err));
 }
 
 /** Desde la web pública: avisa al administrador de una reserva nueva o de un comprobante enviado. */

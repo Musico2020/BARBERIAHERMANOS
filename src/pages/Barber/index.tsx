@@ -20,6 +20,7 @@ import ThemeToggle from '../../components/common/ThemeToggle';
 import NewClientModal from '../../components/admin/NewClientModal';
 import BarberHome from './BarberHome';
 import BarberWorks from './BarberWorks';
+import PushCard from '../../components/admin/PushCard';
 import { barberEarnings, bossName, isBarberOwner } from '../../lib/earnings';
 import { InvoiceList, splitTotals } from '../../components/admin/ServiceSplit';
 import AgendaBoard from '../../components/admin/AgendaBoard';
@@ -541,6 +542,10 @@ function ProfileTab({ barber, appts, pin, onPinChanged, onWorkHoursChanged, onNa
       </Panel>
 
       <div className="lg:col-span-2">
+        <PushCard barber={{ id: barber.id, pin }} />
+      </div>
+
+      <div className="lg:col-span-2">
         <WorkHoursPanel barber={barber} pin={pin} onSaved={onWorkHoursChanged} />
       </div>
     </div>
@@ -696,7 +701,8 @@ function BarberDashboard({ barber, pin, onLogout, onPinChanged, onWorkHoursChang
           <>
             {tab === 'inicio' && (
               <>
-                <div className="lg:hidden">
+                <div className="lg:hidden space-y-4">
+                  <PushCard compact barber={{ id: barber.id, pin }} />
                   <BarberHome
                     barber={barber}
                     appts={appts}
@@ -735,11 +741,11 @@ function BarberDashboard({ barber, pin, onLogout, onPinChanged, onWorkHoursChang
           barberSession={{ barber, pin }}
           preset={addAt ?? undefined}
           onClose={() => { setShowNewClient(false); setAddAt(null); }}
-          onSaved={(count, clientName, scheduled) => {
+          onSaved={(count, clientName, scheduled, forBarber) => {
             setShowNewClient(false);
             setAddAt(null);
             setShiftNotice(scheduled
-              ? `Cita agendada para ${clientName}: ${formatDateLong(scheduled.date)} a las ${time12(scheduled.time)}.`
+              ? `Cita agendada para ${clientName}${forBarber ? ` con ${forBarber} (le llega el aviso si lo tiene activado)` : ''}: ${formatDateLong(scheduled.date)} a las ${time12(scheduled.time)}`
               : `Registrado ${clientName}: ${count === 1 ? 'el servicio quedó completado' : `${count} servicios completados`} y ya cuenta en tus ganancias.`);
             getBarberBookings(barber.id, pin).then(setAppts).catch((err) => handlePortalError(err, 'No se pudieron recargar tus citas.'));
           }}

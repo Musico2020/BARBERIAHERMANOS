@@ -3,7 +3,7 @@ import { X, UserPlus, Loader2, Minus, Plus, Clock, Check, Zap, ChevronDown } fro
 import { getServices } from '../../services/services';
 import { getBarbers } from '../../services/barbers';
 import { createManualBookings, getBusySlots, isSlotTakenError, type BusySlot } from '../../services/bookings';
-import { barberAddClient, type AddClientResult } from '../../services/barberPortal';
+import { barberAddClient, barberBookFor, type BookForResult } from '../../services/barberPortal';
 import { businessConfig } from '../../config/business';
 import { generateSlots, isBarberFree } from '../../lib/availability';
 import { formatCOP } from '../../data';
@@ -11,7 +11,8 @@ import { todayKey, nowMinutes, minutesToTime, timeToMinutes, formatDateLong, add
 import { isValidName, isValidPhone } from '../../lib/clientContact';
 import { MAX_CART_UNITS, roleFor, cartRole, cartUnits, changeQty, type CartItem } from '../../lib/bookingCart';
 import BarberAvatar from '../common/BarberAvatar';
-import { doesAll, doesService, priceFor } from '../../lib/barberServices';
+import { notifyBarbers } from '../../services/push';
+import { doesAll, priceFor } from '../../lib/barberServices';
 import { CategoryIcon } from '../common/BarberIcons';
 import type { Service, Barber } from '../../types';
 
@@ -24,14 +25,19 @@ import type { Service, Barber } from '../../types';
 
 interface Props {
   onClose: () => void;
-  onSaved: (count: number, clientName: string, scheduled: { date: string; time: string } | null) => void;
-  /** Desde el portal del barbero: queda siempre a su nombre, con el precio del servicio, y se guarda con su PIN */
+  /** forBarber: nombre del compañero cuando el barbero le agendó a otro */
+  onSaved: (count: number, clientName: string, scheduled: { date: string; time: string } | null, forBarber?: string) => void;
+  /**
+   * Desde el portal del barbero: se guarda con su PIN y con el precio del servicio. Puede agendarle
+   * también a otro barbero (si él no está disponible), solo como cita en horas libres del otro.
+   */
   barberSession?: { barber: Barber; pin: string };
   /** Desde la Agenda, al tocar un espacio libre: ya trae barbero, día y hora. Si la hora ya pasó, queda como atendido a esa hora. */
   preset?: { barberId: string; date: string; time: string };
 }
 
-const ADD_ERRORS: Partial<Record<AddClientResult, string>> = {
+const ADD_ERRORS: Partial<Record<BookForResult, string>> = {
+  INVALID_BARBER: 'Ese barbero no hace este tipo de servicios.',
   INVALID_NAME: 'Escribe el nombre del cliente.',
   INVALID_PHONE: 'Revisa el celular: 10 dígitos o déjalo vacío.',
   INVALID_DATE: 'Escoge un día de hoy en adelante.',
@@ -65,7 +71,7 @@ export default function NewClientModal({ onClose, onSaved, barberSession, preset
   const [items, setItems] = useState<CartItem[]>([]);
   // Valor cobrado por unidad de cada servicio (por si se cobró distinto, p. ej. recargo fuera del horario)
   const [prices, setPrices] = useState<Record<string, string>>({});
-  const [barberId, setBarberId] = useState(preset?.barberId ?? '');
+  const [barberId, setBarberId] = useState(preset?.barberId ?? barberSession?.barber.id ?? '');
   const [name, setName] = useState('');
   const [phone, setPhone] = useState('');
   const [saving, setSaving] = useState(false);
@@ -98,11 +104,11 @@ export default function NewClientModal({ onClose, onSaved, barberSession, preset
   useEffect(() => {
     Promise.all([getServices(), getBarbers()])
       .then(([s, b]) => {
-        // El barbero solo ve los servicios de su rol
+        // El barbero ve los servicios de su rol (los suyos y los de sus compañeros) y a su equipo
         const me = barberSession ? b.find((x) => x.id === barberSession.barber.id) ?? barberSession.barber : null;
-        const mine = me ? s.filter((x) => roleFor(x) === me.role && doesService(me, x.id)) : s;
+        const mine = me ? s.filter((x) => roleFor(x) === me.role) : s;
         setServices([...mine].sort((x, y) => Number(!!y.popular) - Number(!!x.popular)));
-        setTeam(me ? [me] : b);
+        setTeam(me ? [me, ...b.filter((x) => x.id !== me.id && x.role === me.role)] : b);
       })
       .catch((err) => {
         console.error('No se pudieron cargar servicios y equipo', err);
@@ -121,6 +127,8 @@ export default function NewClientModal({ onClose, onSaved, barberSession, preset
   // Todo el equipo de ese rol, incluso quien está «no disponible» para la web
   // … que haga todos los servicios elegidos (Panel → Configuración → Barberos)
   const staff = team.filter((b) => b.role === role && doesAll(b, items));
+  // Portal del barbero: a un compañero solo se le agenda (no «ya lo atendí»)
+  const isOther = (b: Barber | undefined) => !!barberSession && !!b && b.id !== barberSession.barber.id;
   const barber = staff.find((b) => b.id === barberId) ?? (staff.length === 1 ? staff[0] : undefined);
 
   // El precio de ese barbero (o el general); el administrador lo puede cambiar
@@ -220,7 +228,19 @@ export default function NewClientModal({ onClose, onSaved, barberSession, preset
           return line;
         }),
       );
-      if (barberSession) {
+      if (barberSession && isOther(barber)) {
+        if (!scheduled) { setError('A otro barbero solo se le puede agendar una cita (escoge día y hora).'); return; }
+        const result = await barberBookFor(barberSession.barber.id, barberSession.pin, barber.id, {
+          clientName: name,
+          clientPhone: phone,
+          date: scheduled.date,
+          lines: lines.map(({ serviceId, time }) => ({ serviceId, time })),
+        });
+        if (result !== 'OK') {
+          setError(ADD_ERRORS[result] ?? (result === 'PIN_LOCKED' ? 'Demasiados intentos. Espera 15 minutos.' : 'Tu PIN cambió. Sal y vuelve a entrar.'));
+          return;
+        }
+      } else if (barberSession) {
         const result = await barberAddClient(barberSession.barber.id, barberSession.pin, {
           clientName: name,
           clientPhone: phone,
@@ -243,7 +263,8 @@ export default function NewClientModal({ onClose, onSaved, barberSession, preset
           lines,
         });
       }
-      onSaved(lines.length, name.trim(), scheduled);
+      if (scheduled) notifyBarbers();
+      onSaved(lines.length, name.trim(), scheduled, isOther(barber) ? barber.shortName : undefined);
     } catch (err) {
       console.error('No se pudo registrar el cliente', err);
       setError(isSlotTakenError(err) ? 'Esa hora ya se ocupó: ese barbero tiene otra cita. Escoge otra hora.' : 'No se pudo guardar. Revisa tu conexión e intenta de nuevo.');
@@ -381,11 +402,13 @@ export default function NewClientModal({ onClose, onSaved, barberSession, preset
                   {staff.map((b) => {
                     const selected = barber?.id === b.id;
                     const busyThen = quick && !presetPast && busyAll !== null && !freeAt(b);
+                    // A un compañero no se le registra un cliente ya atendido
+                    const notForPast = isOther(b) && presetPast;
                     return (
                       <button
                         key={b.id}
                         type="button"
-                        disabled={busyThen}
+                        disabled={busyThen || notForPast}
                         onClick={() => { setBarberId(b.id); if (!quick) { setTime(''); if (when === 'now' && !presetPast) setWhen('later'); } scrollTo(quick ? clientRef : whenRef); }}
                         aria-pressed={selected}
                         className={`flex items-center gap-3 p-3 rounded-xl border text-left transition-all ${selected ? 'border-gold bg-gold/10' : 'border-white/10 bg-white/[0.03] hover:border-gold/40'} disabled:opacity-40 disabled:cursor-not-allowed`}
@@ -393,7 +416,9 @@ export default function NewClientModal({ onClose, onSaved, barberSession, preset
                         <BarberAvatar barber={b} className={`w-11 h-11 rounded-full text-sm shrink-0 border-2 ${selected ? 'border-gold' : 'border-transparent'}`} />
                         <span className="flex-1 min-w-0">
                           <span className={`block text-sm font-semibold truncate ${selected ? 'text-gold' : 'text-white'}`}>{b.name}</span>
-                          <span className={`block text-xs ${busyThen ? 'text-rose-300' : 'text-zinc-500'}`}>{busyThen ? 'Ocupado a esa hora' : b.available ? 'Disponible' : 'No disponible en la web'}</span>
+                          <span className={`block text-xs ${busyThen ? 'text-rose-300' : 'text-zinc-500'}`}>
+                            {busyThen ? 'Ocupado a esa hora' : isOther(b) ? 'Agendarle a él (le llega el aviso)' : barberSession ? 'Tú' : b.available ? 'Disponible' : 'No disponible en la web'}
+                          </span>
                         </span>
                         {selected && <Check size={16} className="text-gold shrink-0" />}
                       </button>
@@ -443,7 +468,7 @@ export default function NewClientModal({ onClose, onSaved, barberSession, preset
                       <div className="h-16" />
                     ) : (
                       <div className="grid grid-cols-3 sm:grid-cols-5 gap-1.5 max-h-60 overflow-y-auto pr-1">
-                        {date === todayKey() && (
+                        {date === todayKey() && !isOther(barber) && (
                           <button
                             type="button"
                             onClick={() => { setWhen('now'); setTime(''); scrollTo(clientRef); }}

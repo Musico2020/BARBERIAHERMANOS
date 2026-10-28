@@ -8,6 +8,7 @@ import { businessConfig } from '../../config/business';
 import { formatCOP } from '../../data';
 import { todayKey, addDays, formatDateLong, time12 } from '../../lib/dates';
 import { waNumber } from '../../lib/whatsapp';
+import { notifyBarbers } from '../../services/push';
 import { doesService, priceFor } from '../../lib/barberServices';
 import { barberEditBooking, type EditBookingResult } from '../../services/barberPortal';
 import type { Barber, Booking, Service } from '../../types';
@@ -151,6 +152,7 @@ export default function EditBookingModal({ booking, onClose, onSaved, barberSess
       }
       const updated: Booking = { ...booking, ...patch, clientName: name.trim(), clientPhone: phone.trim(), originalTime: undefined, shiftedAt: undefined };
       setSaved(updated);
+      notifyBarbers();
       onSaved(updated);
     } catch (err) {
       console.error('No se pudo editar la reserva', err);

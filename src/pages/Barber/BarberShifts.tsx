@@ -5,6 +5,7 @@ import { loadSettings } from '../../services/settings';
 import { businessConfig } from '../../config/business';
 import { todayKey, addDays, dayShort, dayOfMonth, monthShort, formatDateLong, minutesToTime, timeToMinutes, time12 } from '../../lib/dates';
 import { bookingHoursFor, barberHoursFor, regularHoursFor, specialDayOf } from '../../lib/businessHours';
+import { holidayName } from '../../lib/holidays';
 import { newOverride, slotStarts, slotState, toggleSlot, setAllSlots } from '../../lib/dayShifts';
 import { Panel } from '../../components/admin/ui';
 import type { Barber, Booking, DayOverride } from '../../types';
@@ -178,7 +179,12 @@ export default function BarberShifts({ barber, pin, appts }: { barber: Barber; p
             <div className="mb-4 flex flex-wrap items-end gap-3 rounded-2xl border border-white/10 bg-white/[0.03] p-3">
               {myWindow ? (
                 <>
-                  <p className="w-full text-sm text-white font-semibold">Tu horario este día</p>
+                  <p className="w-full text-sm text-white font-semibold">
+                    Tu horario este día{holidayName(date) ? ` · festivo (${holidayName(date)})` : ''}
+                    <span className="block text-[11px] font-normal text-zinc-400 mt-0.5">
+                      Puedes abrir más horas que el salón (festivos, domingos o hasta más tarde): solo se abren para ti, los demás siguen igual.
+                    </span>
+                  </p>
                   <label className="text-xs text-zinc-400">Entras
                     <select value={minutesToTime(myWindow.open)} disabled={saving} onChange={(e) => e.target.value < minutesToTime(myWindow.close) && saveHours({ open: e.target.value, close: minutesToTime(myWindow.close) })} className="block mt-1 bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-white text-sm">
                       {TIME_OPTIONS.map((t) => <option key={t} value={t}>{time12(t)}</option>)}

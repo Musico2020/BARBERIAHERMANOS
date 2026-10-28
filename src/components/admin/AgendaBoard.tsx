@@ -10,6 +10,7 @@ import { waNumber } from '../../lib/whatsapp';
 import { STATUS_LABEL } from '../../lib/stats';
 import { changeMessage } from './EditBookingModal';
 import { doesService } from '../../lib/barberServices';
+import { notifyBarbers } from '../../services/push';
 import type { Barber, Booking } from '../../types';
 
 // Agenda del día en columnas, una por barbero, con la línea de tiempo de cada uno:
@@ -453,7 +454,7 @@ function MoveDialog({ booking, barber, time, save, onClose }: {
     try {
       const problem = await save(booking, barber, time);
       if (problem) setError(problem);
-      else setDone(true);
+      else { setDone(true); notifyBarbers(); }
     } catch (err) {
       console.error('No se pudo mover la cita', err);
       setError('No se pudo mover. Revisa tu conexión e intenta de nuevo.');
