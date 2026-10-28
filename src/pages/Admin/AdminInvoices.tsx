@@ -14,6 +14,7 @@ import { businessConfig } from '../../config/business';
 import type { Booking, Barber, Service } from '../../types';
 import { Panel, Initials, StatusBadge } from '../../components/admin/ui';
 import BarberAvatar from '../../components/common/BarberAvatar';
+import DailySummary from '../../components/admin/DailySummary';
 
 // Facturación y registro de caja por servicio:
 // Muestra cada servicio cobrado, el desglose exacto de lo que le queda al barbero
@@ -390,7 +391,7 @@ export default function AdminInvoices() {
               { id: 'semana', label: '7 días' },
               { id: 'quincena', label: 'Quincena' },
               { id: 'mes', label: 'Este mes' },
-              { id: 'todos', label: 'Histórico' },
+              { id: 'todos', label: 'Todas' },
             ].map(({ id, label }) => (
               <button
                 key={id}
@@ -447,6 +448,13 @@ export default function AdminInvoices() {
           </div>
         </div>
       </Panel>
+
+      {/* Resumen día por día: cuánto se gana cada barbero y cuánto le entrega a su jefe */}
+      {!loading && invoices.length > 0 && (
+        <Panel title="Resumen por día" subtitle="Cada día: lo que se ganó cada barbero, lo que le entrega a su jefe y con cuánto se queda cada dueño">
+          <DailySummary items={invoices.filter((i) => isCompleted(i.booking))} />
+        </Panel>
+      )}
 
       {/* Lista de Facturas: Vista Móvil (Tarjetas) y Vista Escritorio (Tabla) */}
       <Panel

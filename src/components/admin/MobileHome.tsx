@@ -33,6 +33,8 @@ interface Props {
   clientsCount: number;
   todayCount: number;
   todayRevenue: number;
+  /** Cómo se reparte la caja de hoy (lo mismo que en el computador) */
+  cash?: { admin: number; walter: number; daniel: number; barbers: number; services: number };
   onNavigate: (tab: AdminTab) => void;
   onNewClient: () => void;
   onLogout?: () => void;
@@ -64,7 +66,7 @@ function TileGroup({ title, tiles }: { title: string; tiles: Tile[] }) {
   );
 }
 
-export default function MobileHome({ greeting, barbers, clientsCount, todayCount, todayRevenue, onNavigate, onNewClient, onLogout }: Props) {
+export default function MobileHome({ greeting, barbers, clientsCount, todayCount, todayRevenue, cash, onNavigate, onNewClient, onLogout }: Props) {
   const [email, setEmail] = useState('');
   const [toReview, setToReview] = useState(0);
   useEffect(() => {
@@ -118,6 +120,28 @@ export default function MobileHome({ greeting, barbers, clientsCount, todayCount
               </button>
             ))}
           </div>
+
+          {/* Caja de hoy: con cuánto se queda el salón (Walter y Daniel) y cuánto se llevan los barberos */}
+          {cash && (
+            <button type="button" onClick={go('invoices')} className="mt-4 w-full rounded-2xl border border-gold/25 bg-gold/[0.05] p-3 text-left active:bg-gold/10">
+              <div className="flex items-baseline justify-between gap-2">
+                <span className="text-[11px] uppercase tracking-wider text-zinc-400">Caja de hoy</span>
+                <span className="font-mono text-lg font-bold gold-text">{formatCOP(todayRevenue)}</span>
+              </div>
+              <div className="grid grid-cols-2 gap-2 mt-2.5">
+                <div className="rounded-xl bg-black/30 border border-white/[0.06] px-2.5 py-2">
+                  <p className="text-[10px] uppercase text-zinc-500">Sistema (te quedas)</p>
+                  <p className="font-mono text-sm font-bold text-gold">{formatCOP(cash.admin)}</p>
+                  <p className="text-[10px] text-zinc-400 mt-0.5">Walter <span className="font-mono text-amber-300">{formatCOP(cash.walter)}</span> · Daniel <span className="font-mono text-amber-300">{formatCOP(cash.daniel)}</span></p>
+                </div>
+                <div className="rounded-xl bg-black/30 border border-white/[0.06] px-2.5 py-2">
+                  <p className="text-[10px] uppercase text-zinc-500">Barberos</p>
+                  <p className="font-mono text-sm font-bold text-emerald-400">{formatCOP(cash.barbers)}</p>
+                  <p className="text-[10px] text-zinc-400 mt-0.5">{cash.services} {cash.services === 1 ? 'servicio completado' : 'servicios completados'}</p>
+                </div>
+              </div>
+            </button>
+          )}
         </div>
       </section>
 

@@ -174,6 +174,7 @@ export default function AdminDashboard({ onNavigate, onLogout }: { onNavigate?: 
         clientsCount={clientsCount}
         todayCount={todayActive.length}
         todayRevenue={todayRevenue}
+        cash={{ admin: todayAdminNet, walter: todayWalter, daniel: todayDaniel, barbers: todayBarbersPay, services: todayCompleted.length }}
         onNavigate={(tab) => onNavigate?.(tab)}
         onNewClient={() => setShowNewClient(true)}
         onLogout={onLogout}
