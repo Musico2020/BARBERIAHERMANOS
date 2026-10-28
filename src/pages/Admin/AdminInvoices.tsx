@@ -1,13 +1,13 @@
 import { useState, useEffect, useMemo, useRef } from 'react';
 import {
   Receipt, Printer, Search, Scissors, Wallet, Building2,
-  MessageCircle, X, Crown, RefreshCw, FileSpreadsheet, Eye,
+  MessageCircle, X, Crown, RefreshCw, FileSpreadsheet, Eye, ChevronLeft, ChevronRight, CalendarDays,
 } from 'lucide-react';
 import { getBookings } from '../../services/bookings';
 import { getBarbers } from '../../services/barbers';
 import { getAllServices } from '../../services/services';
 import { formatCOP } from '../../data';
-import { todayKey, addDays, time12, formatDateLong, dayShort } from '../../lib/dates';
+import { todayKey, addDays, time12, formatDateLong, dayShort, dayOfMonth, monthShort } from '../../lib/dates';
 import { isCompleted } from '../../lib/stats';
 import { calculateSplit, isBarberOwner, type BookingFinancialSplit } from '../../lib/earnings';
 import { businessConfig } from '../../config/business';
@@ -20,7 +20,8 @@ import DailySummary from '../../components/admin/DailySummary';
 // Muestra cada servicio cobrado, el desglose exacto de lo que le queda al barbero
 // y lo que realmente ingresa a la administración (respetando que Walter es dueño y no rinde cuentas).
 
-type PeriodFilter = 'hoy' | 'ayer' | 'semana' | 'quincena' | 'mes' | 'todos';
+type PeriodFilter = 'dia' | 'semana' | 'quincena' | 'mes' | 'todos';
+const STRIP_DAYS = 45;
 
 interface InvoiceItem {
   booking: Booking;
@@ -37,7 +38,11 @@ export default function AdminInvoices() {
   const [refreshing, setRefreshing] = useState(false);
 
   // Filtros
-  const [period, setPeriod] = useState<PeriodFilter>('hoy');
+  // Un día (las tarjetas de días, como en Reservas) o un rango
+  const [period, setPeriod] = useState<PeriodFilter>('dia');
+  const [day, setDay] = useState(todayKey());
+  const stripRef = useRef<HTMLDivElement>(null);
+  const pickDay = (d: string) => { setDay(d); setPeriod('dia'); };
   const [selectedBarberId, setSelectedBarberId] = useState<string>('todos');
   const [statusFilter, setStatusFilter] = useState<'completed' | 'all'>('completed');
   const [search, setSearch] = useState('');
@@ -74,15 +79,13 @@ export default function AdminInvoices() {
   };
 
   const today = todayKey();
-  const yesterday = addDays(today, -1);
   const sevenDaysAgo = addDays(today, -6);
   const currentMonthPrefix = today.slice(0, 7);
 
   // 1. Filtrado de reservas por fecha
   const filteredByDate = useMemo(() => {
     return bookings.filter((b) => {
-      if (period === 'hoy') return b.date === today;
-      if (period === 'ayer') return b.date === yesterday;
+      if (period === 'dia') return b.date === day;
       if (period === 'semana') return b.date >= sevenDaysAgo && b.date <= today;
       if (period === 'quincena') {
         const day = Number(b.date.slice(8, 10));
@@ -93,7 +96,19 @@ export default function AdminInvoices() {
       if (period === 'mes') return b.date.startsWith(currentMonthPrefix);
       return true;
     });
-  }, [bookings, period, today, yesterday, sevenDaysAgo, currentMonthPrefix]);
+  }, [bookings, period, day, today, sevenDaysAgo, currentMonthPrefix]);
+
+  // Tarjetas de días: lo que se generó cada día (servicios completados, con el barbero escogido)
+  const stripDays = useMemo(() => {
+    const list = Array.from({ length: STRIP_DAYS }, (_, i) => addDays(today, i - STRIP_DAYS + 1));
+    return list.includes(day) ? list : [...list, day].sort();
+  }, [today, day]);
+  const earnedOn = (d: string) => bookings
+    .filter((b) => b.date === d && isCompleted(b) && (selectedBarberId === 'todos' || b.barberId === selectedBarberId))
+    .reduce((sum, b) => sum + b.price, 0);
+  useEffect(() => {
+    stripRef.current?.querySelector<HTMLElement>(`[data-day="${day}"]`)?.scrollIntoView({ block: 'nearest', inline: 'center', behavior: 'smooth' });
+  }, [day, loading]);
 
   // 2. Generación de facturas con desglose exacto para cada servicio
   const invoices: InvoiceItem[] = useMemo(() => {
@@ -233,7 +248,7 @@ export default function AdminInvoices() {
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
-      a.download = `Facturas-Salon-Hermanos-${period}-${today}.xlsx`;
+      a.download = `Facturas-Salon-Hermanos-${period === 'dia' ? day : `${period}-${today}`}.xlsx`;
       a.click();
       URL.revokeObjectURL(url);
     } catch (err) {
@@ -396,9 +411,9 @@ export default function AdminInvoices() {
               <button
                 key={id}
                 type="button"
-                onClick={() => setPeriod(id as PeriodFilter)}
+                onClick={() => (id === 'hoy' ? pickDay(today) : id === 'ayer' ? pickDay(addDays(today, -1)) : setPeriod(id as PeriodFilter))}
                 className={`px-3 py-1.5 rounded-xl text-xs font-semibold whitespace-nowrap transition-colors min-h-[36px] flex items-center justify-center ${
-                  period === id
+                  (id === 'hoy' ? period === 'dia' && day === today : id === 'ayer' ? period === 'dia' && day === addDays(today, -1) : period === id)
                     ? 'bg-gold text-dark font-bold'
                     : 'text-zinc-400 hover:text-white bg-white/[0.03] hover:bg-white/5 border border-white/5'
                 }`}
@@ -449,10 +464,68 @@ export default function AdminInvoices() {
         </div>
       </Panel>
 
-      {/* Resumen día por día: cuánto se gana cada barbero y cuánto le entrega a su jefe */}
-      {!loading && invoices.length > 0 && (
-        <Panel title="Resumen por día" subtitle="Cada día: lo que se ganó cada barbero, lo que le entrega a su jefe y con cuánto se queda cada dueño">
-          <DailySummary items={invoices.filter((i) => isCompleted(i.booking))} />
+      {/* Días: como en Reservas, con lo que se generó cada uno; al tocar uno se ve su resumen */}
+      <div className="flex items-stretch gap-2">
+        <button type="button" onClick={() => pickDay(addDays(day, -1))} aria-label="Día anterior" className="hidden sm:flex shrink-0 w-9 rounded-2xl border border-white/10 text-zinc-400 hover:text-gold hover:border-gold/40 items-center justify-center">
+          <ChevronLeft size={16} />
+        </button>
+        <div ref={stripRef} className="flex-1 flex gap-2 overflow-x-auto pb-2 -mx-1 px-1" style={{ scrollbarWidth: 'thin' }}>
+          {stripDays.map((d) => {
+            const selected = period === 'dia' && d === day;
+            const earned = earnedOn(d);
+            return (
+              <button
+                key={d}
+                data-day={d}
+                type="button"
+                onClick={() => pickDay(d)}
+                aria-pressed={selected}
+                className={`relative flex flex-col items-center min-w-[70px] px-2.5 py-2 rounded-2xl border shrink-0 transition-all ${
+                  selected ? 'border-gold bg-gold/15' : d === today ? 'border-emerald-500/40 bg-emerald-500/[0.06]' : 'border-white/10 bg-white/[0.03] hover:border-white/25'
+                }`}
+              >
+                <span className={`text-[10px] font-semibold uppercase ${selected ? 'text-gold' : d === today ? 'text-emerald-300' : 'text-zinc-500'}`}>
+                  {d === today ? 'Hoy' : d === addDays(today, -1) ? 'Ayer' : dayShort(d)}
+                </span>
+                <span className={`text-lg font-bold font-mono ${selected ? 'text-gold' : 'text-white'}`}>{dayOfMonth(d)}</span>
+                <span className="text-[10px] text-zinc-500">{monthShort(d)}</span>
+                <span className={`mt-1 text-[10px] font-mono font-semibold px-1.5 rounded-full ${earned ? (selected ? 'bg-gold text-dark' : 'bg-gold/15 text-gold') : 'text-zinc-700'}`}>
+                  {earned ? formatCOP(earned) : '—'}
+                </span>
+              </button>
+            );
+          })}
+        </div>
+        <button type="button" onClick={() => day < today && pickDay(addDays(day, 1))} disabled={day >= today} aria-label="Día siguiente" className="hidden sm:flex shrink-0 w-9 rounded-2xl border border-white/10 text-zinc-400 hover:text-gold hover:border-gold/40 items-center justify-center disabled:opacity-30">
+          <ChevronRight size={16} />
+        </button>
+        <label title="Ir a otra fecha" className="relative shrink-0 w-11 rounded-2xl border border-gold/40 text-gold hover:bg-gold/10 flex items-center justify-center cursor-pointer">
+          <CalendarDays size={17} />
+          <input
+            type="date"
+            value={day}
+            max={today}
+            onChange={(e) => { if (e.target.value) pickDay(e.target.value); }}
+            onClick={(e) => { try { e.currentTarget.showPicker(); } catch { /* el navegador abre su propio calendario */ } }}
+            className="absolute inset-0 w-full h-full opacity-0 cursor-pointer [color-scheme:dark]"
+            aria-label="Escoger día"
+          />
+        </label>
+      </div>
+
+      {/* Resumen: del día escogido, o día por día del periodo */}
+      {!loading && (
+        <Panel
+          title={period === 'dia' ? `Resumen del ${formatDateLong(day).toLowerCase()}` : 'Resumen por día'}
+          subtitle="Lo que se ganó cada barbero, lo que le entrega a su jefe y con cuánto se queda cada dueño"
+        >
+          {invoices.some((i) => isCompleted(i.booking)) ? (
+            <DailySummary items={invoices.filter((i) => isCompleted(i.booking))} />
+          ) : (
+            <p className="py-8 text-center text-sm text-zinc-500">
+              {period === 'dia' ? 'Ese día no hay servicios completados.' : 'No hay servicios completados en este periodo.'}
+            </p>
+          )}
         </Panel>
       )}
 
