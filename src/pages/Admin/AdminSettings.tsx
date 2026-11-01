@@ -3,7 +3,7 @@ import {
   Store, Clock, CalendarX, ShieldCheck, ListChecks, Save, Loader2, CheckCircle2, AlertCircle, Trash2, Plus,
   Eye, EyeOff, KeyRound, Users, Megaphone, MessageCircle, QrCode, Download, Printer, Copy, ExternalLink, Check,
 } from 'lucide-react';
-import { currentSettings, saveSettings, DAYS_AHEAD_OPTIONS, type EditableSettings } from '../../services/settings';
+import { currentSettings, saveSettings, saveDays, SETTINGS_EVENT, DAYS_AHEAD_OPTIONS, type EditableSettings, type DayChange } from '../../services/settings';
 import { changeAdminPassword, currentAdminEmail, AdminAuthError } from '../../services/adminAuth';
 import { getBarbers, updateBarber } from '../../services/barbers';
 import { noticeStart } from '../../lib/businessHours';
@@ -246,12 +246,19 @@ function SpecialDaysTab() {
   const [status, setStatus] = useState<Status>(null);
 
   const upcoming = days.filter((d) => d.date >= today).sort((a, b) => a.date.localeCompare(b.date));
+  // Lo que se cierre o abra en Turnos o en la Agenda aparece aquí al momento
+  useEffect(() => {
+    const onChange = () => setDays(currentSettings().specialDays);
+    window.addEventListener(SETTINGS_EVENT, onChange);
+    return () => window.removeEventListener(SETTINGS_EVENT, onChange);
+  }, []);
 
-  const persist = async (next: SpecialDay[], okText: string) => {
+  // Solo se cambia esa fecha en la base (no se pisa lo guardado desde Turnos o la Agenda)
+  const persist = async (changes: Record<string, DayChange>, okText: string) => {
     setSaving(true);
     setStatus(null);
     try {
-      await saveSettings({ specialDays: next });
+      await saveDays(changes);
       setDays(currentSettings().specialDays);
       setStatus({ kind: 'ok', text: okText });
       return true;
@@ -268,16 +275,15 @@ function SpecialDaysTab() {
     if (!draft.date || draft.date < today) return setStatus({ kind: 'error', text: 'Elige una fecha de hoy en adelante.' });
     const noticeFrom = draft.noticeFrom && draft.noticeFrom <= draft.date ? draft.noticeFrom : addDays(draft.date, -1);
     const entry: SpecialDay = { date: draft.date, type: draft.type, noticeFrom, ...(draft.note?.trim() ? { note: draft.note.trim() } : {}) };
-    // Quita los días que ya pasaron y reemplaza si la fecha ya existía
-    const next = [...days.filter((d) => d.date >= today && d.date !== draft.date), entry];
-    const ok = await persist(next, `Listo: el ${inSentence(draft.date)} quedó como «${TYPE_LABEL[draft.type]}». El aviso sale desde el ${inSentence(noticeFrom)}.`);
+    // Cerrado: también se quita el ajuste de Turnos de ese día (así Turnos y la Agenda lo ven cerrado)
+    const ok = await persist({ [draft.date]: { special: entry, ...(draft.type === 'closed' ? { override: null } : {}) } }, `Listo: el ${inSentence(draft.date)} quedó como «${TYPE_LABEL[draft.type]}». El aviso sale desde el ${inSentence(noticeFrom)}.`);
     if (ok) {
       setDraft({ date: addDays(draft.date, 1), type: draft.type, note: '', noticeFrom: draft.date });
       setNoticeTouched(false);
     }
   };
 
-  const remove = (date: string) => persist(days.filter((d) => d.date !== date && d.date >= today), `Se quitó el ${inSentence(date)}.`);
+  const remove = (date: string) => persist({ [date]: { special: null } }, `Se quitó el ${inSentence(date)}.`);
 
   return (
     <div className="space-y-5">

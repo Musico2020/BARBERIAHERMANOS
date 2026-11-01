@@ -2,6 +2,7 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import { Clock, Loader2, Users, Sun, Sunset, CalendarX, Minus, Plus, X, ChevronDown, Sparkles } from 'lucide-react';
 import { getServices } from '../../services/services';
 import { getBarbers } from '../../services/barbers';
+import { loadSettings } from '../../services/settings';
 import { getBusySlots, getBusySlotsRange, type BusySlot } from '../../services/bookings';
 import { generateSlots } from '../../lib/availability';
 import { hoursFor, specialDayOf } from '../../lib/businessHours';
@@ -62,6 +63,9 @@ export default function AppointmentStep({ value, onChange, onContinue }: Props) 
 
   // Días que se pueden reservar (businessConfig.daysAhead, editable en Panel → Configuración → Reglas)
   const dates = Array.from({ length: businessConfig.daysAhead }, (_, i) => addDays(todayKey(), i));
+
+  // Al abrir la reserva se vuelve a leer el horario (por si acaban de cerrar o abrir un día)
+  useEffect(() => { void loadSettings(); }, []);
 
   useEffect(() => {
     Promise.all([getServices(), getBarbers()])

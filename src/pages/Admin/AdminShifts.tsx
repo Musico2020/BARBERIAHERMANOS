@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { CalendarX, CalendarCheck, RotateCcw, Save, Loader2, Lock, Unlock, Info, UserCheck, UserX } from 'lucide-react';
 import { getBarbers } from '../../services/barbers';
 import { getBookingsInRange } from '../../services/bookings';
-import { currentSettings, saveSettings, loadSettings } from '../../services/settings';
+import { currentSettings, saveDays, loadSettings, SETTINGS_EVENT, type DayChange } from '../../services/settings';
 import { todayKey, addDays, dayShort, dayOfMonth, monthShort, formatDateLong, minutesToTime, timeToMinutes, time12 } from '../../lib/dates';
 import { regularHoursFor, barberWindowIn } from '../../lib/businessHours';
 import { holidayName } from '../../lib/holidays';
@@ -86,6 +86,16 @@ export default function AdminShifts() {
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [date]);
+  // Si se cerró o abrió un día en otra pantalla (Configuración, Agenda, otro teléfono), se ve aquí
+  useEffect(() => {
+    const onChange = () => {
+      if (dirty) return;
+      setOverrides(currentSettings().dayOverrides);
+      setSpecials(currentSettings().specialDays);
+    };
+    window.addEventListener(SETTINGS_EVENT, onChange);
+    return () => window.removeEventListener(SETTINGS_EVENT, onChange);
+  }, [dirty]);
   const upsert = (o: DayOverride) => change([...overrides.filter((d) => d.date !== o.date), o]);
 
   const toggle = (start: number) => view && upsert(toggleSlot(view, start, target));
@@ -125,13 +135,15 @@ export default function AdminShifts() {
     setSaving(true);
     setMessage(null);
     try {
-      // Sobre lo último guardado se ponen solo los días cambiados aquí (no se borran los cambios que
-      // hizo un barbero u otra pestaña mientras tanto). Los días que ya pasaron se descartan.
-      await loadSettings();
-      const latest = currentSettings();
-      const mergedOverrides = [...latest.dayOverrides.filter((d) => !edited.has(d.date)), ...overrides.filter((d) => edited.has(d.date))];
-      const mergedSpecials = [...latest.specialDays.filter((d) => !edited.has(d.date)), ...specials.filter((d) => edited.has(d.date))];
-      await saveSettings({ dayOverrides: mergedOverrides.filter((d) => d.date >= today), specialDays: mergedSpecials });
+      // Solo los días cambiados aquí (no se borran los cambios que hizo un barbero u otra pantalla)
+      const changes: Record<string, DayChange> = {};
+      for (const d of edited) {
+        changes[d] = {
+          special: specials.find((x) => x.date === d) ?? null,
+          override: overrides.find((x) => x.date === d) ?? null,
+        };
+      }
+      await saveDays(changes);
       setEdited(new Set());
       setOverrides(currentSettings().dayOverrides);
       setSpecials(currentSettings().specialDays);

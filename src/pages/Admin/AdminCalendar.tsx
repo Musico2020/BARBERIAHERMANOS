@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { ChevronLeft, ChevronRight } from 'lucide-react';
+import { ChevronLeft, ChevronRight, CalendarX, CalendarCheck, Loader2 } from 'lucide-react';
 import { getBookingsInRange, updateBookingDetails, isSlotTakenError } from '../../services/bookings';
 import { getBarbers } from '../../services/barbers';
 import { getAllServices } from '../../services/services';
@@ -10,7 +10,8 @@ import { todayKey, addDays, startOfWeek, dayOfMonth, dayShort, monthShort, time1
 import MobileAgenda from '../../components/admin/MobileAgenda';
 import { useAutoRefresh } from '../../hooks/useAutoRefresh';
 import { businessConfig } from '../../config/business';
-import { lunchFor } from '../../lib/businessHours';
+import { lunchFor, hoursFor, specialDayOf } from '../../lib/businessHours';
+import { saveDays } from '../../services/settings';
 import type { Booking, Barber } from '../../types';
 
 type ViewMode = 'day' | 'week';
@@ -74,6 +75,7 @@ export default function AdminCalendar() {
   const [error, setError] = useState('');
   const [durations, setDurations] = useState<Map<string, number>>(new Map());
   const [reload, setReload] = useState(0);
+  const [dayBusy, setDayBusy] = useState(false);
   const [adding, setAdding] = useState<{ barberId: string; date: string; time: string } | null>(null);
   const [editing, setEditing] = useState<Booking | null>(null);
   const [saved, setSaved] = useState('');
@@ -187,6 +189,50 @@ export default function AdminCalendar() {
           Hoy
         </button>
       </div>
+
+      {/* Estado del día escogido: se cierra o abre aquí igual que en Turnos y Configuración */}
+      {view === 'day' && (() => {
+        const closedBySpecial = specialDayOf(currentDate) === 'closed';
+        const open = !!hoursFor(currentDate);
+        const active = bookings.filter((b) => b.date === currentDate && (b.status === 'pending' || b.status === 'confirmed')).length;
+        const setClosed = async (close: boolean) => {
+          if (close && !window.confirm(`¿Cerrar todo el ${currentDate} para los clientes?${active ? ` Hay ${active} cita(s) que NO se cancelan: avísales o muévelas.` : ''}`)) return;
+          setDayBusy(true);
+          try {
+            await saveDays({ [currentDate]: close ? { special: { date: currentDate, type: 'closed' }, override: null } : { special: null } });
+            setSaved(close ? 'Día cerrado: ya no se ofrece a los clientes ni en Turnos.' : 'Día abierto otra vez con su horario normal.');
+          } catch (err) {
+            console.error('No se pudo cambiar el día', err);
+            setError('No se pudo guardar. Revisa la conexión e intenta de nuevo.');
+          } finally {
+            setDayBusy(false);
+          }
+        };
+        if (open) {
+          return (
+            <div className="flex justify-end">
+              <button onClick={() => setClosed(true)} disabled={dayBusy} className="btn-danger-glass px-4 py-2 rounded-full text-xs font-semibold min-h-[36px] disabled:opacity-60">
+                {dayBusy ? <Loader2 size={14} className="animate-spin" /> : <CalendarX size={14} />} Cerrar este día
+              </button>
+            </div>
+          );
+        }
+        return (
+          <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-rose-500/30 bg-rose-500/10 px-4 py-3">
+            <p className="text-sm text-rose-200">
+              <b>Salón cerrado este día.</b> Los clientes no pueden reservar.
+              {active > 0 && <span className="block text-xs text-amber-300 mt-0.5">Tiene {active} cita(s) agendada(s) que no se cancelaron: avísales o muévelas.</span>}
+            </p>
+            {closedBySpecial ? (
+              <button onClick={() => setClosed(false)} disabled={dayBusy} className="btn-gold px-4 py-2 rounded-full text-xs font-bold min-h-[36px] disabled:opacity-60">
+                {dayBusy ? <Loader2 size={14} className="animate-spin" /> : <CalendarCheck size={14} />} <span>Abrir este día</span>
+              </button>
+            ) : (
+              <span className="text-xs text-zinc-400">Normalmente no se trabaja: ábrelo en Turnos.</span>
+            )}
+          </div>
+        );
+      })()}
 
       {/* Teléfono: días en círculos, fotos de los barberos y la línea de tiempo de cada uno */}
       <div className="sm:hidden">

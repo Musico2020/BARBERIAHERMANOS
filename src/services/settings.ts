@@ -106,11 +106,11 @@ export async function loadSettings(): Promise<void> {
 
 /**
  * Mantiene el horario al día en pantallas que quedan abiertas (panel, portal del barbero, reserva):
- * vuelve a leer la configuración cada minuto y al volver a la ventana. Si cambió (p. ej. se cerró el
+ * vuelve a leer la configuración cada 15 segundos y al volver a la ventana. Si cambió (p. ej. se cerró el
  * día o unas horas en Turnos), avisa con SETTINGS_EVENT para que la web se vuelva a dibujar.
  */
 export function startSettingsSync(): () => void {
-  const id = window.setInterval(() => { void loadSettings(); }, 60_000);
+  const id = window.setInterval(() => { void loadSettings(); }, 15_000);
   const onVisible = () => { if (document.visibilityState === 'visible') void loadSettings(); };
   document.addEventListener('visibilitychange', onVisible);
   window.addEventListener('focus', onVisible);
@@ -124,6 +124,26 @@ export function startSettingsSync(): () => void {
 export function currentSettings(): EditableSettings {
   const { tagline, address, phone, whatsapp, email, instagram, tiktok, facebook, hours, holidayHours, specialDays, allowAnyBarber, slotStep, daysAhead, lunch, dayOverrides, deposit } = businessConfig;
   return structuredClone({ tagline, address, phone, whatsapp, email, instagram, tiktok, facebook, hours, holidayHours, specialDays, allowAnyBarber, slotStep, daysAhead, lunch, dayOverrides, deposit });
+}
+
+/** Cambio de una fecha: día especial y/o ajuste de Turnos (null = quitarlo; sin la clave = no tocarlo) */
+export interface DayChange { special?: SpecialDay | null; override?: DayOverride | null }
+
+/**
+ * Cierra, abre o ajusta días cambiando SOLO esas fechas en la base (admin_set_days), sin pisar lo que
+ * otra pantalla haya guardado en los demás días. Lo usan Turnos, Configuración → Días especiales y la
+ * Agenda; así las tres quedan iguales.
+ */
+export async function saveDays(changes: Record<string, DayChange>): Promise<void> {
+  for (const c of Object.values(changes)) {
+    if (c.special && !validSpecialDay(c.special)) throw new Error('INVALID_SPECIAL_DAY');
+    if (c.override && !validDayOverride(c.override)) throw new Error('INVALID_DAY_OVERRIDE');
+  }
+  const { data, error } = await supabase.rpc('admin_set_days', { p_changes: changes });
+  if (error) throw error;
+  apply(data as Partial<EditableSettings>);
+  lastLoaded = JSON.stringify(data);
+  window.dispatchEvent(new Event(SETTINGS_EVENT));
 }
 
 /** Guarda los cambios (solo administradores) y los aplica de inmediato en esta pestaña. */
