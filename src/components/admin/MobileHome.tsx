@@ -75,7 +75,7 @@ export default function MobileHome({ greeting, barbers, clientsCount, todayCount
   }, []);
 
   const name = NAMES[email.toLowerCase()] ?? 'Administrador';
-  const status = openStatus();
+  const status = openStatus(barbers);
   const rated = barbers.filter((b) => b.reviewCount > 0);
   const reviews = rated.reduce((s, b) => s + b.reviewCount, 0);
   const rating = reviews ? (rated.reduce((s, b) => s + b.rating * b.reviewCount, 0) / reviews).toFixed(1) : '—';

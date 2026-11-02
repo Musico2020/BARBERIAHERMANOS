@@ -1,5 +1,5 @@
 import { businessConfig } from '../config/business';
-import { todayKey, nowMinutes, timeToMinutes, addDays } from './dates';
+import { todayKey, nowMinutes, timeToMinutes, minutesToTime, addDays } from './dates';
 import { holidayName } from './holidays';
 import type { BusinessHours, DayOverride, SpecialDay, WorkHours } from '../types';
 import type { BarberDayHours } from '../types';
@@ -134,9 +134,21 @@ function formatHour(time: string): string {
 }
 
 /** Estado en vivo para mostrar "Abierto ahora" / "Cerrado", con la hora de Colombia. */
-export function openStatus(): { open: boolean; label: string } {
+export function openStatus(team?: { id: string; workHours?: WorkHours }[]): { open: boolean; label: string } {
   const todayK = todayKey();
-  const today = hoursFor(todayK);
+  const salon = hoursFor(todayK);
+  // Con el equipo (panel): abierto solo si alguien trabaja, hasta que salga el último, como en la Agenda
+  const windows = team?.length && specialDayOf(todayK) !== 'walk-in'
+    ? team.map((b) => barberHoursFor(todayK, b.workHours, b.id)).filter((w): w is { open: number; close: number } => !!w)
+    : null;
+  const nobodyToday = windows !== null && windows.length === 0;
+  const today = !salon || nobodyToday ? null : windows
+    ? (() => {
+        const open = Math.min(...windows.map((w) => w.open));
+        const close = Math.max(...windows.map((w) => w.close));
+        return { open, close, openLabel: minutesToTime(open), closeLabel: minutesToTime(close) };
+      })()
+    : salon;
   const now = nowMinutes();
   const holiday = holidayName(todayK);
   if (today && now >= today.open && now < today.close) {
@@ -153,7 +165,7 @@ export function openStatus(): { open: boolean; label: string } {
     const date = new Date(Date.UTC(y, m - 1, d + i));
     const key = date.toISOString().slice(0, 10);
     const hours = hoursFor(key);
-    if (!hours || (i === 0 && now >= hours.open)) continue;
+    if (!hours || (i === 0 && (nobodyToday || now >= hours.open))) continue;
     const dayName = businessConfig.hours[(date.getUTCDay() + 6) % 7].day.toLowerCase();
     const when = i === 0 ? 'hoy' : i === 1 ? 'mañana' : `el ${dayName}`;
     return { open: false, label: `Cerrado · abre ${when} a las ${formatHour(hours.openLabel)}` };

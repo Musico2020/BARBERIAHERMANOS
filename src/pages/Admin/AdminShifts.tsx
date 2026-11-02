@@ -1,12 +1,12 @@
-import { useEffect, useMemo, useState } from 'react';
-import { CalendarX, CalendarCheck, RotateCcw, Save, Loader2, Lock, Unlock, Info, UserCheck, UserX } from 'lucide-react';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { CalendarX, CalendarCheck, RotateCcw, Loader2, Lock, Unlock, Info, UserCheck, UserX } from 'lucide-react';
 import { getBarbers } from '../../services/barbers';
 import { getBookingsInRange } from '../../services/bookings';
 import { currentSettings, saveDays, loadSettings, SETTINGS_EVENT, type DayChange } from '../../services/settings';
 import { todayKey, addDays, dayShort, dayOfMonth, monthShort, formatDateLong, minutesToTime, timeToMinutes, time12 } from '../../lib/dates';
 import { regularHoursFor, barberWindowIn } from '../../lib/businessHours';
 import { holidayName } from '../../lib/holidays';
-import { newOverride, slotStarts, slotState, toggleSlot, setAllSlots, normalizeOverride, withBarberDay } from '../../lib/dayShifts';
+import { gridRange, newOverride, slotStarts, slotState, toggleSlot, setAllSlots, normalizeOverride, withBarberDay } from '../../lib/dayShifts';
 import { Panel } from '../../components/admin/ui';
 import BarberAvatar from '../../components/common/BarberAvatar';
 import type { Barber, BarberDayHours, Booking, DayOverride, SpecialDay } from '../../types';
@@ -69,10 +69,12 @@ export default function AdminShifts() {
 
   // Días que se cambiaron aquí: al guardar, solo esos reemplazan lo último guardado
   const [edited, setEdited] = useState<Set<string>>(new Set());
+  const versionRef = useRef(0);
   const change = (nextOverrides: DayOverride[], nextSpecials: SpecialDay[] = specials) => {
     setOverrides(nextOverrides.sort((a, b) => a.date.localeCompare(b.date)));
     setSpecials(nextSpecials);
     setEdited((prev) => new Set(prev).add(date));
+    versionRef.current += 1;
     setDirty(true);
     setMessage(null);
   };
@@ -99,7 +101,13 @@ export default function AdminShifts() {
   const upsert = (o: DayOverride) => change([...overrides.filter((d) => d.date !== o.date), o]);
 
   const toggle = (start: number) => view && upsert(toggleSlot(view, start, target));
-  const setAll = (closed: boolean) => view && upsert(setAllSlots(view, target, closed));
+  const setAll = (closed: boolean) => {
+    if (!view) return;
+    // Cerrar todo cierra de verdad: también las horas propias de los barberos fuera del horario del salón
+    if (closed && !target) return closeDay();
+    if (closed && targetBarber) return setBarberDay(targetBarber, { off: true });
+    upsert(setAllSlots(view, target, closed));
+  };
   const setHours = (field: 'open' | 'close', value: string) => {
     if (!view) return;
     const next = { ...view, [field]: value };
@@ -107,7 +115,14 @@ export default function AdminShifts() {
       setMessage({ kind: 'error', text: 'La hora de cierre debe ser después de la apertura.' });
       return;
     }
-    upsert(normalizeOverride(next));
+    // El horario del salón manda: nadie queda ofreciendo horas por fuera del que se acaba de poner
+    const barberDays = Object.fromEntries(Object.entries(next.barbers ?? {}).map(([id, day]) => {
+      if (day.off) return [id, day];
+      const open = day.open > next.open ? day.open : next.open;
+      const close = day.close < next.close ? day.close : next.close;
+      return [id, open < close ? { open, close } : { off: true as const }];
+    }));
+    upsert(normalizeOverride(next.barbers ? { ...next, barbers: barberDays } : next));
   };
   const closeDay = () =>
     change(overrides.filter((d) => d.date !== date), [...specials.filter((d) => d.date !== date), { date, type: 'closed' }]);
@@ -131,31 +146,49 @@ export default function AdminShifts() {
   const setBarberDay = (barber: Barber, day: BarberDayHours | undefined) => upsert(withBarberDay(view ?? newOverride(date), barber.id, day));
   const resetDay = () => change(overrides.filter((d) => d.date !== date), specials.filter((d) => d.date !== date));
 
-  const save = async () => {
+  // Todo se guarda solo, al momento: lo que se ve aquí es lo que ven la Agenda, el panel y los clientes
+  const latest = useRef({ edited, specials, overrides });
+  latest.current = { edited, specials, overrides };
+  const saveNow = async () => {
+    const current = latest.current;
+    if (current.edited.size === 0) return;
+    const version = versionRef.current;
     setSaving(true);
-    setMessage(null);
     try {
       // Solo los días cambiados aquí (no se borran los cambios que hizo un barbero u otra pantalla)
       const changes: Record<string, DayChange> = {};
-      for (const d of edited) {
+      for (const d of current.edited) {
         changes[d] = {
-          special: specials.find((x) => x.date === d) ?? null,
-          override: overrides.find((x) => x.date === d) ?? null,
+          special: current.specials.find((x) => x.date === d) ?? null,
+          override: current.overrides.find((x) => x.date === d) ?? null,
         };
       }
       await saveDays(changes);
-      setEdited(new Set());
-      setOverrides(currentSettings().dayOverrides);
-      setSpecials(currentSettings().specialDays);
-      setDirty(false);
-      setMessage({ kind: 'ok', text: 'Turnos guardados. La web ya muestra los cambios.' });
+      // Si mientras tanto se tocó algo más, se guarda en la siguiente vuelta
+      if (versionRef.current === version) {
+        setEdited(new Set());
+        setOverrides(currentSettings().dayOverrides);
+        setSpecials(currentSettings().specialDays);
+        setDirty(false);
+        setMessage({ kind: 'ok', text: 'Guardado. Los clientes, la Agenda y el panel ya lo ven así.' });
+      }
     } catch (err) {
       console.error('No se pudieron guardar los turnos', err);
-      setMessage({ kind: 'error', text: 'No se pudieron guardar los cambios. Revisa la conexión e intenta de nuevo.' });
+      setMessage({ kind: 'error', text: 'No se pudo guardar: este cambio todavía NO está aplicado. Revisa la conexión y reintenta.' });
     } finally {
       setSaving(false);
     }
   };
+  useEffect(() => {
+    if (!dirty) return;
+    const timer = window.setTimeout(() => { void saveNow(); }, 350);
+    return () => window.clearTimeout(timer);
+     
+  }, [dirty, overrides, specials]);
+  // Si se sale de Turnos enseguida de tocar algo, también se guarda
+  useEffect(() => () => { void saveNow(); },
+     
+    []);
 
   const status = special?.type === 'closed'
     ? { tone: 'text-rose-300', text: 'Cerrado todo el día' }
@@ -174,7 +207,8 @@ export default function AdminShifts() {
   const activeBookings = bookings.filter(isActive);
   const bookingsAt = (start: number) =>
     activeBookings.filter((b) => (!target || b.barberId === target) && timeToMinutes(b.time) >= start && timeToMinutes(b.time) < start + 30);
-  const slots = view ? slotStarts(view.open, view.close) : [];
+  const gridSpan = view ? (targetBarber ? gridRange(view, targetWindow) : view) : null;
+  const slots = gridSpan ? slotStarts(gridSpan.open, gridSpan.close) : [];
   // Para un barbero, fuera de su horario de ese día la media hora es «No trabaja»
   const outside = (s: number) => !!targetBarber && (!targetWindow || s < targetWindow.open || s + 30 > targetWindow.close);
   const closedCount = view ? slots.filter((s) => outside(s) || slotState(view, s, target) !== 'open').length : 0;
@@ -185,8 +219,8 @@ export default function AdminShifts() {
         <p className="section-label">Turnos</p>
         <h2 className="font-serif text-2xl sm:text-3xl font-bold text-white mt-1">Abrir o cerrar horas</h2>
         <p className="text-zinc-400 text-sm mt-1 max-w-2xl">
-          Elige el día y para quién. Toca cada media hora para cerrarla o abrirla. Las horas cerradas no se
-          ofrecen en la web ni en el chat. Las citas que ya estaban reservadas no se cancelan.
+          Elige el día y para quién. Toca cada media hora para cerrarla o abrirla: se guarda solo, al momento.
+          Las horas cerradas no se ofrecen en la web ni en el chat. Las citas que ya estaban reservadas no se cancelan.
         </p>
       </div>
 
@@ -322,6 +356,11 @@ export default function AdminShifts() {
                     {TIME_OPTIONS.map((t) => <option key={t} value={t}>{hour12(timeToMinutes(t))}</option>)}
                   </select>
                 </label>
+                {targetWindow.open < 12 * 60 && targetWindow.close > 12 * 60 && (
+                  <button onClick={() => setBarberDay(targetBarber, { open: minutesToTime(targetWindow.open), close: '12:00' })} className="btn-dark-glass px-3.5 py-2 rounded-xl text-xs font-semibold min-h-[38px]">
+                    <Lock size={13} /> Cerrar la tarde
+                  </button>
+                )}
                 <button onClick={() => setBarberDay(targetBarber, { off: true })} className="btn-danger-glass px-3.5 py-2 rounded-xl text-xs font-semibold min-h-[38px]">
                   <UserX size={13} /> No trabaja este día
                 </button>
@@ -437,12 +476,12 @@ export default function AdminShifts() {
         <div className="fixed bottom-4 left-4 right-4 lg:left-[15rem] z-40">
           <div className="max-w-3xl mx-auto flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-gold/30 bg-[#161616] shadow-2xl px-4 py-3">
             <p className={`text-sm ${message?.kind === 'error' ? 'text-rose-300' : message?.kind === 'ok' ? 'text-emerald-300' : 'text-zinc-300'}`}>
-              {message?.text ?? 'Tienes cambios sin guardar.'}
+              {message?.text ?? 'Guardando…'}
             </p>
-            {dirty && (
-              <button onClick={save} disabled={saving} className="btn-gold px-5 py-2 rounded-full text-sm font-bold min-h-[40px] disabled:opacity-60">
-                {saving ? <Loader2 size={15} className="animate-spin" /> : <Save size={15} />}
-                <span>Guardar cambios</span>
+            {dirty && message?.kind === 'error' && (
+              <button onClick={() => { void saveNow(); }} disabled={saving} className="btn-gold px-5 py-2 rounded-full text-sm font-bold min-h-[40px] disabled:opacity-60">
+                {saving ? <Loader2 size={15} className="animate-spin" /> : <RotateCcw size={15} />}
+                <span>Reintentar</span>
               </button>
             )}
           </div>

@@ -1,12 +1,12 @@
-import { useMemo, useState } from 'react';
-import { Save, Loader2, Lock, Unlock, Info, UserCheck, UserX } from 'lucide-react';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { Loader2, Lock, Unlock, Info, RotateCcw, UserCheck, UserX } from 'lucide-react';
 import { setBarberDayClosures, setBarberDayHours, type DayClosuresResult } from '../../services/barberPortal';
 import { loadSettings } from '../../services/settings';
 import { businessConfig } from '../../config/business';
 import { todayKey, addDays, dayShort, dayOfMonth, monthShort, formatDateLong, minutesToTime, timeToMinutes, time12 } from '../../lib/dates';
 import { bookingHoursFor, barberHoursFor, regularHoursFor, specialDayOf } from '../../lib/businessHours';
 import { holidayName } from '../../lib/holidays';
-import { newOverride, slotStarts, slotState, toggleSlot, setAllSlots } from '../../lib/dayShifts';
+import { gridRange, newOverride, slotStarts, slotState, toggleSlot, setAllSlots } from '../../lib/dayShifts';
 import { Panel } from '../../components/admin/ui';
 import type { Barber, Booking, DayOverride } from '../../types';
 
@@ -39,11 +39,12 @@ export default function BarberShifts({ barber, pin, appts }: { barber: Barber; p
   const open = !!bookingHoursFor(date);
   const saved = businessConfig.dayOverrides.find((d) => d.date === date) ?? null;
   const view: DayOverride | null = open ? drafts[date] ?? saved ?? newOverride(date) : null;
-  const slots = view ? slotStarts(view.open, view.close) : [];
+  // Su horario de ese día (el mismo que ve la Agenda y la web): la cuadrícula muestra toda su jornada
+  const myWindow = open ? barberHoursFor(date, barber.workHours, barber.id) : null;
+  const span = view ? gridRange(view, myWindow) : null;
+  const slots = span ? slotStarts(span.open, span.close) : [];
   const mineClosed = view ? slots.filter((s) => slotState(view, s, barber.id) === 'closed').length : 0;
   const dirty = !!drafts[date];
-  // Su horario de ese día (el mismo que ve la Agenda y la web)
-  const myWindow = open ? barberHoursFor(date, barber.workHours, barber.id) : null;
   const outside = (s: number) => !myWindow || s < myWindow.open || s + 30 > myWindow.close;
   const [openFrom, setOpenFrom] = useState('');
   const [openTo, setOpenTo] = useState('');
@@ -75,31 +76,51 @@ export default function BarberShifts({ barber, pin, appts }: { barber: Barber; p
     setMessage(null);
   };
 
-  const save = async () => {
-    if (!view) return;
+  // Las horas se guardan solas, al momento (no hay que tocar ningún botón)
+  const draftsRef = useRef(drafts);
+  draftsRef.current = drafts;
+  const saveDrafts = async () => {
+    const pending = Object.entries(draftsRef.current);
+    if (!pending.length) return;
     setSaving(true);
-    setMessage(null);
     try {
-      const mine = view.closed.filter((r) => r.barberId === barber.id).map(({ start, end }) => ({ start, end }));
-      const result = await setBarberDayClosures(barber.id, pin, date, mine);
-      if (result !== 'OK') {
-        setMessage({ kind: 'error', text: ERRORS[result] ?? 'No se pudo guardar.' });
-        return;
+      for (const [day, draft] of pending) {
+        const mine = draft.closed.filter((r) => r.barberId === barber.id).map(({ start, end }) => ({ start, end }));
+        const result = await setBarberDayClosures(barber.id, pin, day, mine);
+        if (result !== 'OK') {
+          setMessage({ kind: 'error', text: ERRORS[result] ?? 'No se pudo guardar.' });
+          return;
+        }
+        // Si mientras tanto tocó otra hora, ese cambio se guarda en la siguiente vuelta
+        setDrafts((prev) => {
+          if (prev[day] !== draft) return prev;
+          const rest = { ...prev };
+          delete rest[day];
+          return rest;
+        });
       }
       // Se vuelve a leer la configuración para ver lo guardado (y lo que haya cambiado el administrador)
       await loadSettings();
-      const rest = { ...drafts };
-      delete rest[date];
-      setDrafts(rest);
       setVersion((v) => v + 1);
-      setMessage({ kind: 'ok', text: mine.length ? 'Listo: esas horas ya no se ofrecen en la web.' : 'Listo: todas tus horas de ese día están abiertas.' });
+      setMessage({ kind: 'ok', text: 'Listo: ya quedó así para los clientes y en la Agenda.' });
     } catch (err) {
       console.error('No se pudieron guardar los turnos del barbero', err);
-      setMessage({ kind: 'error', text: 'No se pudo guardar. Revisa tu conexión e intenta de nuevo.' });
+      setMessage({ kind: 'error', text: 'No se pudo guardar: este cambio todavía NO está aplicado. Revisa tu conexión y reintenta.' });
     } finally {
       setSaving(false);
     }
   };
+  const hasDrafts = Object.keys(drafts).length > 0;
+  useEffect(() => {
+    if (!hasDrafts) return;
+    const timer = window.setTimeout(() => { void saveDrafts(); }, 350);
+    return () => window.clearTimeout(timer);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [drafts]);
+  // Si sale de Turnos enseguida de tocar algo, también se guarda
+  useEffect(() => () => { void saveDrafts(); },
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    []);
 
   const bookedAt = (start: number) =>
     appts.filter((b) => b.date === date && isActive(b) && timeToMinutes(b.time) >= start && timeToMinutes(b.time) < start + 30).length;
@@ -135,10 +156,10 @@ export default function BarberShifts({ barber, pin, appts }: { barber: Barber; p
 
       <Panel
         title={formatDateLong(date)}
-        subtitle={view ? `De ${time12(view.open)} a ${time12(view.close)} · ${slots.length - mineClosed} horas abiertas, ${mineClosed} cerradas por ti` : 'El salón no recibe reservas este día'}
+        subtitle={view && span ? `De ${time12(span.open)} a ${time12(span.close)} · ${slots.length - mineClosed} horas abiertas, ${mineClosed} cerradas por ti` : 'El salón no recibe reservas este día'}
         action={view && (
           <div className="flex gap-2">
-            <button onClick={() => change(setAllSlots(view, barber.id, true))} className="btn-dark-glass px-3.5 py-2 rounded-xl text-xs font-semibold min-h-[38px]">
+            <button onClick={() => change(setAllSlots(view, barber.id, true, span ?? undefined))} className="btn-dark-glass px-3.5 py-2 rounded-xl text-xs font-semibold min-h-[38px]">
               <Lock size={13} /> Cerrar todo el día
             </button>
             <button onClick={() => change(setAllSlots(view, barber.id, false))} className="btn-dark-glass px-3.5 py-2 rounded-xl text-xs font-semibold min-h-[38px]">
@@ -195,6 +216,11 @@ export default function BarberShifts({ barber, pin, appts }: { barber: Barber; p
                       {TIME_OPTIONS.map((t) => <option key={t} value={t}>{time12(t)}</option>)}
                     </select>
                   </label>
+                  {myWindow.open < 12 * 60 && myWindow.close > 12 * 60 && (
+                    <button onClick={() => saveHours({ open: minutesToTime(myWindow.open), close: '12:00' })} disabled={saving} className="btn-dark-glass px-3.5 py-2 rounded-xl text-xs font-semibold min-h-[38px]">
+                      <Lock size={13} /> Cerrar mi tarde
+                    </button>
+                  )}
                   <button onClick={() => saveHours({ off: true })} disabled={saving} className="btn-danger-glass px-3.5 py-2 rounded-xl text-xs font-semibold min-h-[38px]">
                     <UserX size={13} /> No trabajo este día
                   </button>
@@ -249,12 +275,12 @@ export default function BarberShifts({ barber, pin, appts }: { barber: Barber; p
       {(dirty || message) && (
         <div className="sticky bottom-24 lg:bottom-4 z-30 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-gold/30 bg-[#161616] shadow-2xl px-4 py-3">
           <p className={`text-sm ${message?.kind === 'error' ? 'text-rose-300' : message?.kind === 'ok' ? 'text-emerald-300' : 'text-zinc-300'}`}>
-            {message?.text ?? 'Tienes cambios sin guardar en este día.'}
+            {message?.text ?? 'Guardando…'}
           </p>
-          {dirty && (
-            <button onClick={save} disabled={saving} className="btn-gold px-5 py-2 rounded-full text-sm font-bold min-h-[40px] disabled:opacity-60">
-              {saving ? <Loader2 size={15} className="animate-spin" /> : <Save size={15} />}
-              <span>Guardar</span>
+          {dirty && message?.kind === 'error' && (
+            <button onClick={() => { void saveDrafts(); }} disabled={saving} className="btn-gold px-5 py-2 rounded-full text-sm font-bold min-h-[40px] disabled:opacity-60">
+              {saving ? <Loader2 size={15} className="animate-spin" /> : <RotateCcw size={15} />}
+              <span>Reintentar</span>
             </button>
           )}
         </div>

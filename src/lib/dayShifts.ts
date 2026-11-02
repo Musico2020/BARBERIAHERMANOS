@@ -15,6 +15,15 @@ export function newOverride(date: string): DayOverride {
   return { date, open: hours.open, close: hours.close, closed };
 }
 
+/** Horas que se muestran de un barbero: las del salón ese día más su horario propio (puede ser más amplio). */
+export function gridRange(o: DayOverride, win: { open: number; close: number } | null): { open: string; close: string } {
+  if (!win) return { open: o.open, close: o.close };
+  return {
+    open: minutesToTime(Math.min(timeToMinutes(o.open), win.open)),
+    close: minutesToTime(Math.max(timeToMinutes(o.close), win.close)),
+  };
+}
+
 /** Inicio (en minutos) de cada media hora entre la apertura y el cierre. */
 export function slotStarts(open: string, close: string): number[] {
   const list: number[] = [];
@@ -45,9 +54,11 @@ function toRanges(starts: number[], barberId?: string): ClosedRange[] {
 
 /** Medias horas cerradas de un alcance (todo el salón o un barbero), dentro del horario del día. */
 function closedStarts(o: DayOverride, barberId: string | null): number[] {
-  return slotStarts(o.open, o.close).filter((s) =>
-    o.closed.some((r) => (barberId ? r.barberId === barberId : !r.barberId) && covers(r, s)),
-  );
+  // Las de un barbero se conservan todas: pueden estar en su horario propio, por fuera del salón
+  if (barberId) {
+    return o.closed.filter((r) => r.barberId === barberId).flatMap((r) => slotStarts(r.start, r.end));
+  }
+  return slotStarts(o.open, o.close).filter((s) => o.closed.some((r) => !r.barberId && covers(r, s)));
 }
 
 /** Rehace los rangos guardados quitando lo que quedó fuera del horario del día. */
@@ -77,7 +88,8 @@ export function withBarberDay(o: DayOverride, barberId: string, day: BarberDayHo
 }
 
 /** Cierra o abre todas las medias horas del día para un alcance. */
-export function setAllSlots(o: DayOverride, barberId: string | null, closed: boolean): DayOverride {
+export function setAllSlots(o: DayOverride, barberId: string | null, closed: boolean, range?: { open: string; close: string }): DayOverride {
   const others = o.closed.filter((r) => (barberId ? r.barberId !== barberId : !!r.barberId));
-  return normalizeOverride({ ...o, closed: closed ? [...others, ...toRanges(slotStarts(o.open, o.close), barberId ?? undefined)] : others });
+  const span = range ?? o;
+  return normalizeOverride({ ...o, closed: closed ? [...others, ...toRanges(slotStarts(span.open, span.close), barberId ?? undefined)] : others });
 }

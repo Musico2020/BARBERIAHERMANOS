@@ -114,7 +114,7 @@ export default function AdminDashboard({ onNavigate, onLogout }: { onNavigate?: 
   useAutoRefresh(load, []);
 
   const today = todayKey();
-  const status = openStatus();
+  const status = openStatus(barbers);
   const range = monthToDate(today);
   const month = inRange(bookings, range.from, range.to);
   const prevMonth = inRange(bookings, range.prevFrom, range.prevTo);
