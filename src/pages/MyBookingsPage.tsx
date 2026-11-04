@@ -712,7 +712,7 @@ export default function MyBookingsPage() {
                       <button
                         type="button"
                         onClick={() => setCancelTarget(next)}
-                        className="flex-1 min-w-[140px] py-2.5 px-4 rounded-xl bg-white/5 hover:bg-rose-500/10 border border-white/15 hover:border-rose-500/30 text-zinc-300 hover:text-rose-300 font-semibold text-sm inline-flex items-center justify-center gap-2 transition-all"
+                        className="flex-1 min-w-[140px] py-2.5 px-4 rounded-xl bg-rose-500/10 hover:bg-rose-500/20 border border-rose-500/40 text-rose-300 font-semibold text-sm inline-flex items-center justify-center gap-2 transition-all"
                       >
                         <XCircle size={16} /> Cancelar cita
                       </button>
